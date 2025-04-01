@@ -1,0 +1,10 @@
+Flask
+Flask-SQLAlchemy
+Flask-Migrate
+Flask-JWT-Extended
+Flask-Marshmallow
+marshmallow-sqlalchemy
+python-dotenv
+psycopg2-binary
+passlib[bcrypt]
+Flask-Cors
