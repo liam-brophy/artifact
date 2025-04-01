@@ -4,6 +4,8 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
+import redis # Import redis
+from datetime import timedelta # Needed for blocklist expiration
 
 # Corrected import using absolute path
 from server.config import get_config # Import ONLY get_config
@@ -14,18 +16,41 @@ migrate = Migrate()
 jwt = JWTManager()
 cors = CORS()
 
+
+try:
+    redis_client = redis.from_url(get_config().REDIS_URL, decode_responses=True)
+    redis_client.ping() # Check connection
+    print("INFO: Connected to Redis for JWT blocklist.")
+except Exception as e:
+    print(f"WARN: Could not connect to Redis at {get_config().REDIS_URL}. JWT blocklist disabled. Error: {e}")
+    redis_client = None # Set to None if connection fails
+
+
 # Corrected function definition - removed default argument using get_config_name
 def create_app():
     """Application Factory Pattern"""
     app = Flask(__name__)
     app_config = get_config() # Call the function to get the config object
     app.config.from_object(app_config) # Load config from the object
+    app.redis_client = redis_client
 
     # Initialize extensions with the app instance
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
     cors.init_app(app, resources={r"/api/*": {"origins": "*"}}) # Adjust origins for production
+
+    # --- Configure JWT Blocklisting ---
+    if app.config.get("JWT_BLOCKLIST_ENABLED") and redis_client:
+        @jwt.token_in_blocklist_loader
+        def check_if_token_revoked(jwt_header, jwt_payload):
+            jti = jwt_payload["jti"]
+            # Check if the token JTI exists in Redis (prefixed for clarity)
+            token_in_redis = app.redis_client.get(f"blocklist_jti:{jti}")
+            return token_in_redis is not None # Returns True if revoked (in blocklist)
+    else:
+         print("INFO: JWT blocklisting is disabled (JWT_BLOCKLIST_ENABLED=False or Redis unavailable).")
+    # --- End Blocklist Config ---
 
     # --- Critical: Import models AFTER db is initialized and within app context ---
     with app.app_context():

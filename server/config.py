@@ -8,10 +8,17 @@ class Config:
     """Base configuration."""
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'you-will-never-guess'
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'super-secret-jwt'
+    JWT_BLOCKLIST_ENABLED = True
+    JWT_BLOCKLIST_TOKEN_CHECKS = ['access', 'refresh']
+    # REDIS_URL = os.environ.get('REDIS_URL') or "redis://localhost:6379/0"
 
     # Database configuration
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     SQLALCHEMY_TRACK_MODIFICATIONS = False # Disable modification tracking
+
+    GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
+
+    # REDIS_URL="redis://localhost:6379/0"
 
     # JWT Configuration (optional: customize token locations, expiration, etc.)
     # JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
