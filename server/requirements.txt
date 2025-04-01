@@ -8,3 +8,4 @@ python-dotenv
 psycopg2-binary
 passlib[bcrypt]
 Flask-Cors
+boto3

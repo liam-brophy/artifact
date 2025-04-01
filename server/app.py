@@ -29,13 +29,11 @@ def create_app():
 
     # --- Critical: Import models AFTER db is initialized and within app context ---
     with app.app_context():
-        # Import models here using absolute paths
         from server.models.user import User
         from server.models.artwork import Artwork
-        from server.models.collection import Collection # Add Collection
-        from server.models.user_follow import UserFollow # Add UserFollow
+        from server.models.collection import Collection
+        from server.models.user_follow import UserFollow
 
-        # Import and Register Blueprints using absolute paths
         from server.routes.auth import auth_bp
         app.register_blueprint(auth_bp, url_prefix='/api/auth')
         from server.routes.artworks import artworks_bp
@@ -43,14 +41,19 @@ def create_app():
         from server.routes.users import users_bp
         app.register_blueprint(users_bp, url_prefix='/api/users')
 
-        # from server.routes.users import users_bp # Add others when they exist
-        # app.register_blueprint(users_bp, url_prefix='/api/users')
-
 
     # Add a simple health check or root route if desired
     @app.route('/')
     def index():
         return jsonify({"status": "API is running!"})
+
+    @app.route('/test-db')
+    def test_db():
+        try:
+            db.session.execute('SELECT 1')
+            return 'Database connection successful!'
+        except Exception as e:
+            return f'Database connection failed: {str(e)}'
 
     # Shell context for `flask shell`
     @app.shell_context_processor

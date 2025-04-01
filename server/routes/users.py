@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from server.models.user import User
 from server.models.artwork import Artwork  # Need Artwork model here
 from server.models.collection import Collection  # Assuming a Collection model exists
-from server.models.userfollow import UserFollow  # Assuming a UserFollow model exists
+from server.models.user_follow import UserFollow  # Assuming a UserFollow model exists
 from server.app import db  # Potentially needed for pagination/complex queries
 
 users_bp = Blueprint('users', __name__)
