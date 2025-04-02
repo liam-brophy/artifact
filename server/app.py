@@ -40,10 +40,10 @@ def create_app():
     jwt.init_app(app)
 
     cors.init_app(app,
-    resources={r"/api/*": {"origins": "*"}}, # Allow all origins for testing
+    resources={r"/api/*": {"origins": "http://localhost:5173"}},  # Your React app URL
     supports_credentials=True,
     methods=["GET", "HEAD", "POST", "OPTIONS", "PUT", "PATCH", "DELETE"],
-    allow_headers=["*"] # Allow all headers for testing
+    allow_headers=["Content-Type", "Authorization"]
 )
     # # --- Configure JWT Blocklisting ---
     # if app.config.get("JWT_BLOCKLIST_ENABLED") and redis_client:
@@ -100,5 +100,5 @@ app = create_app()
 
 
 if __name__ == '__main__':
-    # Use a different port, e.g., 5001
-    app.run(debug=app.config.get('DEBUG', False), port=5001)
+
+    app.run(debug=app.config.get('DEBUG', False), port=5000)

@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-# from server.decorators import artist_required
+from server.services.auth_helper import artist_required
 from server.models.user import User
 from server.models.artwork import Artwork
 from server.app import db
@@ -16,7 +16,7 @@ def check_artist_role(user_id):
 
 # === POST /api/artworks ===
 @artworks_bp.route('', methods=['POST'])
-#@artist_required # Use the decorator if you want to enforce artist role at the route level
+@artist_required # Use the decorator if you want to enforce artist role at the route level
 @jwt_required() # Protect the route
 def create_artwork():
     """Creates a new artwork. Requires artist role."""

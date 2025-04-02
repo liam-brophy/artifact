@@ -1,393 +1,191 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, current_user as jwt_current_user
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import joinedload # For eager loading if needed
 
+# Import necessary models
 from server.models.user import User
-from server.models.artwork import Artwork  # Need Artwork model here
-from server.models.collection import Collection  # Assuming a Collection model exists
-from server.models.user_follow import UserFollow  # Assuming a UserFollow model exists
-from server.app import db  # Potentially needed for pagination/complex queries
+from server.models.artwork import Artwork
+from server.models.collection import Collection
+from server.models.user_follow import UserFollow
+from server.app import db # Import db instance
 
 users_bp = Blueprint('users', __name__)
 
+# --- Constants ---
+DEFAULT_PAGE_LIMIT = 20
+MAX_PAGE_LIMIT = 100
 
-# --- Helper Function for Patron Check ---
-def check_patron_role(user_id):
-    user = User.query.get(user_id)
-    if not user or user.role != 'patron':
-        return False, jsonify({"error": {"code": "AUTH_004", "message": "Action requires patron role."}}), 403
-    return True, user, None
-
-
-# --- Helper Function for Artist Check (for target user) ---
-def check_target_is_artist(user_id):
-    user = User.query.get(user_id)
-    if not user:
-        return False, jsonify({"error": {"code": "USER_001", "message": "Target user not found."}}), 404
-    if user.role != 'artist':
-        return False, jsonify({"error": {"code": "FOLLOW_005", "message": "Target user is not an artist."}}), 400  # Use 400 Bad Request
-    return True, user, None
-
-
-# === GET /api/users/:user_id/created-artworks ===
-@users_bp.route('/<int:user_id>/created-artworks', methods=['GET'])
-@jwt_required()
-def get_user_created_artworks(user_id):
-    """Gets artworks created by a specific user (artist)."""
-    current_user_id = get_jwt_identity()
-
-    # --- Authorization ---
-    if current_user_id != user_id:
-        return jsonify({"error": {"code": "AUTH_004", "message": "Cannot view created artworks for another user."}}), 403
-
-    user = User.query.get(user_id)
-    if not user:
-         return jsonify({"error": {"code": "USER_001", "message": "User not found."}}), 404
-
-    if user.role != 'artist':
-         return jsonify({"error": {"code": "AUTH_004", "message": "User is not an artist."}}), 403
-    # --- End Authorization ---
-
-    # --- Pagination ---
+# --- Helper for Pagination Args ---
+def get_pagination_args():
     page = request.args.get('page', 1, type=int)
-    limit = request.args.get('limit', 20, type=int)
-    limit = max(1, min(limit, 100))
+    limit = request.args.get('limit', DEFAULT_PAGE_LIMIT, type=int)
+    limit = max(1, min(limit, MAX_PAGE_LIMIT)) # Clamp limit
+    return page, limit
 
-    pagination = Artwork.query.filter_by(artist_id=user_id)\
-                              .order_by(Artwork.created_at.desc())\
-                              .paginate(page=page, per_page=limit, error_out=False)
+# --- NEW: Endpoint to get public user profile by username ---
+@users_bp.route('/<string:username>', methods=['GET'])
+@jwt_required(optional=True) # Allow anonymous access, but check identity if token exists
+def get_user_profile(username):
+    """Gets public profile data for a user by username."""
+    current_user_id = get_jwt_identity() # Returns None if no valid token
 
-    artworks = pagination.items
-    total_items = pagination.total
-    total_pages = pagination.pages
-    # --- End Pagination ---
-
-    # --- Serialization ---
-    # Using .to_dict() with only argument to return the required fields.
-    artworks_data = [
-        artwork.to_dict(only=["artwork_id", "title", "description", "created_at"])
-        for artwork in artworks
-    ]
-    # --- End Serialization ---
-
-    response = {
-        "artworks": artworks_data,
-        "pagination": {
-            "total_items": total_items,
-            "total_pages": total_pages,
-            "current_page": page,
-            "limit": limit
-        }
-    }
-
-    return jsonify(response), 200
-
-
-# === GET /api/users/:user_id/collected-artworks ===
-@users_bp.route('/<int:user_id>/collected-artworks', methods=['GET'])
-@jwt_required()
-def get_user_collected_artworks(user_id):
-    """Gets artworks collected by a specific user (patron)."""
-    current_user_id = get_jwt_identity()
-
-    # --- Authorization: User can only view their own collection ---
-    if current_user_id != user_id:
-        return jsonify({"error": {"code": "AUTH_004", "message": "Cannot view collection for another user."}}), 403
-
-    is_patron, user_or_error, status_code = check_patron_role(current_user_id)
-    if not is_patron:
-        user_exists = User.query.get(current_user_id)
-        if not user_exists:
-            return jsonify({"error": {"code": "USER_001", "message": "User not found."}}), 404
-        else:
-            return user_or_error, status_code
-    # --- End Authorization ---
-
-    # --- Pagination ---
-    page = request.args.get('page', 1, type=int)
-    limit = request.args.get('limit', 20, type=int)
-    limit = max(1, min(limit, 100))
-
-    pagination = user_or_error.collections.order_by(Collection.acquired_at.desc())\
-                                       .paginate(page=page, per_page=limit, error_out=False)
-
-    collection_items = pagination.items
-    total_items = pagination.total
-    total_pages = pagination.pages
-    # --- End Pagination ---
-
-    # --- Serialization ---
-    # Using nested .to_dict() calls on related models to match the spec:
-    # { "collection": [ { "artwork": {...}, "artist": {...}, "acquired_at": ... } ] }
-    final_collection_list = []
-    for item in collection_items:
-        artwork_data = item.artwork.to_dict(only=["artwork_id", "title"])
-        # Assuming the Artwork model includes an artist relationship.
-        artist_data = {}
-        if hasattr(item.artwork, 'artist') and item.artwork.artist:
-            artist_data = item.artwork.artist.to_dict(only=["user_id", "username"])
-        final_collection_list.append({
-            "artwork": artwork_data,
-            "artist": artist_data,
-            "acquired_at": item.acquired_at.isoformat() + 'Z',
-            "transaction_id": item.transaction_id
-        })
-    # --- End Serialization ---
-
-    response = {
-        "collection": final_collection_list,
-        "pagination": {
-            "total_items": total_items,
-            "total_pages": total_pages,
-            "current_page": page,
-            "limit": limit
-        }
-    }
-    return jsonify(response), 200
-
-
-# === POST /api/users/:user_id/collected-artworks ===
-@users_bp.route('/<int:user_id>/collected-artworks', methods=['POST'])
-@jwt_required()
-def add_artwork_to_collection(user_id):
-    """Adds an artwork to the specified user's (patron) collection."""
-    current_user_id = get_jwt_identity()
-
-    # --- Authorization: User can only add to their own collection ---
-    if current_user_id != user_id:
-        return jsonify({"error": {"code": "AUTH_004", "message": "Cannot add to another user's collection."}}), 403
-
-    is_patron, user_or_error, status_code = check_patron_role(current_user_id)
-    if not is_patron:
-         user_exists = User.query.get(current_user_id)
-         if not user_exists:
-             return jsonify({"error": {"code": "USER_001", "message": "User not found."}}), 404
-         else:
-             return user_or_error, status_code
-    # --- End Authorization ---
-
-    data = request.get_json()
-    if not data or 'artwork_id' not in data:
-        return jsonify({"error": {"code": "INVALID_INPUT", "message": "Missing 'artwork_id' in request body."}}), 400
-
-    artwork_id_str = data.get('artwork_id')
-    transaction_id = data.get('transaction_id')  # Optional
-
-    try:
-        artwork_id = int(artwork_id_str)
-    except (ValueError, TypeError):
-        return jsonify({"error": {"code": "INVALID_INPUT", "message": "'artwork_id' must be an integer."}}), 400
-
-    artwork = Artwork.query.get(artwork_id)
-    if not artwork:
-        return jsonify({"error": {"code": "ARTWORK_001", "message": "Artwork not found."}}), 404
-
-    # Check if already in collection
-    exists = Collection.query.filter_by(patron_id=current_user_id, artwork_id=artwork_id).first()
-    if exists:
-        return jsonify({"error": {"code": "COLLECTION_001", "message": "Artwork is already in this collection."}}), 409
-
-    new_collection_item = Collection(
-        patron_id=current_user_id,
-        artwork_id=artwork_id,
-        transaction_id=transaction_id
+    # Fetch the user by username
+    # Use first_or_404 to handle not found cleanly
+    user = User.query.filter_by(username=username).first_or_404(
+        description=f"User with username '{username}' not found."
     )
 
-    try:
-        db.session.add(new_collection_item)
-        db.session.commit()
-    except IntegrityError:
-        db.session.rollback()
-        return jsonify({"error": {"code": "COLLECTION_001", "message": "Artwork is already in this collection (database constraint)."}}), 409
-    except Exception as e:
-        db.session.rollback()
-        print(f"ERROR: Database error adding to collection - {e}")
-        return jsonify({"error": {"code": "DB_ERROR", "message": "Could not add artwork to collection due to database error"}}), 500
+    # --- Calculate Follower and Following Counts ---
+    # Count users following this user (where user.user_id is the followed/artist_id)
+    follower_count = UserFollow.query.filter_by(artist_id=user.user_id).count()
 
-    # --- Serialization for Response ---
-    response_data = {
-        "artwork": artwork.to_dict(only=["artwork_id", "title"]),
-        "acquired_at": new_collection_item.acquired_at.isoformat() + 'Z',
-        "transaction_id": new_collection_item.transaction_id
-    }
-    # --- End Serialization ---
+    # Count users this user is following (where user.user_id is the follower/patron_id)
+    following_count = UserFollow.query.filter_by(patron_id=user.user_id).count()
 
-    return jsonify(response_data), 201
+    # --- Determine if the current logged-in user is following this profile user ---
+    is_following = False
+    if current_user_id and current_user_id != user.user_id:
+        # Check if a follow relationship exists from current_user to this profile user
+        follow_exists = UserFollow.query.filter_by(
+            patron_id=current_user_id, # Logged-in user is the follower
+            artist_id=user.user_id     # Profile user is the followed
+        ).first() is not None
+        is_following = follow_exists
+
+    # --- Serialize Public Profile Data ---
+    # Define fields safe for public view
+    public_fields = ("user_id", "username", "role", "profile_image_url", "bio", "created_at")
+    profile_data = user.to_dict(only=public_fields)
+
+    # Add calculated counts and follow status
+    profile_data['follower_count'] = follower_count
+    profile_data['following_count'] = following_count
+    profile_data['isFollowing'] = is_following # Will be false if not logged in or viewing self
+
+    return jsonify(profile_data), 200
 
 
-# === DELETE /api/users/:user_id/collected-artworks/:artwork_id ===
-@users_bp.route('/<int:user_id>/collected-artworks/<int:artwork_id>', methods=['DELETE'])
+# === POST /api/users/<target_user_id>/follow ===
+# Allows the authenticated user to follow another user (target_user_id)
+@users_bp.route('/<int:target_user_id>/follow', methods=['POST'])
 @jwt_required()
-def remove_artwork_from_collection(user_id, artwork_id):
-    """Removes an artwork from the specified user's (patron) collection."""
+def follow_user(target_user_id):
+    """Allows the authenticated user to follow the target user."""
     current_user_id = get_jwt_identity()
 
-    if current_user_id != user_id:
-        return jsonify({"error": {"code": "AUTH_004", "message": "Cannot remove from another user's collection."}}), 403
+    # Check if target user exists
+    target_user = User.query.get_or_404(target_user_id, description="Target user to follow not found.")
 
-    is_patron, user_or_error, status_code = check_patron_role(current_user_id)
-    if not is_patron:
-         user_exists = User.query.get(current_user_id)
-         if not user_exists:
-             return jsonify({"error": {"code": "USER_001", "message": "User not found."}}), 404
-         else:
-             return user_or_error, status_code
-    # --- End Authorization ---
-
-    collection_item = Collection.query.filter_by(patron_id=current_user_id, artwork_id=artwork_id).first()
-
-    if not collection_item:
-        return jsonify({"error": {"code": "COLLECTION_003", "message": "Artwork not found in this user's collection."}}), 404
-
-    try:
-        db.session.delete(collection_item)
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        print(f"ERROR: Database error removing from collection - {e}")
-        return jsonify({"error": {"code": "DB_ERROR", "message": "Could not remove artwork from collection due to database error"}}), 500
-
-    return '', 204
-
-
-# === POST /api/users/:user_id/following ===
-@users_bp.route('/<int:user_id>/following', methods=['POST'])
-@jwt_required()
-def follow_artist(user_id):
-    """Allows the authenticated user (patron) to follow an artist."""
-    current_user_id = get_jwt_identity()
-
-    if current_user_id != user_id:
-        return jsonify({"error": {"code": "AUTH_004", "message": "Cannot perform follow action for another user."}}), 403
-
-    is_patron, user_or_error, status_code = check_patron_role(current_user_id)
-    if not is_patron:
-         user_exists = User.query.get(current_user_id)
-         if not user_exists:
-             return jsonify({"error": {"code": "USER_001", "message": "User not found."}}), 404
-         else:
-             return user_or_error, status_code
-    # --- End Authorization ---
-
-    data = request.get_json()
-    if not data or 'artist_id' not in data:
-        return jsonify({"error": {"code": "INVALID_INPUT", "message": "Missing 'artist_id' in request body."}}), 400
-
-    artist_id_str = data.get('artist_id')
-
-    try:
-        artist_id = int(artist_id_str)
-    except (ValueError, TypeError):
-        return jsonify({"error": {"code": "INVALID_INPUT", "message": "'artist_id' must be an integer."}}), 400
-
-    if current_user_id == artist_id:
+    # Prevent self-follow
+    if current_user_id == target_user_id:
         return jsonify({"error": {"code": "FOLLOW_004", "message": "Cannot follow yourself."}}), 400
 
-    is_target_artist, target_user_or_error, target_status_code = check_target_is_artist(artist_id)
-    if not is_target_artist:
-        return target_user_or_error, target_status_code
-
-    exists = UserFollow.query.filter_by(patron_id=current_user_id, artist_id=artist_id).first()
+    # Check if already following
+    exists = UserFollow.query.filter_by(
+        patron_id=current_user_id,  # Current user is the follower
+        artist_id=target_user_id    # Target user is the followed
+    ).first()
     if exists:
-        return jsonify({"error": {"code": "FOLLOW_001", "message": "You are already following this artist."}}), 409
+        return jsonify({"error": {"code": "FOLLOW_001", "message": "You are already following this user."}}), 409 # 409 Conflict
 
-    new_follow = UserFollow(patron_id=current_user_id, artist_id=artist_id)
+    # Create the follow relationship
+    new_follow = UserFollow(patron_id=current_user_id, artist_id=target_user_id)
 
     try:
         db.session.add(new_follow)
         db.session.commit()
-    except IntegrityError:
+    except IntegrityError: # Should be caught by the check above, but belt-and-suspenders
         db.session.rollback()
-        return jsonify({"error": {"code": "FOLLOW_001", "message": "You are already following this artist (database constraint)."}}), 409
+        return jsonify({"error": {"code": "FOLLOW_001", "message": "You are already following this user (database constraint)."}}), 409
     except Exception as e:
         db.session.rollback()
         print(f"ERROR: Database error creating follow - {e}")
-        return jsonify({"error": {"code": "DB_ERROR", "message": "Could not follow artist due to database error"}}), 500
+        return jsonify({"error": {"code": "DB_ERROR", "message": "Could not follow user due to database error"}}), 500
 
-    # --- Serialization for Response ---
-    response_data = {
-        "artist": target_user_or_error.to_dict(only=["user_id", "username"]),
-        "followed_at": new_follow.created_at.isoformat() + 'Z'
-    }
-    # --- End Serialization ---
-
-    return jsonify(response_data), 201
+    # Return success - 201 Created is suitable
+    return jsonify({"message": f"Successfully followed user {target_user.username}"}), 201
 
 
-# === DELETE /api/users/:user_id/following/:artist_id ===
-@users_bp.route('/<int:user_id>/following/<int:artist_id>', methods=['DELETE'])
+# === DELETE /api/users/<target_user_id>/follow ===
+# Allows the authenticated user to unfollow another user (target_user_id)
+@users_bp.route('/<int:target_user_id>/follow', methods=['DELETE'])
 @jwt_required()
-def unfollow_artist(user_id, artist_id):
-    """Allows the authenticated user (patron) to unfollow an artist."""
+def unfollow_user(target_user_id):
+    """Allows the authenticated user to unfollow the target user."""
     current_user_id = get_jwt_identity()
 
-    if current_user_id != user_id:
-        return jsonify({"error": {"code": "AUTH_004", "message": "Cannot perform unfollow action for another user."}}), 403
+    # Check if target user exists (optional but good practice)
+    # User.query.get_or_404(target_user_id, description="Target user to unfollow not found.")
 
-    is_patron, user_or_error, status_code = check_patron_role(current_user_id)
-    if not is_patron:
-         user_exists = User.query.get(current_user_id)
-         if not user_exists:
-             return jsonify({"error": {"code": "USER_001", "message": "User not found."}}), 404
-         else:
-             return user_or_error, status_code
-    # --- End Authorization ---
+    # Prevent self-unfollow attempt (logically shouldn't happen)
+    if current_user_id == target_user_id:
+       return jsonify({"error": {"code": "FOLLOW_005", "message": "Cannot unfollow yourself."}}), 400
 
-    follow_rel = UserFollow.query.filter_by(patron_id=current_user_id, artist_id=artist_id).first()
+    # Find the follow relationship
+    follow_rel = UserFollow.query.filter_by(
+        patron_id=current_user_id, # Current user is the follower
+        artist_id=target_user_id   # Target user is the followed
+    ).first()
 
+    # If relationship doesn't exist, return 404
     if not follow_rel:
         return jsonify({"error": {"code": "FOLLOW_002", "message": "Follow relationship not found."}}), 404
 
+    # Delete the relationship
     try:
         db.session.delete(follow_rel)
         db.session.commit()
     except Exception as e:
         db.session.rollback()
         print(f"ERROR: Database error deleting follow - {e}")
-        return jsonify({"error": {"code": "DB_ERROR", "message": "Could not unfollow artist due to database error"}}), 500
+        return jsonify({"error": {"code": "DB_ERROR", "message": "Could not unfollow user due to database error"}}), 500
 
+    # Return success - 204 No Content is standard for successful DELETE
     return '', 204
 
 
 # === GET /api/users/:user_id/following ===
+# Gets the list of users that the specified :user_id is following.
 @users_bp.route('/<int:user_id>/following', methods=['GET'])
-@jwt_required()
+@jwt_required() # Require login to view any following list for now
 def get_following_list(user_id):
-    """Gets the list of artists the specified user (patron) is following."""
+    """Gets the list of users the specified user is following."""
     current_user_id = get_jwt_identity()
 
+    # --- Authorization: Allow viewing only own list for now ---
     if current_user_id != user_id:
         return jsonify({"error": {"code": "AUTH_004", "message": "Cannot view following list for another user."}}), 403
 
-    user = User.query.get(current_user_id)
-    if not user:
-         return jsonify({"error": {"code": "USER_001", "message": "User not found."}}), 404
+    # Check if the user whose list is requested exists
+    user = User.query.get_or_404(user_id, description="User not found.")
 
     # --- Pagination ---
-    page = request.args.get('page', 1, type=int)
-    limit = request.args.get('limit', 20, type=int)
-    limit = max(1, min(limit, 100))
+    page, limit = get_pagination_args()
 
+    # Query users followed by 'user_id'
+    # We need UserFollow where patron_id = user_id, and we want the User details where User.user_id = UserFollow.artist_id
     pagination = db.session.query(UserFollow, User)\
                            .join(User, UserFollow.artist_id == User.user_id)\
-                           .filter(UserFollow.patron_id == current_user_id)\
+                           .filter(UserFollow.patron_id == user_id)\
                            .order_by(UserFollow.created_at.desc())\
                            .paginate(page=page, per_page=limit, error_out=False)
 
     follow_items = pagination.items
     total_items = pagination.total
     total_pages = pagination.pages
-    # --- End Pagination ---
 
     # --- Serialization ---
+    # We want details of the user being *followed* (the 'artist' in the join)
     following_data = []
-    for follow_rel, artist in follow_items:
-        artist_data = artist.to_dict(only=["user_id", "username", "profile_image_url"])
-        artist_data["followed_at"] = follow_rel.created_at.isoformat() + 'Z' if follow_rel.created_at else None
-        following_data.append(artist_data)
-    # --- End Serialization ---
+    for follow_rel, followed_user in follow_items:
+        user_data = followed_user.to_dict(only=["user_id", "username", "profile_image_url", "role"]) # Add role maybe?
+        # Include when the follow happened
+        user_data["followed_at"] = follow_rel.created_at.isoformat() + 'Z' if follow_rel.created_at else None
+        following_data.append(user_data)
 
     response = {
+        # Changed key to 'users' for consistency, or keep 'following'? Let's keep 'following' for clarity
         "following": following_data,
         "pagination": {
             "total_items": total_items,
@@ -400,48 +198,46 @@ def get_following_list(user_id):
 
 
 # === GET /api/users/:user_id/followers ===
+# Gets the list of users following the specified :user_id.
 @users_bp.route('/<int:user_id>/followers', methods=['GET'])
-@jwt_required()
+@jwt_required() # Require login to view any follower list for now
 def get_followers_list(user_id):
-    """Gets the list of patrons following the specified user (artist)."""
+    """Gets the list of users following the specified user."""
     current_user_id = get_jwt_identity()
 
+    # --- Authorization: Allow viewing only own list for now ---
     if current_user_id != user_id:
         return jsonify({"error": {"code": "AUTH_004", "message": "Cannot view followers list for another user."}}), 403
 
-    user = User.query.get(current_user_id)
-    if not user:
-         return jsonify({"error": {"code": "USER_001", "message": "User not found."}}), 404
-
-    if user.role != 'artist':
-         return jsonify({"error": {"code": "AUTH_004", "message": "User is not an artist."}}), 403
-    # --- End Authorization ---
+    # Check if the user whose list is requested exists
+    user = User.query.get_or_404(user_id, description="User not found.")
 
     # --- Pagination ---
-    page = request.args.get('page', 1, type=int)
-    limit = request.args.get('limit', 20, type=int)
-    limit = max(1, min(limit, 100))
+    page, limit = get_pagination_args()
 
+    # Query users following 'user_id'
+    # We need UserFollow where artist_id = user_id, and we want the User details where User.user_id = UserFollow.patron_id
     pagination = db.session.query(UserFollow, User)\
                            .join(User, UserFollow.patron_id == User.user_id)\
-                           .filter(UserFollow.artist_id == current_user_id)\
+                           .filter(UserFollow.artist_id == user_id)\
                            .order_by(UserFollow.created_at.desc())\
                            .paginate(page=page, per_page=limit, error_out=False)
 
     follower_items = pagination.items
     total_items = pagination.total
     total_pages = pagination.pages
-    # --- End Pagination ---
 
     # --- Serialization ---
+    # We want details of the user who is *following* (the 'patron' in the join)
     followers_data = []
-    for follow_rel, patron in follower_items:
-        patron_data = patron.to_dict(only=["user_id", "username", "profile_image_url"])
-        patron_data["followed_at"] = follow_rel.created_at.isoformat() + 'Z' if follow_rel.created_at else None
-        followers_data.append(patron_data)
-    # --- End Serialization ---
+    for follow_rel, follower_user in follower_items:
+        user_data = follower_user.to_dict(only=["user_id", "username", "profile_image_url", "role"]) # Add role maybe?
+        # Include when the follow happened
+        user_data["followed_at"] = follow_rel.created_at.isoformat() + 'Z' if follow_rel.created_at else None
+        followers_data.append(user_data)
 
     response = {
+        # Changed key to 'users' or keep 'followers'? Let's keep 'followers'
         "followers": followers_data,
         "pagination": {
             "total_items": total_items,
@@ -451,3 +247,162 @@ def get_followers_list(user_id):
         }
     }
     return jsonify(response), 200
+
+
+# --- Existing Artwork/Collection Routes (Keep as they are role-specific) ---
+
+# === GET /api/users/:user_id/created-artworks === (Artist Only)
+@users_bp.route('/<int:user_id>/created-artworks', methods=['GET'])
+@jwt_required()
+def get_user_created_artworks(user_id):
+    """Gets artworks created by a specific user (MUST be an artist)."""
+    current_user_id = get_jwt_identity()
+
+    # --- Authorization: Only view own OR maybe public view later? For now, own only. ---
+    # If public view allowed, check target user exists and is artist
+    if current_user_id != user_id:
+         return jsonify({"error": {"code": "AUTH_004", "message": "Cannot view created artworks for another user (currently)."}}), 403 # Tentative restriction
+
+    user = User.query.get_or_404(user_id)
+
+    # --- Role Check ---
+    if user.role != 'artist':
+         return jsonify({"error": {"code": "AUTH_005", "message": "User must be an artist to have created artworks."}}), 403 # Forbidden/Bad Request? 403 is ok.
+
+    page, limit = get_pagination_args()
+    pagination = Artwork.query.filter_by(artist_id=user_id)\
+                              .order_by(Artwork.created_at.desc())\
+                              .paginate(page=page, per_page=limit, error_out=False)
+
+    artworks = pagination.items
+    artworks_data = [aw.to_dict(only=["artwork_id", "title", "description", "created_at", "image_url", "price"]) for aw in artworks] # Add relevant fields
+
+    response = {
+        "artworks": artworks_data,
+        "pagination": { "total_items": pagination.total, "total_pages": pagination.pages, "current_page": page, "limit": limit }
+    }
+    return jsonify(response), 200
+
+
+# === GET /api/users/:user_id/collected-artworks === (Patron Only - Own Collection)
+@users_bp.route('/<int:user_id>/collected-artworks', methods=['GET'])
+@jwt_required()
+def get_user_collected_artworks(user_id):
+    """Gets artworks collected by a specific user (MUST be a patron, view own only)."""
+    current_user_id = get_jwt_identity()
+
+    if current_user_id != user_id:
+        return jsonify({"error": {"code": "AUTH_004", "message": "Cannot view collection for another user."}}), 403
+
+    user = User.query.get_or_404(user_id)
+
+    if user.role != 'patron':
+        return jsonify({"error": {"code": "AUTH_006", "message": "User must be a patron to have a collection."}}), 403
+
+    page, limit = get_pagination_args()
+    # Assuming 'collections' relationship is on User model linking to Collection model via patron_id
+    pagination = user.collections.order_by(Collection.acquired_at.desc())\
+                                  .options(joinedload(Collection.artwork).joinedload(Artwork.artist)).paginate(page=page, per_page=limit, error_out=False)
+
+    collection_items = pagination.items
+    final_collection_list = []
+    for item in collection_items:
+        if not item.artwork: continue # Skip if artwork somehow deleted but collection entry remains
+        artwork_data = item.artwork.to_dict(only=["artwork_id", "title", "image_url"]) # Add image_url
+        artist_data = {}
+        if item.artwork.artist:
+            artist_data = item.artwork.artist.to_dict(only=["user_id", "username"])
+
+        final_collection_list.append({
+            "collection_id": item.collection_id, # Assuming Collection has a primary key
+            "artwork": artwork_data,
+            "artist": artist_data,
+            "acquired_at": item.acquired_at.isoformat() + 'Z' if item.acquired_at else None,
+            "transaction_id": item.transaction_id
+        })
+
+    response = {
+        "collection": final_collection_list,
+        "pagination": { "total_items": pagination.total, "total_pages": pagination.pages, "current_page": page, "limit": limit }
+    }
+    return jsonify(response), 200
+
+
+# === POST /api/users/:user_id/collected-artworks === (Patron Only - Add to Own)
+@users_bp.route('/<int:user_id>/collected-artworks', methods=['POST'])
+@jwt_required()
+def add_artwork_to_collection(user_id):
+    """Adds an artwork to the specified user's (patron) collection."""
+    current_user_id = get_jwt_identity()
+
+    if current_user_id != user_id:
+         return jsonify({"error": {"code": "AUTH_004", "message": "Cannot add to another user's collection."}}), 403
+
+    user = User.query.get_or_404(user_id)
+    if user.role != 'patron':
+         return jsonify({"error": {"code": "AUTH_006", "message": "User must be a patron to add to a collection."}}), 403
+
+    data = request.get_json()
+    if not data or 'artwork_id' not in data:
+        return jsonify({"error": {"code": "INVALID_INPUT", "message": "Missing 'artwork_id' in request body."}}), 400
+
+    try:
+        artwork_id = int(data['artwork_id'])
+    except (ValueError, TypeError):
+        return jsonify({"error": {"code": "INVALID_INPUT", "message": "'artwork_id' must be an integer."}}), 400
+
+    transaction_id = data.get('transaction_id') # Optional
+
+    artwork = Artwork.query.get_or_404(artwork_id, description="Artwork to collect not found.")
+
+    # Check if already in collection
+    exists = Collection.query.filter_by(patron_id=current_user_id, artwork_id=artwork_id).first()
+    if exists:
+        return jsonify({"error": {"code": "COLLECTION_001", "message": "Artwork is already in this collection."}}), 409
+
+    new_collection_item = Collection(patron_id=current_user_id, artwork_id=artwork_id, transaction_id=transaction_id)
+
+    try:
+        db.session.add(new_collection_item)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"ERROR: Database error adding to collection - {e}")
+        return jsonify({"error": {"code": "DB_ERROR", "message": "Could not add artwork to collection."}}), 500
+
+    # Serialize response data
+    response_data = new_collection_item.to_dict(rules=('-patron', '-artwork')) # Adjust rules as needed
+    response_data['artwork_id'] = artwork_id # Add back for clarity if needed
+    response_data['patron_id'] = current_user_id # Add back for clarity if needed
+    response_data['acquired_at'] = new_collection_item.acquired_at.isoformat() + 'Z' if new_collection_item.acquired_at else None
+
+    return jsonify(response_data), 201
+
+
+# === DELETE /api/users/:user_id/collected-artworks/:artwork_id === (Patron Only - Remove from Own)
+@users_bp.route('/<int:user_id>/collected-artworks/<int:artwork_id>', methods=['DELETE'])
+@jwt_required()
+def remove_artwork_from_collection(user_id, artwork_id):
+    """Removes an artwork from the specified user's (patron) collection."""
+    current_user_id = get_jwt_identity()
+
+    if current_user_id != user_id:
+         return jsonify({"error": {"code": "AUTH_004", "message": "Cannot remove from another user's collection."}}), 403
+
+    user = User.query.get_or_404(user_id)
+    if user.role != 'patron':
+        return jsonify({"error": {"code": "AUTH_006", "message": "User must be a patron to manage a collection."}}), 403
+
+    collection_item = Collection.query.filter_by(patron_id=current_user_id, artwork_id=artwork_id).first()
+    if not collection_item:
+        return jsonify({"error": {"code": "COLLECTION_003", "message": "Artwork not found in this user's collection."}}), 404
+
+    try:
+        db.session.delete(collection_item)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"ERROR: Database error removing from collection - {e}")
+        return jsonify({"error": {"code": "DB_ERROR", "message": "Could not remove artwork from collection."}}), 500
+
+    return '', 204

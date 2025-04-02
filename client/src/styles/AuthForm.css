@@ -1,0 +1,182 @@
+/* Basic Reset & Body Styling */
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    background-color: #f4f4f4; /* Light gray background */
+    color: #333;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh; /* Ensure body takes full viewport height */
+  }
+  
+  /* Main container for centering the auth box */
+  .auth-page {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px; /* Add padding for smaller screens */
+    box-sizing: border-box; /* Include padding in width/height */
+  }
+  
+  /* The box containing the form */
+  .auth-container {
+    background-color: #fff; /* White background for the box */
+    padding: 30px 40px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 400px; /* Max width of the form box */
+    text-align: center; /* Center title and other inline elements */
+  }
+  
+  /* Form title */
+  .auth-title {
+    margin-top: 0;
+    margin-bottom: 25px;
+    font-size: 1.8em;
+    font-weight: 600;
+    color: #333;
+  }
+  
+  /* Form styling */
+  .auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px; /* Spacing between form groups */
+    text-align: left; /* Align labels/inputs left */
+  }
+  
+  /* Grouping label and input */
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px; /* Space between label and input */
+  }
+  
+  /* Label styling */
+  .form-label {
+    font-weight: 500;
+    font-size: 0.9em;
+    color: #555;
+  }
+  
+  /* Input field styling */
+  .form-input {
+    padding: 12px 15px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 1em;
+    transition: border-color 0.2s ease-in-out;
+    width: 100%; /* Make input take full width of container */
+    box-sizing: border-box; /* Include padding/border in width */
+  }
+  
+  .form-input:focus {
+    outline: none;
+    border-color: #555; /* Darker border on focus */
+  }
+  
+  /* Error message styling */
+  .error-message {
+    color: #d93025; /* Standard Google red for errors */
+    font-size: 0.85em;
+    margin-top: -10px; /* Reduce space above error */
+    margin-bottom: 5px;
+    text-align: center;
+  }
+  
+  /* Container for submit button and link */
+  .form-actions {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+  }
+  
+  /* General button styling */
+  .btn {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 5px;
+    font-size: 1em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out, opacity 0.2s ease;
+    width: 100%; /* Make button full width */
+    box-sizing: border-box;
+  }
+  
+  /* Primary button style (Login/Register) */
+  .btn-primary {
+    background-color: #333; /* Dark gray */
+    color: #fff; /* White text */
+  }
+  
+  .btn-primary:hover {
+    background-color: #555; /* Slightly lighter gray on hover */
+  }
+  
+  .btn:disabled {
+    background-color: #888; /* Lighter gray when disabled */
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+  
+  /* Link styling (e.g., "Create account") */
+  .auth-link {
+    color: #333;
+    text-decoration: none;
+    font-size: 0.9em;
+  }
+  
+  .auth-link:hover {
+    text-decoration: underline;
+  }
+  
+  /* Separator ("OR") styling */
+  .auth-separator {
+    text-align: center;
+    margin: 25px 0;
+    color: #888;
+    font-size: 0.9em;
+    text-transform: uppercase;
+    position: relative; /* For pseudo-elements */
+  }
+  
+  /* Lines on either side of "OR" */
+  .auth-separator::before,
+  .auth-separator::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: calc(50% - 30px); /* Adjust width as needed */
+    height: 1px;
+    background-color: #ccc;
+  }
+  
+  .auth-separator::before {
+    left: 0;
+  }
+  
+  .auth-separator::after {
+    right: 0;
+  }
+  
+  
+  /* Container for the Google Sign-In button */
+  .google-signin-container {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    min-height: 40px; /* Ensure space is reserved even before button renders */
+  }
+  
+  /* Make the GSI button take available width if possible (may be limited by GSI options) */
+  .google-signin-container > div {
+      width: 100% !important; /* Attempt to make the GSI button's div full width */
+      display: flex !important;
+      justify-content: center !important;
+  }

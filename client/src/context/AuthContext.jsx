@@ -3,7 +3,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [authToken, setAuthToken] = useState(localStorage.getItem('authToken'));
+  const [token, setToken] = useState(localStorage.getItem('authToken'));
   const [user, setUser] = useState(() => {
       const storedUser = localStorage.getItem('user');
       try {
@@ -16,10 +16,10 @@ export const AuthProvider = ({ children }) => {
 
   // Effect to update localStorage when state changes
   useEffect(() => {
-    if (authToken) {
-      localStorage.setItem('authToken', authToken);
+    if (token) {
+      localStorage.setItem('token', token);
     } else {
-      localStorage.removeItem('authToken');
+      localStorage.removeItem('token');
     }
 
     if (user) {
@@ -27,27 +27,27 @@ export const AuthProvider = ({ children }) => {
     } else {
       localStorage.removeItem('user');
     }
-  }, [authToken, user]);
+  }, [token, user]);
 
-  const login = (token, userData) => {
-    setAuthToken(token);
+  const login = (newToken, userData) => {
+    setToken(newToken);
     setUser(userData);
   };
 
   const logout = () => {
     // Call backend logout if implemented (to blocklist refresh token)
     // fetch(`${API_BASE_URL}/auth/logout`, { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('refreshToken')}` }}); // Assuming you store refresh token
-    setAuthToken(null);
+    setToken(null);
     setUser(null);
     // Also remove refresh token from storage if used
   };
 
   const value = {
-    authToken,
+    token,
     user,
     login,
     logout,
-    isAuthenticated: !!authToken, // Simple check based on token existence
+    isAuthenticated: !!token, // Simple check based on token existence
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

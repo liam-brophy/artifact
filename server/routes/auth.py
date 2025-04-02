@@ -12,8 +12,12 @@ from server.app import db # Import the db instance initialized in app.py
 # Create the blueprint
 auth_bp = Blueprint('auth', __name__)
 
-@auth_bp.route('/register', methods=['POST'])
+@auth_bp.route('/register', methods=['POST', 'OPTIONS'])
 def register_user():
+    # Handle OPTIONS request for CORS preflight
+    if request.method == 'OPTIONS':
+        return '', 204
+    
     data = request.get_json()
 
     if not data:
