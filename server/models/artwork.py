@@ -5,7 +5,7 @@ import re
 # Import db instance from the main app file
 from server.app import db
 
-class Artwork(db.Model):
+class Artwork(db.Model, SerializerMixin):
     __tablename__ = 'artworks'
 
     artwork_id = db.Column(db.Integer, primary_key=True)

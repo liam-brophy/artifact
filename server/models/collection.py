@@ -3,7 +3,7 @@ from sqlalchemy_serializer import SerializerMixin
 # Import db instance from the main app file
 from server.app import db
 
-class Collection(db.Model):
+class Collection(db.Model, SerializerMixin):
     __tablename__ = 'collections'
     # Define composite primary key below in __table_args__
 

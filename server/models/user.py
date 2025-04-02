@@ -8,7 +8,7 @@ import re
 # This dependency requires careful import ordering or using the app context.
 from server.app import db
 
-class User(db.Model):
+class User(db.Model, SerializerMixin):
     __tablename__ = 'users'
 
     user_id = db.Column(db.Integer, primary_key=True)

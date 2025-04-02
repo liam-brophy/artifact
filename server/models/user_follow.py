@@ -4,7 +4,7 @@ from sqlalchemy_serializer import SerializerMixin
 # Import db instance
 from server.app import db
 
-class UserFollow(db.Model):
+class UserFollow(db.Model, SerializerMixin):
     __tablename__ = 'user_follows'
     # Define composite primary key below in __table_args__
 
