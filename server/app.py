@@ -16,22 +16,12 @@ migrate = Migrate()
 jwt = JWTManager()
 cors = CORS()
 
-
-# try:
-#     redis_client = redis.from_url(get_config().REDIS_URL, decode_responses=True)
-#     redis_client.ping() # Check connection
-#     print("INFO: Connected to Redis for JWT blocklist.")
-# except Exception as e:
-#     print(f"WARN: Could not connect to Redis at {get_config().REDIS_URL}. JWT blocklist disabled. Error: {e}")
-#     redis_client = None # Set to None if connection fails
-
-
 # Corrected function definition - removed default argument using get_config_name
 def create_app():
     """Application Factory Pattern"""
     app = Flask(__name__)
-    app_config = get_config() # Call the function to get the config object
-    app.config.from_object(app_config) # Load config from the object
+    app_config = get_config()  # Call the function to get the config object
+    app.config.from_object(app_config)  # Load config from the object
     # app.redis_client = redis_client
 
     # Initialize extensions with the app instance
@@ -40,22 +30,11 @@ def create_app():
     jwt.init_app(app)
 
     cors.init_app(app,
-    resources={r"/api/*": {"origins": "http://localhost:5173"}},  # Your React app URL
-    supports_credentials=True,
-    methods=["GET", "HEAD", "POST", "OPTIONS", "PUT", "PATCH", "DELETE"],
-    allow_headers=["Content-Type", "Authorization"]
-)
-    # # --- Configure JWT Blocklisting ---
-    # if app.config.get("JWT_BLOCKLIST_ENABLED") and redis_client:
-    #     @jwt.token_in_blocklist_loader
-    #     def check_if_token_revoked(jwt_header, jwt_payload):
-    #         jti = jwt_payload["jti"]
-    #         # Check if the token JTI exists in Redis (prefixed for clarity)
-    #         token_in_redis = app.redis_client.get(f"blocklist_jti:{jti}")
-    #         return token_in_redis is not None # Returns True if revoked (in blocklist)
-    # else:
-    #      print("INFO: JWT blocklisting is disabled (JWT_BLOCKLIST_ENABLED=False or Redis unavailable).")
-    # # --- End Blocklist Config ---
+        resources={r"/api/*": {"origins": "http://localhost:5173"}},  # Your React app URL
+        supports_credentials=True,
+        methods=["GET", "HEAD", "POST", "OPTIONS", "PUT", "PATCH", "DELETE"],
+        allow_headers=["Content-Type", "Authorization"]
+    )
 
     # --- Critical: Import models AFTER db is initialized and within app context ---
     with app.app_context():
@@ -64,13 +43,23 @@ def create_app():
         from server.models.collection import Collection
         from server.models.user_follow import UserFollow
 
+        # Blueprints registration without debug prints
         from server.routes.auth import auth_bp
         app.register_blueprint(auth_bp, url_prefix='/api/auth')
+
         from server.routes.artworks import artworks_bp
         app.register_blueprint(artworks_bp, url_prefix='/api/artworks')
+
         from server.routes.users import users_bp
         app.register_blueprint(users_bp, url_prefix='/api/users')
 
+        try:
+            from server.routes.upload import uploads_bp
+            app.register_blueprint(uploads_bp)
+        except ModuleNotFoundError as e:
+            raise e
+        except ImportError as e:
+            raise e
 
     # Add a simple health check or root route if desired
     @app.route('/')
@@ -88,17 +77,12 @@ def create_app():
     # Shell context for `flask shell`
     @app.shell_context_processor
     def make_shell_context():
-        # Re-import models inside the function for the shell context
         from server.models.user import User
-        # from server.models.artwork import Artwork # Add others
-        return {'db': db, 'User': User} # Add 'Artwork': Artwork etc.
+        return {'db': db, 'User': User}
 
     return app
 
-# Create the app instance for running/importing
 app = create_app()
 
-
 if __name__ == '__main__':
-
     app.run(debug=app.config.get('DEBUG', False), port=5000)

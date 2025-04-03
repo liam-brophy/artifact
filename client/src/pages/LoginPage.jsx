@@ -23,7 +23,7 @@ function LoginPage() {
     }
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}auth/login`, {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, { // Added slash
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -39,7 +39,7 @@ function LoginPage() {
         throw new Error("Login response missing token or user data.");
       }
     } catch (err) {
-      console.error("Email/Password Login failed:", err);
+      console.error("Email/Username/Password Login failed:", err);
       setError(err.message || "Failed to log in. Please try again.");
     } finally {
       setLoading(false);
@@ -53,7 +53,7 @@ function LoginPage() {
     setError(null);
     // setLoadingGoogle(true); // Optional separate loading
     try {
-      const apiResponse = await fetch(`${API_BASE_URL}auth/google`, {
+      const apiResponse = await fetch(`${API_BASE_URL}/auth/google`, { // Added slash
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: id_token }),

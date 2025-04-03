@@ -6,14 +6,11 @@ import axios from 'axios';
 // --- Child Component Imports ---
 import FollowButton from '../components/FollowButton';
 import FollowerList from '../components/FollowerList';
-// --- Placeholder Imports (Needs creation or implementation) ---
-import FollowingList from '../components/FollowingList'; // To show who this user follows
-// import ArtworkGrid from '../components/ArtworkGrid';    // Specific to Artists
-// import CollectionList from '../components/CollectionList'; // Specific to Patrons
+import FollowingList from '../components/FollowingList';
 
 function ProfilePage() {
     const { username: routeUsername } = useParams();
-    const { user: loggedInUser } = useAuth();
+    const { user: loggedInUser, token } = useAuth();
 
     // State for the profile data being viewed
     const [profileData, setProfileData] = useState(null);
@@ -22,36 +19,41 @@ function ProfilePage() {
     // State for whether the logged-in user is following the profile user
     const [isFollowing, setIsFollowing] = useState(false);
 
-    // Determine the username to fetch from the backend
-    const targetUsername = routeUsername || loggedInUser?.username;
+    // Debug logging
+    useEffect(() => {
+        console.log("loggedInUser:", loggedInUser);
+    }, [loggedInUser]);
 
+    // If we're viewing our own profile without a route username, use the user ID instead
+    const targetIdentifier = routeUsername || 
+                            (loggedInUser?.username) || 
+                            (loggedInUser?.user_id ? `id/${loggedInUser.user_id}` : null);
     // Determine if the profile being viewed is the logged-in user's own profile
-    const isOwnProfile = loggedInUser && targetUsername === loggedInUser.username;
+    const isOwnProfile = 
+        loggedInUser && 
+        (targetIdentifier === loggedInUser.username || 
+         targetIdentifier === `id/${loggedInUser.id}`);
 
     // Callback function passed to FollowButton to update state here
-    // Also updates the follower count of the *profile user* locally
-    // Note: Updating the *loggedInUser's* following count would require more complex state management or context update
     const handleFollowChange = useCallback((newState) => {
         setIsFollowing(newState);
         setProfileData(prev => {
-            // Only update counts if they exist in the profile data
             if (!prev || prev.follower_count === undefined) return prev;
             const currentFollowers = Number(prev.follower_count) || 0;
             return {
                 ...prev,
-                // Adjust follower count of the *profile user*
                 follower_count: Math.max(0, currentFollowers + (newState ? 1 : -1))
             };
         });
-    }, []); // No dependencies needed as it uses setters
+    }, []);
 
-    // Fetch profile data when the targetUsername changes
+    // Fetch profile data when the targetIdentifier changes
     useEffect(() => {
-        if (!targetUsername) {
+        if (!targetIdentifier) {
             if (!loggedInUser) {
                 setError("Please log in to view your profile.");
             } else {
-                setError("Loading user profile...");
+                setError("User information is incomplete. Please update your profile.");
             }
             setIsLoading(false);
             setProfileData(null);
@@ -65,16 +67,18 @@ function ProfilePage() {
             setIsFollowing(false);
 
             try {
-                // Fetch main profile data. Assume API includes:
-                // user_id, username, role, bio, profile_image_url,
-                // follower_count, following_count, isFollowing (if logged in and not own profile)
-                const response = await axios.get(`/api/users/${targetUsername}`, {
+                // Determine if we're fetching by ID or username
+                const endpoint = targetIdentifier.startsWith('id/') 
+                    ? `/api/users/id/${targetIdentifier.split('/')[1]}` 
+                    : `/api/users/${targetIdentifier}`;
+                
+                const response = await axios.get(endpoint, {
+                    headers: token ? { Authorization: `Bearer ${token}` } : {},
                     withCredentials: true,
                 });
 
                 setProfileData(response.data);
 
-                // Set initial follow status if provided
                 if (response.data.isFollowing !== undefined) {
                     setIsFollowing(response.data.isFollowing);
                 }
@@ -87,7 +91,7 @@ function ProfilePage() {
                                  || "Failed to load profile.";
 
                 if (err.response?.status === 404) {
-                    setError(`Profile not found for user "${targetUsername}".`);
+                    setError(`Profile not found for identifier "${targetIdentifier}".`);
                 } else {
                     setError(errorMsg);
                 }
@@ -99,11 +103,10 @@ function ProfilePage() {
 
         fetchProfile();
 
-    }, [targetUsername, loggedInUser]);
+    }, [targetIdentifier, loggedInUser, token]);
 
 
     // --- Render Logic ---
-
     if (isLoading) {
         return <div className="page-container status-message">Loading profile...</div>;
     }
@@ -119,8 +122,7 @@ function ProfilePage() {
     // --- Profile Exists - Render Content ---
     return (
         <div className="page-container profile-page" style={{ padding: '20px' }}>
-
-            {/* --- Profile Header --- */}
+            {/* Profile Header */}
             <div className="profile-header" style={{ marginBottom: '30px', paddingBottom: '20px', borderBottom: '1px solid #ccc' }}>
                 {profileData.profile_image_url && (
                     <img
@@ -131,11 +133,11 @@ function ProfilePage() {
                     />
                 )}
                 <div className="profile-info">
-                    <h1>{profileData.username}</h1>
-                    <p className="profile-role" style={{ fontStyle: 'italic', color: '#555' }}>Role: {profileData.role}</p>
+                    <h1>{profileData.username || "User " + profileData.user_id}</h1>
+                    <p className="profile-role" style={{ fontStyle: 'italic', color: '#555' }}>Role: {profileData.role || "User"}</p>
                     {profileData.bio && <p className="profile-bio" style={{ marginTop: '10px' }}>{profileData.bio}</p>}
 
-                    {/* Display Follower/Following counts - Assuming API provides these */}
+                    {/* Display Follower/Following counts */}
                     <div className="profile-stats" style={{ marginTop: '10px' }}>
                         {profileData.follower_count !== undefined && (
                             <span style={{ marginRight: '15px' }}>
@@ -149,16 +151,15 @@ function ProfilePage() {
                         )}
                     </div>
                 </div>
-                <div style={{ clear: 'both' }}></div> {/* Clear float */}
+                <div style={{ clear: 'both' }}></div>
 
-                {/* --- Action Buttons --- */}
+                {/* Action Buttons */}
                 <div className="profile-actions" style={{ marginTop: '20px' }}>
                     {isOwnProfile ? (
                         <Link to="/settings/profile" className="button button-secondary">
                             Edit Profile
                         </Link>
                     ) : (
-                        // Show FollowButton if logged in, viewing another profile, and we have the target ID
                         loggedInUser && profileData.user_id && (
                             <FollowButton
                                 targetUserId={profileData.user_id}
@@ -170,17 +171,14 @@ function ProfilePage() {
                 </div>
             </div>
 
-
-            {/* --- Main Profile Content Sections --- */}
+            {/* Main Profile Content */}
+            {/* Rest of your component remains the same */}
             <div className="profile-content">
-
-                {/* --- Role-Specific Sections --- */}
+                {/* Role-Specific Sections */}
                 {profileData.role === 'artist' && (
                     <section className="profile-artist-specific-section profile-section" style={{ marginBottom: '30px' }}>
                         <h3>Artworks</h3>
-                        {/* Replace with ArtworkGrid component */}
                         {profileData.user_id ? (
-                            // <ArtworkGrid userId={profileData.user_id} />
                             <p><i>Artwork Grid Placeholder for user {profileData.user_id}</i></p>
                         ) : <p>Cannot load artworks: User ID missing.</p>}
                     </section>
@@ -189,16 +187,14 @@ function ProfilePage() {
                 {profileData.role === 'patron' && (
                     <section className="profile-patron-specific-section profile-section" style={{ marginBottom: '30px' }}>
                         <h3>Collections</h3>
-                        {/* Replace with CollectionList component */}
                          {profileData.user_id ? (
-                            // <CollectionList userId={profileData.user_id} />
                             <p><i>Collection List Placeholder for user {profileData.user_id}</i></p>
                          ) : <p>Cannot load collections: User ID missing.</p>}
                     </section>
                 )}
 
-                  {/* --- Common Sections (Followers/Following) --- */}
-                  {profileData && profileData.user_id && (
+                {/* Common Sections */}
+                {profileData && profileData.user_id && (
                     <>
                         <section className="profile-followers-section profile-section" style={{ marginBottom: '30px' }}>
                             <h3>Followers</h3>
@@ -207,16 +203,13 @@ function ProfilePage() {
 
                         <section className="profile-following-section profile-section" style={{ marginBottom: '30px' }}>
                              <h3>Following</h3>
-                             {/* --- Replace Placeholder --- */}
                              <FollowingList userId={profileData.user_id} />
-                             {/* --- End Replacement --- */}
                         </section>
                     </>
-                 )}
-                 {!profileData && !isLoading && ( // Show if profileData is null *after* loading attempt
+                )}
+                {!profileData && !isLoading && (
                      <p>Cannot load follower/following lists: User ID missing or profile failed to load.</p>
-                 )}
-
+                )}
             </div>
         </div>
     );

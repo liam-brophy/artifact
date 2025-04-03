@@ -16,6 +16,8 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import HomePage from './pages/HomePage';       // Your new HomePage
 import ProfilePage from './pages/ProfilePage';   // Your new ProfilePage
+import UploadPage from './pages/UploadPage';     // Your new UploadPage
+import NotFoundPage from './pages/NotFoundPage'; // Your NotFoundPage
 
 // --- Main Layout Component ---
 // This component decides whether to show the Navbar and defines the routes
@@ -52,6 +54,14 @@ function MainLayout() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/upload" // Upload page route
+          element={
+            <ProtectedRoute>
+              <UploadPage />
+            </ProtectedRoute>
+          }
+        />
         {/* Add other protected routes here using the same pattern */}
         {/* <Route
           path="/some-other-page"
@@ -69,18 +79,6 @@ function MainLayout() {
     </>
   );
 }
-
-// --- Simple 404 Component ---
-function NotFoundPage() {
-  return (
-    <div style={{ padding: '20px', textAlign: 'center' }}>
-      <h2>404 - Page Not Found</h2>
-      <p>Sorry, the page you are looking for does not exist.</p>
-      <Link to="/">Go to Home</Link> {/* Add Link import if needed */}
-    </div>
-  );
-}
-
 
 // --- Main App Component ---
 function App() {

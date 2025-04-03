@@ -3,7 +3,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [token, setToken] = useState(localStorage.getItem('authToken'));
+  const [token, setToken] = useState(localStorage.getItem('token'));
   const [user, setUser] = useState(() => {
       const storedUser = localStorage.getItem('user');
       try {
@@ -29,17 +29,23 @@ export const AuthProvider = ({ children }) => {
     }
   }, [token, user]);
 
-  const login = (newToken, userData) => {
-    setToken(newToken);
+  const login = (accessToken, refreshToken, userData) => { // NEW - Accept all 3 args
+    console.log("AuthContext: login called with:", { accessToken, refreshToken, userData });
+    setToken(accessToken); // Use the correct access token
+    // Decide if/how you want to store/use the refreshToken (localStorage, state, etc.)
+    // For now, we just need to make sure userData is assigned correctly:
+    setUser(userData); // Use the correct user data object
+  };
+
+  const updateUser = (userData) => {
+    console.log("Updating user data:", userData);
     setUser(userData);
   };
 
   const logout = () => {
     // Call backend logout if implemented (to blocklist refresh token)
-    // fetch(`${API_BASE_URL}/auth/logout`, { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('refreshToken')}` }}); // Assuming you store refresh token
     setToken(null);
     setUser(null);
-    // Also remove refresh token from storage if used
   };
 
   const value = {
@@ -47,7 +53,8 @@ export const AuthProvider = ({ children }) => {
     user,
     login,
     logout,
-    isAuthenticated: !!token, // Simple check based on token existence
+    updateUser,
+    isAuthenticated: !!token,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -16,7 +16,7 @@ def check_artist_role(user_id):
 
 # === POST /api/artworks ===
 @artworks_bp.route('', methods=['POST'])
-@artist_required # Use the decorator if you want to enforce artist role at the route level
+@artist_required # to enforce artist role at the route level
 @jwt_required() # Protect the route
 def create_artwork():
     """Creates a new artwork. Requires artist role."""

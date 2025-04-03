@@ -5,9 +5,8 @@ import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
 
-// --- Placeholder: Replace with your actual auth hook ---
-import { useAuth } from '../hooks/useAuth'; // Assuming you have this hook
-// -----------------------------------------------------
+// Ensure this matches the named export
+import { useAuth } from '../hooks/useAuth';
 
 import Upload from '../components/Upload'; // Import the Upload component
 
@@ -48,7 +47,7 @@ function UploadPage() {
                     Upload New Artwork
                 </Typography>
                 {/* Pass any necessary props, like the auth token if needed directly in Upload */}
-                <Upload />
+                <Upload fields={['image', 'title', 'year', 'medium']} />
             </Box>
         </Container>
     );
