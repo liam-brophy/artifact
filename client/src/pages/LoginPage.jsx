@@ -13,6 +13,17 @@ function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
 
+
+
+useEffect(() => {
+  if (localStorage.getItem('token')) {
+    // User is already logged in, redirect to home page
+    navigate('/');
+  }
+}, []);
+
+
+
   // --- Handler for Email/Password Login ---
   const handleSubmit = async (e) => {
     e.preventDefault();

@@ -40,7 +40,6 @@ function HomePage() {
         align="center"
         sx={{ mb: 4 }}
       >
-        Discover unique artworks or share your creations with the world.
       </Typography>
 
       {/* --- Role-Specific Action/Info Area --- */}

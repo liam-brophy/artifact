@@ -106,11 +106,13 @@ class User(db.Model, SerializerMixin):
         # if not re.search(r"\d", password): return False, "Needs digit."
         return True, ""
 
-    @staticmethod
-    def validate_role(role):
-        if role not in ['artist', 'patron']:
-            return False, "Role must be either 'artist' or 'patron'."
-        return True, ""
+    @classmethod # or @staticmethod
+    def validate_role(cls, role):
+        valid_roles = {'artist', 'patron'}
+        if role and role in valid_roles: # Check if role is truthy AND in the set
+            return True, role
+        else:
+            return False, f"Role must be one of {', '.join(valid_roles)}. Received: '{role}'"
 
     # --- Database Constraints/Indexes ---
     __table_args__ = (

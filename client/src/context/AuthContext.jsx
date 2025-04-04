@@ -1,66 +1,143 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, {
+  createContext,
+  useState,
+  useContext,
+  useEffect,
+  useCallback,
+  useMemo
+} from 'react';
 
 const AuthContext = createContext(null);
 
+// Define storage keys centrally
+const TOKEN_STORAGE_KEY = 'token'; // Matches your existing key
+const USER_STORAGE_KEY = 'user';   // Matches your existing key
+
 export const AuthProvider = ({ children }) => {
-  const [token, setToken] = useState(localStorage.getItem('token'));
-  const [user, setUser] = useState(() => {
-      const storedUser = localStorage.getItem('user');
-      try {
-          return storedUser ? JSON.parse(storedUser) : null;
-      } catch (e) {
-          console.error("Failed to parse stored user:", e);
-          return null;
-      }
-  });
+  // --- State Initialization ---
+  const [token, setToken] = useState(null); // Start null, read from storage in effect
+  const [user, setUser] = useState(null);   // Start null, read from storage in effect
+  // Add isLoading state for initial setup from localStorage
+  const [isLoading, setIsLoading] = useState(true);
+  // Derived state for authentication status
+  const [isAuthenticated, setIsAuthenticated] = useState(false); // Start false
 
-  // Effect to update localStorage when state changes
+  // --- Effect to Initialize State from localStorage ---
+  // Runs ONCE on component mount to load initial state
   useEffect(() => {
-    if (token) {
-      localStorage.setItem('token', token);
-    } else {
-      localStorage.removeItem('token');
-    }
+      console.log("AuthContext: Initializing state from localStorage...");
+      try {
+          const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+          const storedUserString = localStorage.getItem(USER_STORAGE_KEY);
+          let parsedUser = null;
 
-    if (user) {
-      localStorage.setItem('user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('user');
-    }
-  }, [token, user]);
+          if (storedUserString) {
+              try {
+                  parsedUser = JSON.parse(storedUserString);
+              } catch (e) {
+                  console.error("Failed to parse stored user, removing:", e);
+                  localStorage.removeItem(USER_STORAGE_KEY); // Clear invalid stored user data
+              }
+          }
 
-  const login = (accessToken, refreshToken, userData) => { // NEW - Accept all 3 args
-    console.log("AuthContext: login called with:", { accessToken, refreshToken, userData });
-    setToken(accessToken); // Use the correct access token
-    // Decide if/how you want to store/use the refreshToken (localStorage, state, etc.)
-    // For now, we just need to make sure userData is assigned correctly:
-    setUser(userData); // Use the correct user data object
-  };
+          if (storedToken) {
+              console.log("AuthContext: Found token in storage.");
+              setToken(storedToken);
+              setUser(parsedUser); // Set user (could be null if parsing failed)
+              setIsAuthenticated(true); // Assume authenticated if token exists
+          } else {
+              console.log("AuthContext: No token found in storage.");
+              // Ensure state is clear if no token
+              setToken(null);
+              setUser(null);
+              setIsAuthenticated(false);
+          }
+      } catch (error) {
+          // Should not happen with localStorage but good practice
+          console.error("Error reading from localStorage:", error);
+           setToken(null);
+           setUser(null);
+           setIsAuthenticated(false);
+      } finally {
+          // Finished loading initial state from storage
+          console.log("AuthContext: Initial state loading complete.");
+          setIsLoading(false);
+      }
+  }, []); // Empty dependency array ensures this runs only once on mount
 
-  const updateUser = (userData) => {
-    console.log("Updating user data:", userData);
-    setUser(userData);
-  };
+  // --- Effect to Update localStorage on State Change ---
+  // Your existing effect - keep this as is
+  useEffect(() => {
+      console.log("AuthContext: State changed, updating localStorage...");
+      if (localStorage.getItem(TOKEN_STORAGE_KEY)) {
+          setToken(localStorage.getItem(TOKEN_STORAGE_KEY));
+      } 
+      
 
-  const logout = () => {
-    // Call backend logout if implemented (to blocklist refresh token)
-    setToken(null);
-    setUser(null);
-  };
+      if (localStorage.getItem(USER_STORAGE_KEY)) {
+          try {
+               setUser(JSON.parse(localStorage.getItem(USER_STORAGE_KEY)));
+          } catch(e) {
+               console.error("Failed to stringify user for storage:", e);
+          }
+      }
+      //  // Update derived isAuthenticated state whenever token changes
+      //  setIsAuthenticated(!!token);
+      //  console.log("AuthContext: isAuthenticated updated to:", !!token);
 
-  const value = {
-    token,
-    user,
-    login,
-    logout,
-    updateUser,
-    isAuthenticated: !!token,
-  };
+  }, []);
+
+
+  // --- Login Function ---
+  // Assumes login API call happened externally, receives results
+  const login = useCallback((accessToken, refreshToken, userData) => {
+      console.log("AuthContext: login called");
+      setToken(accessToken);
+      localStorage.setItem(TOKEN_STORAGE_KEY, accessToken);
+      setUser(userData);
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userData));
+      // The useEffect above handles localStorage and isAuthenticated
+  }, []);
+
+
+  // --- Update User Data ---
+  const updateUser = useCallback((userData) => {
+      console.log("AuthContext: Updating user data");
+      setUser(prevUser => ({ ...prevUser, ...userData }));
+      // The useEffect above handles localStorage
+  }, []);
+
+
+  // --- Logout Function ---
+  const logout = useCallback(() => {
+      console.log("AuthContext: logout called");
+      setToken(null);
+      setUser(null);
+      // The useEffect above handles localStorage and isAuthenticated
+      // Consider redirecting the user after logout in the component calling this
+  }, []);
+
+
+  // --- Memoized Context Value ---
+  const value = useMemo(() => ({
+      token,
+      user,
+      isLoading, // Still useful to know when initial load from localStorage is done
+      isAuthenticated, // Use the derived state
+      login,
+      logout,
+      updateUser,
+  }), [token, user, isLoading, isAuthenticated, login, logout, updateUser]); // Add isAuthenticated dependency
+
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// Hook to use auth context easily
+// --- Custom Hook (No changes needed) ---
 export const useAuth = () => {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext);
+  if (context === null) {
+      throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };

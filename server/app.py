@@ -9,6 +9,10 @@ from datetime import timedelta # Needed for blocklist expiration
 
 # Corrected import using absolute path
 from server.config import get_config # Import ONLY get_config
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Initialize extensions globally first
 db = SQLAlchemy()
@@ -23,6 +27,7 @@ def create_app():
     app_config = get_config()  # Call the function to get the config object
     app.config.from_object(app_config)  # Load config from the object
     # app.redis_client = redis_client
+    print(f"--- In create_app: app.config['JWT_SECRET_KEY'] = {app.config.get('JWT_SECRET_KEY')} ---") # Add this line
 
     # Initialize extensions with the app instance
     db.init_app(app)
@@ -53,13 +58,9 @@ def create_app():
         from server.routes.users import users_bp
         app.register_blueprint(users_bp, url_prefix='/api/users')
 
-        try:
-            from server.routes.upload import uploads_bp
-            app.register_blueprint(uploads_bp)
-        except ModuleNotFoundError as e:
-            raise e
-        except ImportError as e:
-            raise e
+        from server.routes.upload import uploads_bp
+        app.register_blueprint(uploads_bp)
+
 
     # Add a simple health check or root route if desired
     @app.route('/')

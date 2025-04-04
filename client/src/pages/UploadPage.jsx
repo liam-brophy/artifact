@@ -6,13 +6,13 @@ import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
 
 // Ensure this matches the named export
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../context/AuthContext';
 
 import Upload from '../components/Upload'; // Import the Upload component
 
 function UploadPage() {
     // --- Get user info from your auth context/hook ---
-    const { user, isLoading } = useAuth();
+    const { user, setUser, isLoading } = useAuth();
     // -------------------------------------------------
 
     if (isLoading) {
@@ -21,9 +21,15 @@ function UploadPage() {
     }
 
     // --- Access Control ---
-    if (!user) {
+    if (!localStorage.getItem('user')) {
+        debugger
         // Not logged in, redirect to login page (adjust path as needed)
         return <Navigate to="/login" replace />;
+
+    } else {
+        // Logged in, but no user data
+        const storedUser = JSON.parse(localStorage.getItem('user'));
+        
     }
 
     if (user.role !== 'artist') {
