@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import axios from 'axios';
+import apiService from '../services/apiService';
 
 // --- Child Component Imports ---
 import FollowButton from '../components/FollowButton';
@@ -72,7 +72,7 @@ function ProfilePage() {
                     ? `/api/users/id/${targetIdentifier.split('/')[1]}` 
                     : `/api/users/${targetIdentifier}`;
                 
-                const response = await axios.get(endpoint, {
+                const response = await apiService.get(endpoint, {
                     headers: token ? { Authorization: `Bearer ${token}` } : {},
                     withCredentials: true,
                 });

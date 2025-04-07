@@ -27,7 +27,50 @@ def create_app():
     app_config = get_config()  # Call the function to get the config object
     app.config.from_object(app_config)  # Load config from the object
     # app.redis_client = redis_client
-    print(f"--- In create_app: app.config['JWT_SECRET_KEY'] = {app.config.get('JWT_SECRET_KEY')} ---") # Add this line
+    # --- JWT Configuration ---
+    # Choose a strong secret key!
+    app.config["JWT_SECRET_KEY"] = "your-super-secret-key-change-me" # CHANGE THIS! Load from env var ideally
+    app.config["JWT_TOKEN_LOCATION"] = ["cookies"] # Tell JWT Extended to expect JWTs in cookies
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1) # Example expiration
+    app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=30) # Example expiration
+
+        # --- Cookie Configuration ---
+    # Set SameSite=Lax or Strict for CSRF protection. Lax is generally okay.
+    # Set Secure=True in production (requires HTTPS)
+    app.config["JWT_COOKIE_SAMESITE"] = "Lax"
+    app.config["JWT_COOKIE_SECURE"] = False # Set to True in production!
+    # Set HttpOnly=True to prevent client-side JS access to the JWT cookies
+    app.config["JWT_ACCESS_COOKIE_NAME"] = "access_token_cookie" # Optional: customize name
+    app.config["JWT_REFRESH_COOKIE_NAME"] = "refresh_token_cookie" # Optional: customize name
+    # Set path for cookies (usually '/')
+    app.config["JWT_ACCESS_COOKIE_PATH"] = "/"
+    app.config["JWT_REFRESH_COOKIE_PATH"] = "/"
+
+    # --- CSRF Protection (Important!) ---
+    # Enable CSRF protection for cookies
+    app.config["JWT_COOKIE_CSRF_PROTECT"] = True
+    # Set the header name the frontend must send for CSRF verification (for POST, PUT, DELETE etc)
+    app.config["JWT_ACCESS_CSRF_HEADER_NAME"] = "X-CSRF-Token"
+    app.config["JWT_REFRESH_CSRF_HEADER_NAME"] = "X-CSRF-Token" # Often same header for simplicity
+    # Optional: customize CSRF cookie names if needed
+    # app.config["JWT_ACCESS_CSRF_COOKIE_NAME"] = "csrf_access_token"
+    # app.config["JWT_REFRESH_CSRF_COOKIE_NAME"] = "csrf_refresh_token"
+
+    # === IMPORTANT: Blocklist Configuration (Example using simple Python set) ===
+    # For production, use Redis or a database for the blocklist
+    # See Flask-JWT-Extended docs for details:
+    # https://flask-jwt-extended.readthedocs.io/en/stable/blocklist_and_token_revoking/
+    app.config["JWT_BLOCKLIST_ENABLED"] = True
+    app.config["JWT_BLOCKLIST_TOKEN_CHECKS"] = ["access", "refresh"] # Check both token types
+    BLOCKLIST = set() # Simple in-memory blocklist (NOT FOR PRODUCTION)
+
+    jwt = JWTManager(app)
+
+    # Callback function to check if a JWT is blocklisted
+    @jwt.token_in_blocklist_loader
+    def check_if_token_is_blocklisted(jwt_header, jwt_payload: dict):
+        jti = jwt_payload["jti"]
+        return jti in BLOCKLIST
 
     # Initialize extensions with the app instance
     db.init_app(app)

@@ -1,12 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import axios from 'axios'; // Import axios
+import apiService from '../services/apiService';
+
+import React, { useState, useEffect } from 'react';
+// 1. Import your configured apiService instead of axios
+
 
 function FollowButton({ targetUserId, initialIsFollowing, onFollowChange }) {
     const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
 
+    // Update local state if the initial prop changes
     useEffect(() => {
         setIsFollowing(initialIsFollowing);
     }, [initialIsFollowing]);
@@ -15,43 +20,43 @@ function FollowButton({ targetUserId, initialIsFollowing, onFollowChange }) {
         setIsLoading(true);
         setError(null);
 
-        // Use targetUserId from props
-        const url = `/api/users/${targetUserId}/follow`;
-        // Determine the correct axios method
-        const axiosMethod = isFollowing ? axios.delete : axios.post;
-        // Prepare config (only need withCredentials here)
-        const config = {
-            withCredentials: true,
-        };
+        // 4. Adjust URL - Relative to the baseURL in apiService
+        //    (e.g., if baseURL is '/api', this should be '/users/...')
+        const url = `/users/${targetUserId}/follow`; // No '/api' prefix needed here
 
         try {
-            // --- Use axios[method](url, data, config) ---
-            // For POST, pass data as second argument (null or {} if no body needed)
-            // For DELETE, config is the second argument
-            if (isFollowing) { // DELETE request
-                 await axiosMethod(url, config); // Equivalent to axios.delete(url, config)
-            } else { // POST request
-                 await axiosMethod(url, null, config); // Pass null/undefined/{} as data if no body needed
-                                                       // Equivalent to axios.post(url, null, config)
+            // 3. Use apiService methods directly
+            if (isFollowing) {
+                // --- Unfollow (DELETE) ---
+                // No need to pass config, apiService handles it
+                await apiService.delete(url);
+            } else {
+                // --- Follow (POST) ---
+                // Pass null or an empty object {} if your endpoint expects a body but doesn't need data
+                // Pass nothing if the endpoint doesn't require a body for POST
+                // No need to pass config, apiService handles it
+                await apiService.post(url, null); // Or await apiService.post(url);
             }
 
             // --- Success ---
             const newState = !isFollowing;
             setIsFollowing(newState);
             if (onFollowChange) {
-                onFollowChange(newState);
+                onFollowChange(newState); // Notify parent component
             }
-             // No need for response.ok check
 
         } catch (err) {
-            // --- Axios Error Handling ---
+             // --- Error Handling (largely the same) ---
             console.error(`Error ${isFollowing ? 'unfollowing' : 'following'} user:`, err);
-            const errorMsg = err.response?.data?.message
-                             || (err.response ? `Server error: ${err.response.status}` : null)
-                             || err.message
-                             || `Could not ${isFollowing ? 'unfollow' : 'follow'} user. Please try again.`;
+            // Try to get a specific error message from the backend response
+            const errorMsg = err.response?.data?.error?.message // Check nested error structure if applicable
+                             || err.response?.data?.message // Standard message field
+                             || (err.response ? `Server error: ${err.response.status}` : null) // Fallback to status code
+                             || err.message // Fallback to general error message
+                             || `Could not ${isFollowing ? 'unfollow' : 'follow'} user. Please try again.`; // Generic fallback
             setError(errorMsg);
-            // No need to revert state optimistically unless desired
+            // Optional: Revert optimistic update on error
+            // setIsFollowing(isFollowing);
         } finally {
             setIsLoading(false);
         }
@@ -71,6 +76,7 @@ function FollowButton({ targetUserId, initialIsFollowing, onFollowChange }) {
         </div>
     );
 }
+
 
 FollowButton.propTypes = {
     targetUserId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired, // Allow string or number ID

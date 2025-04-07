@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react'; // Added useContext
 import PropTypes from 'prop-types';
-import axios from 'axios';
+import apiService from '../services/apiService';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext'; // Import useAuth
 
@@ -42,7 +42,7 @@ function FollowingList({ userId }) {
                 };
 
                 // --- API Call with Auth Header ---
-                const response = await axios.get(`/api/users/${userId}/following`, config); // Pass config
+                const response = await apiService.get(`/api/users/${userId}/following`, config); // Pass config
 
                 // Handle potential data structures
                 if (Array.isArray(response.data)) {
