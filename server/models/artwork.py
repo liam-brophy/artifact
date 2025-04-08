@@ -1,5 +1,6 @@
 from datetime import datetime
 from sqlalchemy_serializer import SerializerMixin
+from sqlalchemy.sql import func
 import re
 
 # Import db instance from the main app file
@@ -9,18 +10,17 @@ class Artwork(db.Model, SerializerMixin):
     __tablename__ = 'artworks'
 
     artwork_id = db.Column(db.Integer, primary_key=True)
-    # Foreign Key to link to the User who created this artwork
     artist_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
     title = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=True)
-    image_url = db.Column(db.String(500), nullable=False)
-    thumbnail_url = db.Column(db.String(500), nullable=True)
-    created_at = db.Column(db.TIMESTAMP, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.TIMESTAMP, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-    is_available = db.Column(db.Boolean, nullable=False, default=True)
-    edition_size = db.Column(db.Integer, nullable=False, default=1)
-    edition_number = db.Column(db.Integer, nullable=False, default=1) # Consider if this should be unique per conceptual artwork
-
+    image_url = db.Column(db.String, nullable=False)
+    thumbnail_url = db.Column(db.String, nullable=True)
+    year = db.Column(db.Integer, nullable=True)
+    medium = db.Column(db.String(100), nullable=True) # Adjust String length and nullable as needed
+    rarity = db.Column(db.String(20), nullable=True)  # e.g., 'Common', 'Rare', 'Epic'
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    updated_at = db.Column(db.DateTime(timezone=True), onupdate=func.now())
+    
     # --- Relationships ---
     # Relationship back to the User (Artist) who created this artwork
     artist = db.relationship('User', back_populates='created_artworks')
@@ -30,7 +30,8 @@ class Artwork(db.Model, SerializerMixin):
 
     serialize_rules = (
         # Rule to include only specific fields from the related 'artist' (User) object
-        'artist.(user_id, username)', # Include user_id and username from the artist
+        'artist.user_id',    # Include artist's user_id
+        'artist.username', # Include artist's username
         # Exclude the collections relationship by default
         '-collections',
     )
@@ -74,7 +75,6 @@ class Artwork(db.Model, SerializerMixin):
         db.Index('idx_artworks_artist_id', 'artist_id'),
         # Index for sorting/filtering
         db.Index('idx_artworks_created_at', 'created_at'),
-        db.Index('idx_artworks_is_available', 'is_available'),
         # Potentially add a unique constraint on (title, artist_id, edition_number)
         # if that combination should be unique, depends on requirements.
         # db.UniqueConstraint('title', 'artist_id', 'edition_number', name='uq_artwork_edition'),

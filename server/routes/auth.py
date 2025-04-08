@@ -10,8 +10,8 @@ import requests # Needed for Google auth transport
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 # Import necessary items from the models package and the main app file
-from server.models.user import User
-from server.app import db, BLOCKLIST # Import db AND the example BLOCKLIST
+from ..models.user import User
+from ..extensions import db, jwt, BLOCKLIST # Import db AND the example BLOCKLIST
 
 # Create the blueprint
 auth_bp = Blueprint('auth', __name__)
@@ -145,132 +145,79 @@ def login_user():
     password = data.get('password')
 
     if not email or not password:
-         errors = {}
-         if not email: errors['email'] = "Email is required."
-         if not password: errors['password'] = "Password is required."
-         return jsonify({"error": {"code": "VALIDATION_001", "message": "Input validation failed", "details": errors}}), 400
+        errors = {}
+        if not email: errors['email'] = "Email is required."
+        if not password: errors['password'] = "Password is required."
+        return jsonify({"error": {"code": "VALIDATION_001", "message": "Input validation failed", "details": errors}}), 400
 
     user = User.query.filter_by(email=email).first()
-
     if user and user.check_password(password):
-        # --- Create Tokens (as strings, not returned in JSON) ---
         access_token = create_access_token(identity=user.user_id)
         refresh_token = create_refresh_token(identity=user.user_id)
-
-        # Update last login time
         try:
-            user.last_login = db.func.current_timestamp()
-            db.session.commit()
+            user.last_login = db.func.current_timestamp()  # Using imported db
+            db.session.commit()                            # Using imported db
         except Exception as e:
-            db.session.rollback()
+            db.session.rollback()                          # Using imported db
             current_app.logger.warning(f"DB warning: Failed to update last_login for user {user.user_id} during login: {e}")
 
-        # --- Prepare Response (User data, NO TOKENS) ---
-        login_user_response_data = user.to_dict(only=["user_id", "username", "role", "email", "profile_image_url"]) # Add fields needed by client context
-
+        login_user_response_data = user.to_dict(only=["user_id", "username", "role", "email", "profile_image_url"])
         response = jsonify({
             "message": "Login successful",
             "user": login_user_response_data
         })
-
-        # --- Set Cookies ---
         set_access_cookies(response, access_token)
         set_refresh_cookies(response, refresh_token)
-
         return response, 200
     else:
         return jsonify({"error": {"code": "AUTH_002", "message": "Invalid email or password"}}), 401
 
 
-# NEW: Endpoint for the client to check auth status on load
 @auth_bp.route('/status', methods=['GET'])
-@jwt_required(optional=True) # Allow request even if no valid cookie, but check identity
+@jwt_required(optional=True)  # Decorator uses 'jwt' imported from extensions
 def auth_status():
-    """Checks if a valid session cookie exists and returns user data if so."""
     current_identity = get_jwt_identity()
     if current_identity:
-        user = User.query.get(current_identity)
+        user = User.query.get(current_identity)  # Using User model
         if user:
-            # User is logged in via a valid cookie
-            user_data = user.to_dict(only=["user_id", "username", "role", "email", "profile_image_url"]) # Match login/google fields
+            user_data = user.to_dict(only=["user_id", "username", "role", "email", "profile_image_url"])
             return jsonify(user=user_data), 200
         else:
-            # Valid token but user doesn't exist? Should be rare. Treat as logged out.
-            # Clear potentially invalid cookies as a precaution
             response = jsonify(user=None)
             unset_jwt_cookies(response)
-            return response, 200 # Return OK, but no user
+            return response, 200
     else:
-        # No valid identity/cookie found
-        return jsonify(user=None), 200 # Return OK, but no user
+        return jsonify(user=None), 200
 
 
 @auth_bp.route('/refresh', methods=['POST'])
-@jwt_required(refresh=True) # Requires a valid REFRESH token cookie
+@jwt_required(refresh=True)  # Decorator uses 'jwt' imported from extensions
 def refresh_access_token():
-    """Refreshes the access token using the refresh token cookie."""
     current_user_id = get_jwt_identity()
-    # No need to query user usually, identity is trusted if refresh token is valid
-    # Unless you want to check if user is still active, etc.
-    # user = User.query.get(current_user_id)
-    # if not user or not user.is_active:
-    #     response = jsonify({"error": ...})
-    #     unset_jwt_cookies(response) # Log them out if inactive
-    #     return response, 401
-
-    # Create *only* a new access token
     new_access_token = create_access_token(identity=current_user_id)
-
-    # Prepare response (no user data needed usually)
     response = jsonify(message="Access token refreshed successfully")
-
-    # Set the new access cookie (and corresponding CSRF cookie)
     set_access_cookies(response, new_access_token)
-
-    # Note: Refresh token cookie remains unchanged
-
     return response, 200
 
 
-# /me endpoint remains largely the same, but relies on @jwt_required reading the cookie
-# and the user_loader finding the user.
 @auth_bp.route('/me', methods=['GET'])
-@jwt_required() # Requires a valid ACCESS token cookie
+@jwt_required()  # Decorator uses 'jwt' imported from extensions
 def get_current_user_profile():
-    """Gets the profile information for the currently authenticated user."""
-    # We can use `current_user` proxy thanks to the user_loader callback
-    # This is slightly cleaner than get_jwt_identity() + query
+    # jwt_current_user uses the loader defined in app.py
     user = jwt_current_user
-
-    # The @jwt_required decorator and user_loader handle the case where
-    # the token is invalid or the user doesn't exist. Flask-JWT-Extended
-    # will return appropriate errors (401, 404) automatically.
-
-    user_data = user.to_dict(only=["user_id", "username", "email", "role", "created_at", "last_login", "profile_image_url"]) # Add fields client needs
+    user_data = user.to_dict(only=["user_id", "username", "email", "role", "created_at", "last_login", "profile_image_url"])
     return jsonify(user_data), 200
 
 
 @auth_bp.route('/logout', methods=['POST'])
-@jwt_required(refresh=True) # Require refresh token to logout (invalidates the longer session)
+@jwt_required(refresh=True)  # Decorator uses 'jwt' imported from extensions
 def logout_user():
-    """Logs out the user by blocklisting the refresh token and clearing cookies."""
     jwt_payload = get_jwt()
-    jti = jwt_payload['jti'] # Unique identifier for the refresh token
-    # Add the refresh token's JTI to the blocklist
-    # Ensure BLOCKLIST is accessible/imported correctly
-    BLOCKLIST.add(jti) # Use your production blocklist store here (e.g., redis_client.set(jti, '', ex=app.config['JWT_REFRESH_TOKEN_EXPIRES']))
-
-    # Also blocklist the corresponding access token if needed/possible (more complex)
-    # access_jti = get_jti(encoded_token=request.cookies.get('access_token_cookie')) # Might need decoding? Check docs.
-    # if access_jti:
-    #    BLOCKLIST.add(access_jti)
-
-    # Prepare response
+    jti = jwt_payload['jti']
+    # Use BLOCKLIST imported from extensions
+    BLOCKLIST.add(jti)
     response = jsonify({"message": "Logout successful. Session invalidated."})
-
-    # Unset JWT cookies
     unset_jwt_cookies(response)
-
     return response, 200
 
 
@@ -284,15 +231,15 @@ def google_auth():
         return jsonify({"error": {"code": "INVALID_INPUT", "message": "No JSON data provided."}}), 400
 
     google_id_token = data.get('token')
-    requested_role = data.get('role') # Still needed for sign-up flow
+    requested_role = data.get('role')  # Still needed for sign-up flow
 
     if not google_id_token:
         return jsonify({"error": {"code": "INVALID_INPUT", "message": "Missing 'token' (Google ID Token) in request body."}}), 400
 
     google_client_id = current_app.config.get('GOOGLE_CLIENT_ID')
     if not google_client_id:
-         current_app.logger.error("CONFIG_ERROR: GOOGLE_CLIENT_ID not configured in backend.")
-         return jsonify({"error": {"code": "CONFIG_ERROR", "message": "Google authentication is not configured correctly on the server."}}), 500
+        current_app.logger.error("CONFIG_ERROR: GOOGLE_CLIENT_ID not configured in backend.")
+        return jsonify({"error": {"code": "CONFIG_ERROR", "message": "Google authentication is not configured correctly on the server."}}), 500
 
     try:
         idinfo = id_token.verify_oauth2_token(
@@ -308,7 +255,6 @@ def google_auth():
         is_new_user = False
 
         if not user:
-            # --- New User Sign-Up Flow ---
             is_new_user = True
             current_app.logger.info(f"New user attempting Google Sign-Up: {user_email}")
 
@@ -317,55 +263,43 @@ def google_auth():
 
             is_valid_role, role_msg_or_val = User.validate_role(requested_role)
             if not is_valid_role:
-                 return jsonify({"error": {"code": "VALIDATION_ROLE_INVALID", "message": f"Invalid role provided: {role_msg_or_val}"}}), 400
+                return jsonify({"error": {"code": "VALIDATION_ROLE_INVALID", "message": f"Invalid role provided: {role_msg_or_val}"}}), 400
             validated_role = role_msg_or_val
 
             if not validated_role:
                 current_app.logger.error(f"Role validation unexpectedly resulted in an empty role for {user_email}.")
                 return jsonify({"error": {"code": "INTERNAL_SERVER_ERROR", "message": "Role processing failed."}}), 500
 
-            # Attempt to create the user (using the helper function)
             user, error_payload, error_code = _create_google_user(idinfo, validated_role)
             if error_payload:
                 return jsonify(error_payload), error_code
             if not user:
-                 current_app.logger.error(f"User object unexpectedly None after _create_google_user for {user_email}")
-                 return jsonify({"error": {"code": "INTERNAL_SERVER_ERROR", "message": "Failed to process user creation."}}), 500
+                current_app.logger.error(f"User object unexpectedly None after _create_google_user for {user_email}")
+                return jsonify({"error": {"code": "INTERNAL_SERVER_ERROR", "message": "Failed to process user creation."}}), 500
 
-        # --- User Exists or Was Just Created ---
         if is_new_user:
             current_app.logger.info(f"Successfully created new user via Google: ID {user.user_id}, Email {user.email}, Role {user.role}")
         else:
-             current_app.logger.info(f"Existing user logged in via Google: ID {user.user_id}, Email {user.email}")
+            current_app.logger.info(f"Existing user logged in via Google: ID {user.user_id}, Email {user.email}")
 
-        # --- Issue Application JWTs (as cookies) ---
         access_token = create_access_token(identity=user.user_id)
         refresh_token = create_refresh_token(identity=user.user_id)
-
-        # --- Prepare Response (User data, NO TOKENS) ---
         login_user_response_data = user.to_dict(
-            only=('user_id', 'username', 'email', 'role', 'profile_image_url') # Match login/status fields
+            only=('user_id', 'username', 'email', 'role', 'profile_image_url')
         )
         response = jsonify({
             "message": "Google authentication successful." + (" Welcome!" if is_new_user else ""),
             "user": login_user_response_data
         })
-
-        # --- Set Cookies ---
         set_access_cookies(response, access_token)
         set_refresh_cookies(response, refresh_token)
-
-        # --- Commit user creation (if new) and Update last_login ---
         try:
-            user.last_login = db.func.current_timestamp()
-            db.session.commit() # Commit user create *and* last_login
+            user.last_login = db.func.current_timestamp()  # Using imported db
+            db.session.commit()                            # Using imported db
         except Exception as e:
-            db.session.rollback()
+            db.session.rollback()                          # Using imported db
             current_app.logger.warning(f"DB warning: Failed to commit user or update last_login for user {user.user_id} during Google auth: {e}")
-            # If it was a new user, they might not be fully saved - decide how critical this is.
-            # For now, we proceed assuming login/cookie setting is primary.
-
-        return response, 200 # Return 200 for both login and successful signup via Google
+        return response, 200
 
     except ValueError as e:
         current_app.logger.warning(f"Invalid Google ID token received: {e}")

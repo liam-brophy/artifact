@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import PropTypes from 'prop-types';
-import apiService from '../services/apiService';
-
-import React, { useState, useEffect } from 'react';
 // 1. Import your configured apiService instead of axios
-
+import apiService from '../services/apiService'; // <-- Adjust the path as needed
 
 function FollowButton({ targetUserId, initialIsFollowing, onFollowChange }) {
     const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
@@ -77,11 +73,4 @@ function FollowButton({ targetUserId, initialIsFollowing, onFollowChange }) {
     );
 }
 
-
-FollowButton.propTypes = {
-    targetUserId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired, // Allow string or number ID
-    initialIsFollowing: PropTypes.bool.isRequired,
-    onFollowChange: PropTypes.func,
-};
-
-export default FollowButton;
+export default FollowButton; // Ensure component is exported

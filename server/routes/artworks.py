@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from server.services.auth_helper import artist_required
 from server.models.user import User
@@ -75,9 +75,6 @@ def create_artwork():
         description=description,
         image_url=image_url,
         thumbnail_url=thumbnail_url,
-        edition_size=edition_size,
-        is_available=is_available,
-        edition_number=1 # Default assumption
     )
 
     try:
@@ -96,26 +93,86 @@ def create_artwork():
 
 
     # --- Serialization ---
-    # Use the model's to_dict method, ensuring artist info isn't included redundantly
-    # or tailor the response exactly as per spec
-    artwork_data = created_artwork.to_dict(include_artist=False) # Don't nest artist info here
+    try:
+        # Serialize the artwork data while excluding the 'artist' relationship
+        response_data = created_artwork.to_dict(rules=('-artist',))
+    except Exception as e:
+        current_app.logger.exception("Serialization failed after creating artwork")
+        return jsonify({"error": {"code": "SERIALIZATION_ERROR", "message": "Failed to serialize artwork data"}}), 500
 
     # Match the spec response format for POST /api/artworks
     response_data = {
-        "artwork_id": artwork_data['artwork_id'],
+        "artwork_id": response_data['artwork_id'],
         "artist_id": current_user_id, # Add artist_id explicitly
-        "title": artwork_data['title'],
-        "description": artwork_data['description'],
-        "image_url": artwork_data['image_url'],
-        "thumbnail_url": artwork_data['thumbnail_url'],
-        "created_at": artwork_data['created_at'],
-        "is_available": artwork_data['is_available'],
-        "edition_size": artwork_data['edition_size'],
-        "edition_number": artwork_data['edition_number'] # Assuming it's 1 from creation
+        "title": response_data['title'],
+        "description": response_data['description'],
+        "image_url": response_data['image_url'],
+        "thumbnail_url": response_data['thumbnail_url'],
+        "created_at": response_data['created_at'],
     }
     # --- End Serialization ---
 
     return jsonify(response_data), 201
+
+# === ADD THIS ROUTE HANDLER ===
+# === GET /api/artworks ===
+@artworks_bp.route('', methods=['GET']) # Handles GET requests to the blueprint root
+def get_artworks():
+    """Gets a list of artworks, optionally paginated/limited."""
+    try:
+        # --- Parameters ---
+        # Get pagination/limit parameters from request query string
+        page = request.args.get('page', 1, type=int)
+        limit = request.args.get('limit', 12, type=int) # Default limit for homepage/general lists
+        limit = min(limit, 50) # Apply a reasonable max limit
+
+        # --- Query ---
+        # Query artworks, eager load the related artist, order by newest first
+        query = Artwork.query.options(
+                    db.joinedload(Artwork.artist) # Eager load artist data
+                ).order_by(Artwork.created_at.desc())
+
+        # --- Pagination ---
+        # Apply pagination to the query
+        pagination = query.paginate(page=page, per_page=limit, error_out=False)
+        artworks = pagination.items # Get the artworks for the current page
+
+        # --- Serialization ---
+        # Define the fields needed by the ArtworkCard component on the frontend
+        # Use dot notation for nested artist fields
+        artwork_card_fields = (
+            "artwork_id",
+            "title",
+            "image_url",
+            "thumbnail_url",
+            "year",
+            "medium",
+            "artist_id",       # Include artist ID from the artwork table itself
+            "artist.user_id",  # Include nested artist ID (can be redundant but explicit)
+            "artist.username"  # Include nested artist username
+            # Add any other necessary fields defined in your Artwork model
+        )
+        # Use the 'only' parameter with the defined fields
+        serialized_artworks = [aw.to_dict(only=artwork_card_fields) for aw in artworks]
+
+        # --- Prepare Response ---
+        # Include both the artwork list and pagination info
+        response = {
+             "artworks": serialized_artworks,
+             "pagination": {
+                "total_items": pagination.total,
+                "total_pages": pagination.pages,
+                "current_page": page,
+                "limit": limit
+             }
+        }
+        return jsonify(response), 200
+
+    except Exception as e:
+        # Log the exception for debugging
+        current_app.logger.exception("Error fetching artworks list")
+        return jsonify({"error": {"message": "Failed to fetch artworks"}}), 500
+# === END OF ADDED ROUTE HANDLER ===
 
 
 # === GET /api/artworks/:artwork_id ===

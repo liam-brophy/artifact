@@ -1,80 +1,126 @@
-import apiService from '../services/apiService';
-import Cookies from 'js-cookie'; // Or your preferred cookie library
+import axios from 'axios';
+// Ensure you have installed js-cookie: npm install js-cookie OR yarn add js-cookie
+import Cookies from 'js-cookie';
 
-// 1. Create an Axios instance
+// 1. Create a configured Axios instance
 const apiService = axios.create({
-    // 2. Set the base URL for your API endpoints
-    baseURL: '/api', // Adjust if your Flask API is served from a different path/port during development
-    // 3. Crucial: Tell Axios to send cookies with requests
+    // Set the base URL for all API requests.
+    // This should match the prefix you use for your Flask API routes.
+    // Example: If your Flask routes are '/api/auth/login', '/api/users/me', etc.
+    baseURL: '/api',
+
+    // Set default headers if needed (Content-Type is usually handled automatically for JSON)
+    // headers: {
+    //   'Content-Type': 'application/json',
+    // },
+
+    // IMPORTANT: Send credentials (cookies) with cross-origin requests
+    // This is essential for HttpOnly cookies to be sent by the browser.
     withCredentials: true,
+
+    // Optional: Set a default timeout for requests (in milliseconds)
+    // timeout: 10000, // e.g., 10 seconds
 });
 
-// 4. Add a request interceptor for CSRF
+// 2. Add a Request Interceptor
+// This function runs BEFORE each request is sent.
 apiService.interceptors.request.use(
     (config) => {
-        const methodsRequiringCsrf = ['post', 'put', 'patch', 'delete'];
-        // Check if the method requires CSRF protection
+        // --- CSRF Token Handling ---
+        // We need to add the CSRF token header for state-changing methods
+        // (POST, PUT, DELETE, PATCH) as configured in Flask-JWT-Extended.
+
+        const methodsRequiringCsrf = ['post', 'put', 'delete', 'patch'];
+
+        // Check if the request method requires a CSRF token
         if (methodsRequiringCsrf.includes(config.method.toLowerCase())) {
-            // Get the CSRF token from the cookie set by Flask-JWT-Extended
-            // Default cookie name is 'csrf_access_token', adjust if you changed it in Flask config
+            // Read the CSRF token value from the cookie.
+            // Flask-JWT-Extended sets this cookie (it's NOT HttpOnly).
+            // Default cookie name is 'csrf_access_token'. Change if you customized it in Flask.
             const csrfToken = Cookies.get('csrf_access_token');
 
             if (csrfToken) {
-                // Set the CSRF token header
-                // Default header name is 'X-CSRF-Token', adjust if you changed it in Flask config
+                // Add the CSRF token to the request headers.
+                // Default header name is 'X-CSRF-Token'. Change if you customized it in Flask.
                 config.headers['X-CSRF-Token'] = csrfToken;
+                // console.log("CSRF Token Added:", csrfToken); // Uncomment for debugging
             } else {
-                // Optional: Log a warning if the cookie is missing for a protected method
-                console.warn('CSRF token cookie not found for a state-changing request.');
-                // You might want to prevent the request here or let the backend handle the missing token error
+                // Optional: Log a warning if the CSRF cookie is missing for a protected request
+                console.warn('CSRF token cookie (csrf_access_token) not found for request method:', config.method.toUpperCase());
+                // Depending on your backend setup, the request might fail without this header.
             }
         }
-        return config; // Continue with the request configuration
+
+        // You could add other logic here if needed, e.g., adding an Authorization header
+        // for a DIFFERENT auth scheme, but for JWT cookies, this is usually not needed.
+
+        // Must return the config object for the request to proceed
+        return config;
     },
     (error) => {
-        // Handle request errors (e.g., network issues before sending)
+        // Handle request configuration errors (rare)
+        console.error('Axios request interceptor error:', error);
         return Promise.reject(error);
     }
 );
 
-// 5. Optional: Add a response interceptor for global error handling
+// 3. Add a Response Interceptor (Optional but Recommended)
+// This function runs AFTER a response is received.
 apiService.interceptors.response.use(
     (response) => {
-        // Any status code that lie within the range of 2xx cause this function to trigger
+        // --- Successful Responses (Status 2xx) ---
+        // You can process successful responses globally here if needed.
+        // Often, you just pass them through.
+        // console.log("Axios response interceptor success:", response); // Uncomment for debugging
         return response;
     },
     (error) => {
-        // Any status codes that falls outside the range of 2xx cause this function to trigger
+        // --- Error Responses (Status outside 2xx) ---
+        console.error('Axios response interceptor error:', error);
+
         if (error.response) {
             // The request was made and the server responded with a status code
             // that falls out of the range of 2xx
-            console.error("API Error Response:", error.response.data);
-            console.error("Status Code:", error.response.status);
-            console.error("Headers:", error.response.headers);
+            const { status, data } = error.response;
+            console.error(`API Error: Status ${status}`, data);
 
-            if (error.response.status === 401) {
-                 // Specific handling for Unauthorized errors
-                 console.error("Unauthorized access - potential session expiry.");
-                 // Example: Trigger a logout or redirect to login page
-                 // You might need access to your AuthContext's logout function here,
-                 // which can be tricky. Often, this involves setting some app state
-                 // or using a custom event emitter. For now, just logging is fine.
-                 // window.location.href = '/login'; // Simple redirect, but loses state
-            } else if (error.response.status === 422 && error.response.data?.msg === 'Missing CSRF token') {
-                console.error("CSRF Token validation failed on the server.");
-                // Potentially notify the user or attempt a refresh?
+            // --- Specific Error Handling ---
+            if (status === 401) {
+                // Unauthorized: JWT might be expired, invalid, or missing.
+                // The user might need to log in again.
+                console.warn('Received 401 Unauthorized. Potential session expiry.');
+                // You might want to trigger a logout action or redirect to login here.
+                // Example (simple redirect, loses state):
+                // if (!window.location.pathname.includes('/login')) { // Avoid redirect loop
+                //    window.location.href = '/login?sessionExpired=true';
+                // }
+                // A better approach involves using your AuthContext's logout function,
+                // which might require passing the context or using an event bus.
+            } else if (status === 422 && data?.msg === 'Missing CSRF token') {
+                // This specific error comes from Flask-JWT-Extended if CSRF is enforced
+                // but the header was missing or invalid.
+                console.error('CSRF Token validation failed. Check if cookie exists and header is sent correctly.');
+                // Could potentially try to refresh the page or prompt the user.
+            } else if (status === 403) {
+                 // Forbidden: User is authenticated but doesn't have permission for the action.
+                 console.warn('Received 403 Forbidden. User lacks permissions.');
             }
+            // Add handling for other common errors like 404 (Not Found), 500 (Server Error) if needed
+
         } else if (error.request) {
-            // The request was made but no response was received
-            console.error("API No Response:", error.request);
+            // The request was made but no response was received (e.g., network error, backend down)
+            console.error('API Error: No response received.', error.request);
+            // You could show a generic "Network Error" message to the user.
         } else {
             // Something happened in setting up the request that triggered an Error
-            console.error('API Request Setup Error:', error.message);
+            console.error('API Error: Request setup failed.', error.message);
         }
-        return Promise.reject(error); // Important: Reject the promise so calling code can handle the error too
+
+        // IMPORTANT: Reject the promise so the error can be caught and handled
+        // by the specific component/function that made the API call.
+        return Promise.reject(error);
     }
 );
 
-
-// 6. Export the configured instance
+// 4. Export the configured instance as the default export
 export default apiService;

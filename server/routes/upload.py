@@ -32,7 +32,7 @@ def get_s3_client():
             region_name=os.getenv('AWS_REGION')
         )
         # Test credentials validity slightly
-        s3_client.list_buckets() # Simple call to check auth
+        # s3_client.list_buckets() # Simple call to check auth
         return s3_client
     except NoCredentialsError:
         current_app.logger.error("AWS credentials not found. Check .env or IAM role.")
@@ -64,28 +64,27 @@ def upload_to_s3(file_obj, bucket_name, object_name, content_type, is_public=Tru
     if not s3_client:
         return None, "S3 client initialization failed."
 
+    # Only set ContentType, remove ACL setting
     extra_args = {'ContentType': content_type}
-    if is_public:
-        extra_args['ACL'] = 'public-read' # Make object publicly readable via URL
+    # --- REMOVED ACL setting for public-read ---
+    # if is_public:
+    #     extra_args['ACL'] = 'public-read' # Make object publicly readable via URL
+    # ----------------------------------------
 
     try:
+        current_app.logger.info(f"Uploading to S3 with ExtraArgs: {extra_args}")  # Log args being used
         s3_client.upload_fileobj(
             file_obj,
             bucket_name,
             object_name,
-            ExtraArgs=extra_args
+            ExtraArgs=extra_args  # Now only contains ContentType
         )
-        # Construct the public URL
+        # Construct the public URL (this assumes the object *will* be public via bucket policy)
         region = os.getenv('AWS_REGION')
-        # Handle different S3 URL formats (path-style vs virtual-hosted)
-        # Virtual-hosted style is generally preferred:
         location = f"https://{bucket_name}.s3.{region}.amazonaws.com/{object_name}"
 
-        # Path-style (less common for new buckets):
-        # location = f"https://s3.{region}.amazonaws.com/{bucket_name}/{object_name}"
-
         current_app.logger.info(f"Successfully uploaded {object_name} to {bucket_name}. URL: {location}")
-        return location, None # Return URL and no error
+        return location, None  # Return URL and no error
 
     except ClientError as e:
         current_app.logger.error(f"S3 Upload Failed for {object_name}: {e}")

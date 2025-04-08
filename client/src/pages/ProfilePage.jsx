@@ -1,217 +1,236 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import React, { useState, useEffect } from 'react';
+import { useParams, useLocation, Navigate } from 'react-router-dom'; // Added useLocation
 import apiService from '../services/apiService';
+import { useAuth } from '../context/AuthContext'; // Use useAuth for logged-in user info
 
-// --- Child Component Imports ---
-import FollowButton from '../components/FollowButton';
-import FollowerList from '../components/FollowerList';
-import FollowingList from '../components/FollowingList';
+// Import MUI components
+import Container from '@mui/material/Container';
+import Typography from '@mui/material/Typography';
+import Box from '@mui/material/Box';
+import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert';
+import Grid from '@mui/material/Grid';
+import Pagination from '@mui/material/Pagination'; // Import Pagination
+
+// Import the card component
+import ArtworkCard from '../components/ArtworkCard'; // Assuming this displays created artworks
+// You might need a DIFFERENT card component for displaying 'collected' items if the structure is different
 
 function ProfilePage() {
-    const { username: routeUsername } = useParams();
-    const { user: loggedInUser, token } = useAuth();
+    const { username } = useParams(); // Get username being viewed from URL
+    const { user: loggedInUser, isLoading: isAuthLoading, isAuthenticated } = useAuth(); // Get logged-in user state
+    const location = useLocation();
 
-    // State for the profile data being viewed
-    const [profileData, setProfileData] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState(null);
-    // State for whether the logged-in user is following the profile user
-    const [isFollowing, setIsFollowing] = useState(false);
+    // State for the profile user being viewed
+    const [profileUser, setProfileUser] = useState(null); // Store the fetched user data for the profile
+    const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+    const [errorProfile, setErrorProfile] = useState(null);
 
-    // Debug logging
+    // State for artworks (created or collected)
+    const [artworks, setArtworks] = useState([]);
+    const [isLoadingArtworks, setIsLoadingArtworks] = useState(false); // Start false, only load if viewing own profile
+    const [errorArtworks, setErrorArtworks] = useState(null);
+    const [pagination, setPagination] = useState({ total_pages: 1, current_page: 1 });
+
+    const isOwnProfile = isAuthenticated && profileUser && loggedInUser?.user_id === profileUser.user_id;
+
+    // 1. Fetch Profile User Data (Runs first)
     useEffect(() => {
-        console.log("loggedInUser:", loggedInUser);
-    }, [loggedInUser]);
-
-    // If we're viewing our own profile without a route username, use the user ID instead
-    const targetIdentifier = routeUsername || 
-                            (loggedInUser?.username) || 
-                            (loggedInUser?.user_id ? `id/${loggedInUser.user_id}` : null);
-    // Determine if the profile being viewed is the logged-in user's own profile
-    const isOwnProfile = 
-        loggedInUser && 
-        (targetIdentifier === loggedInUser.username || 
-         targetIdentifier === `id/${loggedInUser.id}`);
-
-    // Callback function passed to FollowButton to update state here
-    const handleFollowChange = useCallback((newState) => {
-        setIsFollowing(newState);
-        setProfileData(prev => {
-            if (!prev || prev.follower_count === undefined) return prev;
-            const currentFollowers = Number(prev.follower_count) || 0;
-            return {
-                ...prev,
-                follower_count: Math.max(0, currentFollowers + (newState ? 1 : -1))
-            };
-        });
-    }, []);
-
-    // Fetch profile data when the targetIdentifier changes
-    useEffect(() => {
-        if (!targetIdentifier) {
-            if (!loggedInUser) {
-                setError("Please log in to view your profile.");
-            } else {
-                setError("User information is incomplete. Please update your profile.");
-            }
-            setIsLoading(false);
-            setProfileData(null);
+        if (!username) {
+            setErrorProfile("Username parameter is missing.");
+            setIsLoadingProfile(false);
             return;
         }
 
         const fetchProfile = async () => {
-            setIsLoading(true);
-            setError(null);
-            setProfileData(null);
-            setIsFollowing(false);
+            setIsLoadingProfile(true);
+            setErrorProfile(null);
+            setProfileUser(null); // Reset profile on username change
+            setArtworks([]); // Reset artworks
+            setErrorArtworks(null);
+            setIsLoadingArtworks(false);
 
             try {
-                // Determine if we're fetching by ID or username
-                const endpoint = targetIdentifier.startsWith('id/') 
-                    ? `/api/users/id/${targetIdentifier.split('/')[1]}` 
-                    : `/api/users/${targetIdentifier}`;
-                
-                const response = await apiService.get(endpoint, {
-                    headers: token ? { Authorization: `Bearer ${token}` } : {},
-                    withCredentials: true,
-                });
-
-                setProfileData(response.data);
-
-                if (response.data.isFollowing !== undefined) {
-                    setIsFollowing(response.data.isFollowing);
-                }
-
+                console.log(`Fetching profile for: ${username}`);
+                const response = await apiService.get(`/users/${username}`); // Fetch USER data first
+                setProfileUser(response.data); // Store the user object whose profile we're viewing
             } catch (err) {
-                console.error("Error fetching profile:", err);
-                const errorMsg = err.response?.data?.message
-                                 || (err.response ? `Server error: ${err.response.status}` : null)
-                                 || err.message
-                                 || "Failed to load profile.";
-
-                if (err.response?.status === 404) {
-                    setError(`Profile not found for identifier "${targetIdentifier}".`);
-                } else {
-                    setError(errorMsg);
-                }
-                setProfileData(null);
+                console.error("Failed to fetch profile:", err);
+                setErrorProfile(
+                    err.response?.data?.error?.message ||
+                    err.response?.data?.message ||
+                    (err.response?.status === 404 ? `Profile not found for user: ${username}` : null) ||
+                    err.message || "Could not load profile."
+                );
             } finally {
-                setIsLoading(false);
+                setIsLoadingProfile(false);
             }
         };
 
         fetchProfile();
 
-    }, [targetIdentifier, loggedInUser, token]);
+    }, [username]); // Depend only on username from URL
 
+    // 2. Fetch Artworks (Created or Collected) IF it's the logged-in user's own profile
+    useEffect(() => {
+        // Check prerequisites: Ensure we have a valid profile, no profile error, and that it's the user's own profile
+        if (!profileUser?.user_id || errorProfile || !isOwnProfile) {
+            setIsLoadingArtworks(false);
+            setArtworks([]);
+            console.log("Artwork fetch skipped (no profileUser.user_id, profile error, or not own profile).");
+            return; // Don't fetch artworks
+        }
+
+        const fetchArtworks = async (page = 1) => {
+            setIsLoadingArtworks(true);
+            setErrorArtworks(null);
+
+            // Determine which endpoint to call based on the user's role
+            let endpoint = '';
+            if (profileUser.role === 'artist') {
+                endpoint = `/users/${profileUser.user_id}/created-artworks`;
+            } else if (profileUser.role === 'patron') {
+                endpoint = `/users/${profileUser.user_id}/collected-artworks`;
+            } else {
+                console.warn("Profile user has neither 'artist' nor 'patron' role. Cannot fetch artworks.");
+                setIsLoadingArtworks(false);
+                return;
+            }
+
+            try {
+                console.log(`Fetching artworks from: ${endpoint}?page=${page}`);
+                const response = await apiService.get(endpoint, { params: { page } });
+
+                if (profileUser.role === 'artist') {
+                    setArtworks(response.data.artworks || []);
+                    setPagination(response.data.pagination || { total_pages: 1, current_page: 1 });
+                } else if (profileUser.role === 'patron') {
+                    const collectedArtworks = response.data.collection?.map(item => ({
+                        ...item.artwork,
+                        artist: item.artist,
+                        collection_id: item.collection_id,
+                        acquired_at: item.acquired_at
+                    })) || [];
+                    setArtworks(collectedArtworks);
+                    setPagination(response.data.pagination || { total_pages: 1, current_page: 1 });
+                }
+            } catch (err) {
+                console.error(`Failed to fetch artworks from ${endpoint}:`, err);
+                if (err.response?.status === 403) {
+                    setErrorArtworks("You do not have permission to view these artworks.");
+                } else {
+                    setErrorArtworks(
+                        err.response?.data?.error?.message ||
+                        err.response?.data?.message ||
+                        err.message || "Could not load artworks."
+                    );
+                }
+                setArtworks([]);
+                setPagination({ total_pages: 1, current_page: 1 });
+            } finally {
+                setIsLoadingArtworks(false);
+            }
+        };
+
+        console.log("Running fetchArtworks effect...");
+        fetchArtworks(pagination.current_page);
+
+    }, [profileUser?.user_id, isOwnProfile, pagination.current_page]);
+
+    const handlePageChange = (event, value) => {
+        if (value !== pagination.current_page) {
+            setPagination(prev => ({ ...prev, current_page: value }));
+            // The useEffect for fetching artworks will trigger due to pagination.current_page change
+        }
+    };
 
     // --- Render Logic ---
-    if (isLoading) {
-        return <div className="page-container status-message">Loading profile...</div>;
+
+    // Handle initial auth loading (affects knowing if it's own profile)
+    if (isAuthLoading) {
+        return <Container maxWidth="lg"><Box sx={{ display: 'flex', justifyContent: 'center', mt: 5 }}><CircularProgress /></Box></Container>;
     }
 
-    if (error) {
-        return <div className="page-container status-message error-message">Error: {error}</div>;
+    // Handle profile loading state
+    if (isLoadingProfile) {
+        return <Container maxWidth="lg"><Box sx={{ display: 'flex', justifyContent: 'center', mt: 5 }}><CircularProgress /></Box></Container>;
     }
 
-    if (!profileData) {
-        return <div className="page-container status-message">Profile data could not be loaded.</div>;
+    // Handle profile fetch error (e.g., user not found)
+    if (errorProfile) {
+        return <Container maxWidth="lg"><Alert severity="error" sx={{ mt: 4 }}>{errorProfile}</Alert></Container>;
     }
 
-    // --- Profile Exists - Render Content ---
+    // Handle case where profile user wasn't found or loaded
+    if (!profileUser) {
+        return <Container maxWidth="lg"><Alert severity="warning" sx={{ mt: 4 }}>Profile data could not be loaded for '{username}'.</Alert></Container>;
+    }
+
+    // --- Display Profile Info ---
     return (
-        <div className="page-container profile-page" style={{ padding: '20px' }}>
+        <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
             {/* Profile Header */}
-            <div className="profile-header" style={{ marginBottom: '30px', paddingBottom: '20px', borderBottom: '1px solid #ccc' }}>
-                {profileData.profile_image_url && (
-                    <img
-                        src={profileData.profile_image_url}
-                        alt={`${profileData.username}'s profile`}
-                        className="profile-picture"
-                        style={{ width: '120px', height: '120px', borderRadius: '50%', objectFit: 'cover', marginBottom: '15px', float: 'left', marginRight: '20px' }}
-                    />
+            <Box sx={{ mb: 4, p: 2, borderBottom: 1, borderColor: 'divider' }}>
+                <Typography variant="h4" component="h1" gutterBottom>
+                    {profileUser.username}'s Profile
+                </Typography>
+                <Typography variant="body1" color="text.secondary">
+                    Role: {profileUser.role}
+                </Typography>
+                {/* Display message if not viewing own profile (optional) */}
+                {!isOwnProfile && (
+                    <Alert severity="info" sx={{ mt: 2 }}>You are viewing {profileUser.username}'s public profile.</Alert>
                 )}
-                <div className="profile-info">
-                    <h1>{profileData.username || "User " + profileData.user_id}</h1>
-                    <p className="profile-role" style={{ fontStyle: 'italic', color: '#555' }}>Role: {profileData.role || "User"}</p>
-                    {profileData.bio && <p className="profile-bio" style={{ marginTop: '10px' }}>{profileData.bio}</p>}
+            </Box>
 
-                    {/* Display Follower/Following counts */}
-                    <div className="profile-stats" style={{ marginTop: '10px' }}>
-                        {profileData.follower_count !== undefined && (
-                            <span style={{ marginRight: '15px' }}>
-                                Followers: <strong>{profileData.follower_count}</strong>
-                            </span>
-                        )}
-                        {profileData.following_count !== undefined && (
-                             <span>
-                                Following: <strong>{profileData.following_count}</strong>
-                             </span>
-                        )}
-                    </div>
-                </div>
-                <div style={{ clear: 'both' }}></div>
+            {/* Only show Artworks section if it's the user's OWN profile */}
+            {isOwnProfile ? (
+                <>
+                    <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 3 }}>
+                        {profileUser.role === 'artist' ? 'Created Artworks' : 'Collected Artworks'}
+                    </Typography>
 
-                {/* Action Buttons */}
-                <div className="profile-actions" style={{ marginTop: '20px' }}>
-                    {isOwnProfile ? (
-                        <Link to="/settings/profile" className="button button-secondary">
-                            Edit Profile
-                        </Link>
-                    ) : (
-                        loggedInUser && profileData.user_id && (
-                            <FollowButton
-                                targetUserId={profileData.user_id}
-                                initialIsFollowing={isFollowing}
-                                onFollowChange={handleFollowChange}
-                            />
-                        )
+                    {isLoadingArtworks && (<Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}><CircularProgress /></Box>)}
+                    {errorArtworks && !isLoadingArtworks && (<Alert severity="warning" sx={{ mt: 3 }}>{errorArtworks}</Alert>)}
+                    {!isLoadingArtworks && !errorArtworks && artworks.length === 0 && (
+                        <Typography sx={{ mt: 3, textAlign: 'center' }}>
+                            No {profileUser.role === 'artist' ? 'created' : 'collected'} artworks found.
+                        </Typography>
                     )}
-                </div>
-            </div>
 
-            {/* Main Profile Content */}
-            {/* Rest of your component remains the same */}
-            <div className="profile-content">
-                {/* Role-Specific Sections */}
-                {profileData.role === 'artist' && (
-                    <section className="profile-artist-specific-section profile-section" style={{ marginBottom: '30px' }}>
-                        <h3>Artworks</h3>
-                        {profileData.user_id ? (
-                            <p><i>Artwork Grid Placeholder for user {profileData.user_id}</i></p>
-                        ) : <p>Cannot load artworks: User ID missing.</p>}
-                    </section>
-                )}
+                    {!isLoadingArtworks && !errorArtworks && artworks.length > 0 && (
+                        <>
+                            <Grid container spacing={3}>
+                                {artworks.map((artwork) => (
+                                    <Grid item key={artwork.artwork_id || artwork.collection_id} xs={12} sm={6} md={4} lg={3}>
+                                        {/* Pass the correct artwork object structure to ArtworkCard */}
+                                        {/* ArtworkCard might need adjustment if collected items have different structure */}
+                                        <ArtworkCard artwork={artwork} />
+                                    </Grid>
+                                ))}
+                            </Grid>
+                            {/* Add Pagination controls if more than one page */}
+                            {pagination.total_pages > 1 && (
+                                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                                    <Pagination
+                                        count={pagination.total_pages}
+                                        page={pagination.current_page}
+                                        onChange={handlePageChange}
+                                        color="primary"
+                                    />
+                                </Box>
+                            )}
+                        </>
+                    )}
+                </>
+            ) : (
+                // Optional: Message indicating artworks aren't shown for public view
+                <Typography sx={{ mt: 3, textAlign: 'center', fontStyle: 'italic' }}>
+                    Artwork details are only visible on your own profile.
+                </Typography>
+            )}
 
-                {profileData.role === 'patron' && (
-                    <section className="profile-patron-specific-section profile-section" style={{ marginBottom: '30px' }}>
-                        <h3>Collections</h3>
-                         {profileData.user_id ? (
-                            <p><i>Collection List Placeholder for user {profileData.user_id}</i></p>
-                         ) : <p>Cannot load collections: User ID missing.</p>}
-                    </section>
-                )}
-
-                {/* Common Sections */}
-                {profileData && profileData.user_id && (
-                    <>
-                        <section className="profile-followers-section profile-section" style={{ marginBottom: '30px' }}>
-                            <h3>Followers</h3>
-                            <FollowerList userId={profileData.user_id} />
-                        </section>
-
-                        <section className="profile-following-section profile-section" style={{ marginBottom: '30px' }}>
-                             <h3>Following</h3>
-                             <FollowingList userId={profileData.user_id} />
-                        </section>
-                    </>
-                )}
-                {!profileData && !isLoading && (
-                     <p>Cannot load follower/following lists: User ID missing or profile failed to load.</p>
-                )}
-            </div>
-        </div>
+        </Container>
     );
 }
 

@@ -58,6 +58,14 @@ class User(db.Model, SerializerMixin):
         cascade='all, delete-orphan'
     )
 
+    packs = db.relationship(
+        'UserPack', # Use string reference to avoid import loops
+        back_populates='owner',
+        lazy='dynamic', # Query object
+        cascade='all, delete-orphan', # If user deleted, delete their packs
+        foreign_keys='UserPack.user_id' # Explicitly specify FK if needed
+    )
+
 
 
     serialize_rules = (
@@ -66,6 +74,7 @@ class User(db.Model, SerializerMixin):
             '-collections',
             '-following',
             '-followers',
+            '-packs',
     )
 
     def __repr__(self):

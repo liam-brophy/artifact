@@ -1,132 +1,136 @@
 import os
 from flask import Flask, jsonify
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-from flask_jwt_extended import JWTManager
-from flask_cors import CORS, cross_origin
-import redis # Import redis
-from datetime import timedelta # Needed for blocklist expiration
-
-# Corrected import using absolute path
-from server.config import get_config # Import ONLY get_config
 from dotenv import load_dotenv
+from datetime import timedelta
+# from flask_seeder import Seeder # Not currently used, can be commented out or removed if not needed
 
-# Load environment variables from .env file
+# Import extensions and BLOCKLIST from the new file
+from .extensions import db, jwt, migrate, cors, BLOCKLIST
+
+# --- IMPORT MODELS HERE ---
+# This is the crucial section where Flask-Migrate needs to know about ALL your models
+from .models.user import User
+from .models.artwork import Artwork     # Assuming you have artwork.py
+from .models.collection import Collection # Assuming you have collection.py
+from .models.user_follow import UserFollow # Assuming you have user_follow.py
+# --- ADD THESE IMPORTS for the new pack models ---
+from .models.pack_type import PackType   # Import PackType model
+from .models.user_pack import UserPack   # Import UserPack model
+# ---------------------------------------------------
+# Import any other models you have (e.g., UserFollow)
+
 load_dotenv()
 
-# Initialize extensions globally first
-db = SQLAlchemy()
-migrate = Migrate()
-jwt = JWTManager()
-cors = CORS()
-
-# Corrected function definition - removed default argument using get_config_name
-def create_app():
-    """Application Factory Pattern"""
+def create_app(config_object=None):
     app = Flask(__name__)
-    app_config = get_config()  # Call the function to get the config object
-    app.config.from_object(app_config)  # Load config from the object
-    # app.redis_client = redis_client
-    # --- JWT Configuration ---
-    # Choose a strong secret key!
-    app.config["JWT_SECRET_KEY"] = "your-super-secret-key-change-me" # CHANGE THIS! Load from env var ideally
-    app.config["JWT_TOKEN_LOCATION"] = ["cookies"] # Tell JWT Extended to expect JWTs in cookies
-    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1) # Example expiration
-    app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=30) # Example expiration
 
-        # --- Cookie Configuration ---
-    # Set SameSite=Lax or Strict for CSRF protection. Lax is generally okay.
-    # Set Secure=True in production (requires HTTPS)
-    app.config["JWT_COOKIE_SAMESITE"] = "Lax"
-    app.config["JWT_COOKIE_SECURE"] = False # Set to True in production!
-    # Set HttpOnly=True to prevent client-side JS access to the JWT cookies
-    app.config["JWT_ACCESS_COOKIE_NAME"] = "access_token_cookie" # Optional: customize name
-    app.config["JWT_REFRESH_COOKIE_NAME"] = "refresh_token_cookie" # Optional: customize name
-    # Set path for cookies (usually '/')
-    app.config["JWT_ACCESS_COOKIE_PATH"] = "/"
-    app.config["JWT_REFRESH_COOKIE_PATH"] = "/"
+    # --- Configuration ---
+    # Default configuration settings
+    app.config.from_mapping(
+        SECRET_KEY=os.environ.get('SECRET_KEY', 'dev_secret_key'), # Default for dev
+        SQLALCHEMY_DATABASE_URI=os.environ.get('DATABASE_URI'),
+        SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        SQLALCHEMY_ECHO=False, # Set to True for debugging SQL
+        JWT_SECRET_KEY=os.environ.get('JWT_SECRET_KEY'), # Load from env!
+        JWT_TOKEN_LOCATION=["cookies"],
+        JWT_ACCESS_TOKEN_EXPIRES=timedelta(hours=1),
+        JWT_REFRESH_TOKEN_EXPIRES=timedelta(days=30),
+        JWT_COOKIE_SAMESITE="Lax",
+        JWT_COOKIE_SECURE=os.environ.get('FLASK_ENV') == 'production', # True in prod (HTTPS)
+        JWT_ACCESS_COOKIE_NAME="access_token_cookie",
+        JWT_REFRESH_COOKIE_NAME="refresh_token_cookie",
+        JWT_ACCESS_COOKIE_PATH="/",
+        JWT_REFRESH_COOKIE_PATH="/",
+        JWT_COOKIE_CSRF_PROTECT=True, # Enable CSRF protection
+        JWT_ACCESS_CSRF_HEADER_NAME="X-CSRF-Token",
+        JWT_REFRESH_CSRF_HEADER_NAME="X-CSRF-Token",
+        JWT_BLOCKLIST_ENABLED=True, # Enable blocklisting
+        JWT_BLOCKLIST_TOKEN_CHECKS=["access", "refresh"],
+        GOOGLE_CLIENT_ID=os.environ.get('GOOGLE_CLIENT_ID') # Add Google Client ID config
+        # Add other configurations
+    )
 
-    # --- CSRF Protection (Important!) ---
-    # Enable CSRF protection for cookies
-    app.config["JWT_COOKIE_CSRF_PROTECT"] = True
-    # Set the header name the frontend must send for CSRF verification (for POST, PUT, DELETE etc)
-    app.config["JWT_ACCESS_CSRF_HEADER_NAME"] = "X-CSRF-Token"
-    app.config["JWT_REFRESH_CSRF_HEADER_NAME"] = "X-CSRF-Token" # Often same header for simplicity
-    # Optional: customize CSRF cookie names if needed
-    # app.config["JWT_ACCESS_CSRF_COOKIE_NAME"] = "csrf_access_token"
-    # app.config["JWT_REFRESH_CSRF_COOKIE_NAME"] = "csrf_refresh_token"
+    # Override with config_object if provided (useful for testing)
+    if config_object:
+        app.config.from_object(config_object)
 
-    # === IMPORTANT: Blocklist Configuration (Example using simple Python set) ===
-    # For production, use Redis or a database for the blocklist
-    # See Flask-JWT-Extended docs for details:
-    # https://flask-jwt-extended.readthedocs.io/en/stable/blocklist_and_token_revoking/
-    app.config["JWT_BLOCKLIST_ENABLED"] = True
-    app.config["JWT_BLOCKLIST_TOKEN_CHECKS"] = ["access", "refresh"] # Check both token types
-    BLOCKLIST = set() # Simple in-memory blocklist (NOT FOR PRODUCTION)
+    # Check essential configurations
+    if not app.config['SQLALCHEMY_DATABASE_URI']:
+        raise ValueError("DATABASE_URI environment variable not set.")
+    if not app.config['JWT_SECRET_KEY']:
+        raise ValueError("JWT_SECRET_KEY environment variable not set.")
+    if not app.config['GOOGLE_CLIENT_ID']:
+        app.logger.warning("GOOGLE_CLIENT_ID environment variable not set. Google Auth will not work.")
 
-    jwt = JWTManager(app)
 
-    # Callback function to check if a JWT is blocklisted
+    # --- Initialize Extensions ---
+    db.init_app(app)
+    # jwt must be initialized *before* loaders are defined
+    jwt.init_app(app)
+    # migrate must be initialized *after* db and *after* models are imported/known
+    migrate.init_app(app, db)
+    cors.init_app(app, resources={
+        r"/api/*": { # Apply CORS to all routes starting with /api/
+            "origins": [
+                "http://localhost:3000",
+                "http://127.0.0.1:3000",
+                "http://localhost:5173",   # Your Vite frontend origin
+                "http://127.0.0.1:5173"
+            ],
+             "supports_credentials": True # IMPORTANT for sending/receiving cookies
+        }
+    })
+
+
+    # --- JWT Loaders (Define them HERE, after jwt.init_app) ---
     @jwt.token_in_blocklist_loader
     def check_if_token_is_blocklisted(jwt_header, jwt_payload: dict):
         jti = jwt_payload["jti"]
+        # BLOCKLIST is now imported from extensions
         return jti in BLOCKLIST
 
-    # Initialize extensions with the app instance
-    db.init_app(app)
-    migrate.init_app(app, db)
-    jwt.init_app(app)
+    @jwt.user_lookup_loader
+    def user_lookup_callback(_jwt_header, jwt_data):
+        identity = jwt_data["sub"]
+        # User model is imported at the top
+        return User.query.get(identity)
 
-    cors.init_app(app,
-        resources={r"/api/*": {"origins": "http://localhost:5173"}},  # Your React app URL
-        supports_credentials=True,
-        methods=["GET", "HEAD", "POST", "OPTIONS", "PUT", "PATCH", "DELETE"],
-        allow_headers=["Content-Type", "Authorization"]
-    )
+    # --- Import and Register Blueprints ---
+    # Make sure these imports happen *after* models are known if blueprints import models
+    from server.routes.auth import auth_bp
+    from server.routes.users import users_bp
+    from server.routes.artworks import artworks_bp
+    from server.routes.upload import uploads_bp
+    # --- ADD Blueprint import for packs ---
+    from server.routes.packs import packs_bp # Assuming you created pack_routes.py
+    # --------------------------------------
 
-    # --- Critical: Import models AFTER db is initialized and within app context ---
-    with app.app_context():
-        from server.models.user import User
-        from server.models.artwork import Artwork
-        from server.models.collection import Collection
-        from server.models.user_follow import UserFollow
+    # Register blueprints with appropriate URL prefixes
+    app.register_blueprint(auth_bp, url_prefix='/api/auth')
+    app.register_blueprint(users_bp, url_prefix='/api/users')
+    app.register_blueprint(artworks_bp, url_prefix='/api/artworks')
+    app.register_blueprint(uploads_bp, url_prefix='/api/upload-image')
+    # --- REGISTER pack blueprint ---
+    app.register_blueprint(packs_bp, url_prefix='/api') # Using /api as base for packs routes
+    # -------------------------------
 
-        # Blueprints registration without debug prints
-        from server.routes.auth import auth_bp
-        app.register_blueprint(auth_bp, url_prefix='/api/auth')
+    # --- Global Error Handlers ---
+    @app.errorhandler(404)
+    def not_found(error):
+        return jsonify({"error": {"code": "NOT_FOUND", "message": "Resource not found"}}), 404
 
-        from server.routes.artworks import artworks_bp
-        app.register_blueprint(artworks_bp, url_prefix='/api/artworks')
+    @app.errorhandler(500)
+    def internal_error(error):
+        # Log the error in production
+        app.logger.error(f"Server Error: {error}", exc_info=True)
+        return jsonify({"error": {"code": "INTERNAL_SERVER_ERROR", "message": "An internal server error occurred"}}), 500
 
-        from server.routes.users import users_bp
-        app.register_blueprint(users_bp, url_prefix='/api/users')
-
-        from server.routes.upload import uploads_bp
-        app.register_blueprint(uploads_bp)
-
-
-    # Add a simple health check or root route if desired
+    # --- Simple Root Route (Optional) ---
     @app.route('/')
     def index():
-        return jsonify({"status": "API is running!"})
-
-    @app.route('/test-db')
-    def test_db():
-        try:
-            db.session.execute('SELECT 1')
-            return 'Database connection successful!'
-        except Exception as e:
-            return f'Database connection failed: {str(e)}'
-
-    # Shell context for `flask shell`
-    @app.shell_context_processor
-    def make_shell_context():
-        from server.models.user import User
-        return {'db': db, 'User': User}
+        return "API is running!"
 
     return app
 
+# This correctly sets up the app instance for Flask CLI commands like 'flask run', 'flask db'
 app = create_app()
-
-if __name__ == '__main__':
-    app.run(debug=app.config.get('DEBUG', False), port=5000)

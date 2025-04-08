@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL } from '../config';
+import apiService from '../services/apiService'; // <--- IMPORT apiService
 
 // --- Constants ---
 const ROLES = {
@@ -54,36 +55,32 @@ function RegisterPage() {
       return;
     }
     if (password.length < 8) {
-       setManualError("Password must be at least 8 characters long.");
-       return;
+      setManualError("Password must be at least 8 characters long.");
+      return;
     }
-
 
     setManualLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({ username, email, password, role }),
+      // Use apiService to post the registration data
+      const response = await apiService.post('/auth/register', {
+        username,
+        email,
+        password,
+        role
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(formatApiError(data));
-      }
-
-      console.log('Manual registration successful (backend response):', data);
-      // Instead of logging in here, prompt user to log in as per original logic
+      // Axios automatically throws for non-2xx responses, response data is in response.data
+      console.log('Manual registration successful (backend response):', response.data);
       alert('Registration successful! Please log in with your new credentials.');
-      navigate('/login'); // Redirect to login page after successful manual registration
-
+      navigate('/login'); // Redirect to login page after successful registration
     } catch (err) {
       console.error("Manual Registration failed:", err);
-      setManualError(err.message || "Failed to register. Please try again.");
+      let errorMessage = "Failed to register. Please try again.";
+      if (err.response?.data) {
+        errorMessage = formatApiError(err.response.data);
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      setManualError(errorMessage);
     } finally {
       setManualLoading(false);
     }

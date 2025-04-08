@@ -1,59 +1,82 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom'; // Import useLocation
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
+import CircularProgress from '@mui/material/CircularProgress'; // For loading state
 
-// Ensure this matches the named export
+// Import the hook to access authentication context
 import { useAuth } from '../context/AuthContext';
 
-import Upload from '../components/Upload'; // Import the Upload component
+// Import the component that contains the actual upload form/logic
+import Upload from '../components/Upload'; // Assuming this component handles the form and API call
 
 function UploadPage() {
-    // --- Get user info from your auth context/hook ---
-    const { user, setUser, isLoading } = useAuth();
-    // -------------------------------------------------
+    // Get state from the AuthContext
+    // We need isLoading, isAuthenticated, and the user object (for the role check)
+    const { user, isAuthenticated, isLoading } = useAuth();
+    const location = useLocation(); // Hook to get current location for redirect state
 
+    // 1. Handle Loading State: Show spinner while the initial auth check is running
     if (isLoading) {
-        // Optional: Show a loading spinner while auth state is resolving
-        return <Typography>Loading user data...</Typography>;
-    }
-
-    // --- Access Control ---
-    if (!localStorage.getItem('user')) {
-        debugger
-        // Not logged in, redirect to login page (adjust path as needed)
-        return <Navigate to="/login" replace />;
-
-    } else {
-        // Logged in, but no user data
-        const storedUser = JSON.parse(localStorage.getItem('user'));
-        
-    }
-
-    if (user.role !== 'artist') {
-        // Logged in, but not an artist
         return (
             <Container maxWidth="sm">
-                <Box sx={{ mt: 4, textAlign: 'center' }}>
-                    <Alert severity="error">
-                        Only artists can upload artworks.
-                    </Alert>
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+                    <CircularProgress />
+                    <Typography sx={{ ml: 2 }}>Verifying access...</Typography>
                 </Box>
             </Container>
         );
     }
 
-    // --- Render Upload Component for Artists ---
+    // 2. Handle Not Authenticated: Redirect to login page
+    // This check runs AFTER isLoading is confirmed to be false
+    if (!isAuthenticated) {
+        console.log("UploadPage: User not authenticated. Redirecting to login.");
+        // Use Navigate component for redirection
+        // Pass the current location in state so login can redirect back after success
+        return <Navigate to="/login" replace state={{ from: location }} />;
+    }
+
+    // 3. Handle Authenticated BUT Incorrect Role: Redirect or show error
+    // Use optional chaining `user?.role` just in case user object is briefly null during updates
+    if (user?.role !== 'artist') {
+        console.log(`UploadPage: User role (${user?.role}) is not 'artist'. Redirecting.`);
+        // Option A: Redirect to a different page (e.g., home)
+        return <Navigate to="/" replace state={{ message: "Access Denied: Artist role required for uploads." }} />;
+
+        // Option B: Show an "Unauthorized" message on this URL (less common for role access)
+        /*
+        return (
+            <Container maxWidth="sm">
+                <Box sx={{ mt: 4, textAlign: 'center' }}>
+                    <Alert severity="warning">
+                       Access Denied: Only artists can upload artworks.
+                    </Alert>
+                </Box>
+            </Container>
+        );
+        */
+    }
+
+    // 4. Render Upload Component for Authenticated Artists
+    // This section is reached only if: isLoading=false, isAuthenticated=true, AND user.role='artist'
+    console.log("UploadPage: Rendering Upload component for artist user:", user?.username);
     return (
         <Container maxWidth="md">
-            <Box sx={{ my: 4 }}> {/* Add some margin */}
+            <Box sx={{ my: 4 }}> {/* Added standard margin */}
                 <Typography variant="h4" component="h1" gutterBottom align="center">
                     Upload New Artwork
                 </Typography>
-                {/* Pass any necessary props, like the auth token if needed directly in Upload */}
-                <Upload fields={['image', 'title', 'year', 'medium']} />
+                {/*
+                  Render the Upload component.
+                  This component should internally use the 'apiService' for making the
+                  actual authenticated upload request to the backend.
+                  Pass any necessary props for configuration.
+                  No need to pass tokens or user ID if the backend gets it from the session.
+                */}
+                <Upload fields={['image', 'title', 'artist', 'year', 'medium']} />
             </Box>
         </Container>
     );

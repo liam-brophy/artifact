@@ -275,7 +275,17 @@ def get_user_created_artworks(user_id):
                               .paginate(page=page, per_page=limit, error_out=False)
 
     artworks = pagination.items
-    artworks_data = [aw.to_dict(only=["artwork_id", "title", "description", "created_at", "image_url", "price"]) for aw in artworks] # Add relevant fields
+    artworks_data = [aw.to_dict(only=(
+        "artwork_id",
+        "artist_id",  # Direct column access
+        "title",
+        "description",
+        "image_url",
+        "thumbnail_url",
+        "year",
+        "medium",
+        "created_at"
+    )) for aw in artworks]
 
     response = {
         "artworks": artworks_data,
