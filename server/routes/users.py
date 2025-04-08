@@ -1,7 +1,8 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity, current_user as jwt_current_user
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload # For eager loading if needed
+import traceback 
 
 # Import necessary models
 from server.models.user import User
@@ -250,92 +251,199 @@ def get_followers_list(user_id):
 
 
 # --- Existing Artwork/Collection Routes (Keep as they are role-specific) ---
-
-# === GET /api/users/:user_id/created-artworks === (Artist Only)
+# === GET /api/users/:user_id/created-artworks === (Now Publicly Viewable for Artists)
 @users_bp.route('/<int:user_id>/created-artworks', methods=['GET'])
-@jwt_required()
+# Use optional=True so the route works even if no token is sent
+# We can still check for a viewer later if needed
+@jwt_required(optional=True)
 def get_user_created_artworks(user_id):
-    """Gets artworks created by a specific user (MUST be an artist)."""
-    current_user_id = get_jwt_identity()
+    """Gets artworks created by a specific artist (publicly viewable)."""
+    # viewer_id = get_jwt_identity() # Get ID if logged in, None otherwise
 
-    # --- Authorization: Only view own OR maybe public view later? For now, own only. ---
-    # If public view allowed, check target user exists and is artist
-    if current_user_id != user_id:
-         return jsonify({"error": {"code": "AUTH_004", "message": "Cannot view created artworks for another user (currently)."}}), 403 # Tentative restriction
+    # Fetch the user whose artworks we want to view
+    # Check if user exists first before checking role
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"error": {"code": "NOT_FOUND", "message": "User not found"}}), 404
 
-    user = User.query.get_or_404(user_id)
-
-    # --- Role Check ---
+    # --- Role Check: Ensure the profile user IS an artist ---
     if user.role != 'artist':
-         return jsonify({"error": {"code": "AUTH_005", "message": "User must be an artist to have created artworks."}}), 403 # Forbidden/Bad Request? 403 is ok.
+         return jsonify({"error": {"code": "NOT_FOUND", "message": "No artist profile found for this user."}}), 404
 
-    page, limit = get_pagination_args()
-    pagination = Artwork.query.filter_by(artist_id=user_id)\
-                              .order_by(Artwork.created_at.desc())\
-                              .paginate(page=page, per_page=limit, error_out=False)
+    # --- Pagination ---
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 12, type=int)
+        per_page = max(1, min(per_page, 100)) # Clamp per_page
+    except Exception as e:
+        # Should ideally not happen with type=int, but good practice
+        current_app.logger.error(f"Error parsing pagination params: {e}")
+        return jsonify({"error": "Invalid pagination parameters"}), 400
 
-    artworks = pagination.items
-    artworks_data = [aw.to_dict(only=(
-        "artwork_id",
-        "artist_id",  # Direct column access
-        "title",
-        "description",
-        "image_url",
-        "thumbnail_url",
-        "year",
-        "medium",
-        "created_at"
-    )) for aw in artworks]
+    # --- Query and Serialization ---
+    # <<< Start TRY block HERE >>>
+    try:
+        pagination = Artwork.query.filter_by(artist_id=user_id)\
+            .options(joinedload(Artwork.artist)).order_by(Artwork.created_at.desc())\
+            .paginate(page=page, per_page=per_page, error_out=False)
 
-    response = {
-        "artworks": artworks_data,
-        "pagination": { "total_items": pagination.total, "total_pages": pagination.pages, "current_page": page, "limit": limit }
-    }
-    return jsonify(response), 200
+        artworks = pagination.items
 
+        # Adjust serialization rules based on what ArtworkCard component needs
+        artworks_data = [aw.to_dict(rules=(
+            '-collections', # Exclude potentially large list
+            'artist.user_id',
+            'artist.username'
+            # Ensure other needed fields like artwork_id, title, image_url, etc., are included by default or added here
+            # Or use 'only=(...)' if that's easier
+        )) for aw in artworks]
 
-# === GET /api/users/:user_id/collected-artworks === (Patron Only - Own Collection)
+        response = {
+            "artworks": artworks_data,
+            "pagination": {
+                "totalItems": pagination.total,
+                "totalPages": pagination.pages,
+                "currentPage": pagination.page,
+                "perPage": pagination.per_page,
+                "hasNext": pagination.has_next,
+                "hasPrev": pagination.has_prev,
+             }
+        }
+        return jsonify(response), 200
+
+    # <<< End TRY block HERE >>>
+    except Exception as e:
+         # Log the detailed error
+         error_traceback = traceback.format_exc()
+         current_app.logger.error(f"Error fetching/processing created artworks for artist {user_id}:\n{error_traceback}")
+         return jsonify({"error": "An internal server error occurred while fetching artworks."}), 500
+    
+
+# === GET /api/users/:user_id/collected-artworks ===
 @users_bp.route('/<int:user_id>/collected-artworks', methods=['GET'])
-@jwt_required()
+@jwt_required() # Keep this if only the owner can see their own full collection list
 def get_user_collected_artworks(user_id):
-    """Gets artworks collected by a specific user (MUST be a patron, view own only)."""
+    """Gets artworks collected by a specific user (checks ownership)."""
+    print(f"--- Request received for collected artworks: user_id={user_id} ---") # DEBUG
     current_user_id = get_jwt_identity()
 
+    # Authorization check: Ensure the logged-in user matches the requested user ID
     if current_user_id != user_id:
+        print(f"Authorization failed: current_user={current_user_id}, requested_user={user_id}") # DEBUG
         return jsonify({"error": {"code": "AUTH_004", "message": "Cannot view collection for another user."}}), 403
 
-    user = User.query.get_or_404(user_id)
+    # Fetch the user or return 404
+    user = User.query.get(user_id) # Use get for primary key lookup
+    if not user:
+         print(f"User not found for user_id={user_id}") # DEBUG
+         # Use standard 404 error handler if configured, or return JSON
+         return jsonify({"error": {"code": "NOT_FOUND", "message": "User not found"}}), 404
 
-    if user.role != 'patron':
-        return jsonify({"error": {"code": "AUTH_006", "message": "User must be a patron to have a collection."}}), 403
+    # Optional: Check if the user role allows having a collection (if needed)
+    # if user.role != 'patron':
+    #     print(f"Role check failed: user_id={user_id}, role={user.role}") # DEBUG
+    #     return jsonify({"error": {"code": "AUTH_006", "message": "User must be a patron to have a collection."}}), 403
 
-    page, limit = get_pagination_args()
-    # Assuming 'collections' relationship is on User model linking to Collection model via patron_id
-    pagination = user.collections.order_by(Collection.acquired_at.desc())\
-                                  .options(joinedload(Collection.artwork).joinedload(Artwork.artist)).paginate(page=page, per_page=limit, error_out=False)
+    # --- Pagination ---
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 12, type=int)
+        # Clamp per_page to reasonable limits
+        per_page = max(1, min(per_page, 100))
+        print(f"Pagination parameters: page={page}, per_page={per_page}") # DEBUG
+    except Exception as e:
+        print(f"Error parsing pagination parameters: {e}") # DEBUG
+        return jsonify({"error": "Invalid pagination parameters"}), 400
 
-    collection_items = pagination.items
-    final_collection_list = []
-    for item in collection_items:
-        if not item.artwork: continue # Skip if artwork somehow deleted but collection entry remains
-        artwork_data = item.artwork.to_dict(only=["artwork_id", "title", "image_url"]) # Add image_url
-        artist_data = {}
-        if item.artwork.artist:
-            artist_data = item.artwork.artist.to_dict(only=["user_id", "username"])
+    try:
+        # --- Query using the relationship with eager loading ---
+        # Make sure the 'collections' relationship on the User model is correctly defined
+        # and back_populates with 'patron' on the Collection model.
+        # Assuming 'user.collections' is configured (e.g., lazy='dynamic' or default lazy='select')
+        # If lazy='dynamic', you query from it. If lazy='select', it's a list you might paginate differently.
+        # Let's assume the dynamic approach which is common for pagination:
+        base_query = user.collections # This should be the Query object if lazy='dynamic'
 
-        final_collection_list.append({
-            "collection_id": item.collection_id, # Assuming Collection has a primary key
-            "artwork": artwork_data,
-            "artist": artist_data,
-            "acquired_at": item.acquired_at.isoformat() + 'Z' if item.acquired_at else None,
-            "transaction_id": item.transaction_id
-        })
+        # Check if base_query is indeed a query object (for debugging if relationship isn't dynamic)
+        print(f"Type of user.collections: {type(base_query)}") # DEBUG
 
-    response = {
-        "collection": final_collection_list,
-        "pagination": { "total_items": pagination.total, "total_pages": pagination.pages, "current_page": page, "limit": limit }
-    }
-    return jsonify(response), 200
+        pagination = base_query.options(
+                # Eager load Artwork data, and within that, the Artist data
+                joinedload(Collection.artwork).joinedload(Artwork.artist)
+            )\
+            .order_by(Collection.acquired_at.desc())\
+            .paginate(page=page, per_page=per_page, error_out=False) # error_out=False is important
+
+        print(f"Pagination total items found in DB query: {pagination.total}") # DEBUG
+        print(f"Pagination items on this page (count from pagination object): {len(pagination.items)}") # DEBUG
+
+        # --- Process Items for Response ---
+        collection_items = pagination.items # Get items for the current page
+        final_collection_list = []
+
+        print(f"Starting processing loop for {len(collection_items)} items...") # DEBUG
+        for i, item in enumerate(collection_items):
+            # Basic check on the item type
+            if not isinstance(item, Collection):
+                 print(f"  Item {i} is not a Collection object, skipping. Type: {type(item)}") # DEBUG
+                 continue
+
+            print(f"  Processing item {i}: patron_id={item.patron_id}, artwork_id={item.artwork_id}") # DEBUG
+
+            # Check if the related artwork object was loaded
+            if not item.artwork:
+                 print(f"  Skipping item {i} because item.artwork is missing! (artwork_id={item.artwork_id})") # DEBUG
+                 continue
+
+            print(f"    Artwork loaded: artwork_id={item.artwork.artwork_id}, title='{item.artwork.title}'") # DEBUG
+
+            # Prepare artwork data using serialization (adjust fields as needed)
+            artwork_data = item.artwork.to_dict(
+                only=[
+                    "artwork_id", "title", "image_url", "thumbnail_url", "rarity"
+                ]
+            )
+
+            # Prepare artist data safely
+            artist_data = {}
+            if item.artwork.artist:
+                 print(f"    Artist loaded: user_id={item.artwork.artist.user_id}, username='{item.artwork.artist.username}'") # DEBUG
+                 artist_data = item.artwork.artist.to_dict(only=["user_id", "username"])
+            else:
+                 print(f"    Artist relationship missing for artwork_id={item.artwork.artwork_id}") # DEBUG
+
+
+            # Append the structured data to the response list
+            final_collection_list.append({
+                "artwork": artwork_data,
+                "artist": artist_data,
+                "acquired_at": item.acquired_at.isoformat() + 'Z' if item.acquired_at else None,
+                "transaction_id": item.transaction_id
+                # We don't need collection_id as it doesn't exist
+            })
+
+        print(f"Finished processing loop. Final list length: {len(final_collection_list)}") # DEBUG
+
+        # --- Prepare Final JSON Response ---
+        response = {
+            "collectedArtworks": final_collection_list,
+            "pagination": {
+                "totalItems": pagination.total,
+                "totalPages": pagination.pages,
+                "currentPage": pagination.page, # Use page from pagination object
+                "perPage": pagination.per_page, # Use per_page from pagination object
+                "hasNext": pagination.has_next,
+                "hasPrev": pagination.has_prev,
+            }
+        }
+        return jsonify(response), 200
+
+    except Exception as e:
+        # Log the detailed error including traceback
+        error_traceback = traceback.format_exc()
+        current_app.logger.error(f"Exception occurred in get_user_collected_artworks for user {user_id}:\n{error_traceback}")
+        print(f"!!! EXCEPTION OCCURRED: {e}\n{error_traceback}") # DEBUG - Also print to console
+        return jsonify({"error": "An internal server error occurred while processing the collection."}), 500
 
 
 # === POST /api/users/:user_id/collected-artworks === (Patron Only - Add to Own)

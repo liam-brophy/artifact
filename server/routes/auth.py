@@ -152,22 +152,38 @@ def login_user():
 
     user = User.query.filter_by(email=email).first()
     if user and user.check_password(password):
+        # --- Generate Tokens ---
         access_token = create_access_token(identity=user.user_id)
         refresh_token = create_refresh_token(identity=user.user_id)
+
+        # --- Update Last Login ---
         try:
-            user.last_login = db.func.current_timestamp()  # Using imported db
-            db.session.commit()                            # Using imported db
+            user.last_login = db.func.current_timestamp()
+            db.session.commit()
         except Exception as e:
-            db.session.rollback()                          # Using imported db
+            db.session.rollback()
             current_app.logger.warning(f"DB warning: Failed to update last_login for user {user.user_id} during login: {e}")
 
+        # --- Prepare User Data for Response (Choose ONE way) ---
+        # Option 1: Using your existing specific dict (seems fine)
         login_user_response_data = user.to_dict(only=["user_id", "username", "role", "email", "profile_image_url"])
-        response = jsonify({
+        # Option 2: Using the rules-based dict (if you prefer)
+        # login_user_response_data = user.to_dict(rules=('-password_hash', '-collections', '-created_artworks', '-packs'))
+
+        # --- Create JSON Response ---
+        response_data = {
             "message": "Login successful",
-            "user": login_user_response_data
-        })
+            "access_token": access_token,  # <-- Add token string here
+            "user": login_user_response_data # <-- Include the prepared user data
+        }
+        response = jsonify(response_data) # Pass the whole dictionary to jsonify
+
+        # --- Set Cookies (Keep this!) ---
+        # This sets the cookies for browser interaction, but we also added
+        # the token to the body for easier access in Postman/scripts.
         set_access_cookies(response, access_token)
         set_refresh_cookies(response, refresh_token)
+
         return response, 200
     else:
         return jsonify({"error": {"code": "AUTH_002", "message": "Invalid email or password"}}), 401

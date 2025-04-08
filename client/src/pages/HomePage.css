@@ -1,0 +1,88 @@
+.home-page-container {
+    padding-top: 2rem; /* Equivalent to py: 4 in MUI */
+    padding-bottom: 2rem;
+    max-width: 1200px; /* Equivalent to maxWidth="lg" */
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem; /* Some padding */
+    padding-right: 1rem;
+  }
+  
+  .welcome-section {
+    text-align: center;
+    margin-bottom: 3rem; /* Spacing */
+  }
+  
+  .welcome-title {
+    margin-bottom: 0.5rem;
+    font-weight: 500; /* medium */
+    font-size: 2.5rem; /* Approximates h3 */
+  }
+  
+  .welcome-subtitle {
+    color: #666; /* Approximates text.secondary */
+    margin-bottom: 2rem;
+    font-size: 1.1rem; /* Approximates h6 */
+  }
+  
+  .role-actions {
+    margin-bottom: 3rem; /* Spacing */
+    text-align: center;
+  }
+  
+  .role-actions h5 {
+    margin-bottom: 1rem;
+  }
+  
+  .role-actions button {
+    margin: 0 0.5rem; /* Spacing between buttons */
+  }
+  
+  .packs-section {
+    margin-top: 2rem;
+    margin-bottom: 3rem;
+    padding: 1.5rem;
+    border: 1px solid #e0e0e0; /* Example border */
+    border-radius: 8px;
+    background-color: #f9f9f9; /* Slight background */
+  }
+  
+  .packs-section-title {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem; /* Approximates h5 */
+  }
+  
+  .artworks-carousel-section {
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+  }
+  
+  .artworks-carousel-title {
+    text-align: center;
+    margin-bottom: 2rem;
+    font-size: 1.5rem; /* Approximates h5 */
+  }
+  
+  .loading-container,
+  .error-container,
+  .no-artworks-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 150px; /* Ensure space for message/spinner */
+    text-align: center;
+    margin: 2rem 0;
+  }
+  
+  /* Styling for react-slick carousel arrows and dots if needed */
+  /* You might need to adjust positioning based on your layout */
+  .slick-prev::before,
+  .slick-next::before {
+    color: black; /* Make arrows visible */
+  }
+  
+  /* Add padding around the slides if cards touch */
+  .carousel-slide {
+    padding: 0 10px; /* Adjust horizontal padding between slides */
+  }

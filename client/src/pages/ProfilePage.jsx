@@ -1,236 +1,258 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useLocation, Navigate } from 'react-router-dom'; // Added useLocation
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, Link as RouterLink } from 'react-router-dom'; // Import RouterLink
 import apiService from '../services/apiService';
-import { useAuth } from '../context/AuthContext'; // Use useAuth for logged-in user info
+import { useAuth } from '../context/AuthContext';
 
-// Import MUI components
-import Container from '@mui/material/Container';
-import Typography from '@mui/material/Typography';
-import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
-import Alert from '@mui/material/Alert';
-import Grid from '@mui/material/Grid';
-import Pagination from '@mui/material/Pagination'; // Import Pagination
+// Import components we'll still use
+import ArtworkCard from '../components/ArtworkCard';
+import CircularProgress from '@mui/material/CircularProgress'; // Keep for loading
+import Alert from '@mui/material/Alert'; // Keep for errors
+import Button from '@mui/material/Button'; // Keep for actions
+import Pagination from '@mui/material/Pagination'; // Keep for pagination UI
 
-// Import the card component
-import ArtworkCard from '../components/ArtworkCard'; // Assuming this displays created artworks
-// You might need a DIFFERENT card component for displaying 'collected' items if the structure is different
+// Import the CSS file for styling
+import './ProfilePage.css';
 
 function ProfilePage() {
-    const { username } = useParams(); // Get username being viewed from URL
-    const { user: loggedInUser, isLoading: isAuthLoading, isAuthenticated } = useAuth(); // Get logged-in user state
-    const location = useLocation();
+    const { username } = useParams();
+    const { user: loggedInUser, isLoading: isAuthLoading, isAuthenticated, ownedArtworkIds = new Set() } = useAuth();
 
-    // State for the profile user being viewed
-    const [profileUser, setProfileUser] = useState(null); // Store the fetched user data for the profile
+    // Profile User State
+    const [profileUser, setProfileUser] = useState(null);
     const [isLoadingProfile, setIsLoadingProfile] = useState(true);
     const [errorProfile, setErrorProfile] = useState(null);
+    const [isFollowing, setIsFollowing] = useState(false);
 
-    // State for artworks (created or collected)
-    const [artworks, setArtworks] = useState([]);
-    const [isLoadingArtworks, setIsLoadingArtworks] = useState(false); // Start false, only load if viewing own profile
+    // Artworks State (Created or Collected)
+    const [displayedArtworks, setDisplayedArtworks] = useState([]);
+    const [isLoadingArtworks, setIsLoadingArtworks] = useState(false);
     const [errorArtworks, setErrorArtworks] = useState(null);
-    const [pagination, setPagination] = useState({ total_pages: 1, current_page: 1 });
+    const [paginationData, setPaginationData] = useState({ totalPages: 1, currentPage: 1, perPage: 12 });
+    const [currentPage, setCurrentPage] = useState(1);
 
+    // Derived State
     const isOwnProfile = isAuthenticated && profileUser && loggedInUser?.user_id === profileUser.user_id;
 
-    // 1. Fetch Profile User Data (Runs first)
+    // --- Fetch Profile User Data ---
     useEffect(() => {
         if (!username) {
             setErrorProfile("Username parameter is missing.");
             setIsLoadingProfile(false);
             return;
         }
-
         const fetchProfile = async () => {
             setIsLoadingProfile(true);
             setErrorProfile(null);
-            setProfileUser(null); // Reset profile on username change
-            setArtworks([]); // Reset artworks
+            // Reset states on username change
+            setProfileUser(null);
+            setDisplayedArtworks([]);
             setErrorArtworks(null);
             setIsLoadingArtworks(false);
+            setCurrentPage(1);
+            setPaginationData({ totalPages: 1, currentPage: 1, perPage: 12 });
+            setIsFollowing(false);
 
             try {
-                console.log(`Fetching profile for: ${username}`);
-                const response = await apiService.get(`/users/${username}`); // Fetch USER data first
-                setProfileUser(response.data); // Store the user object whose profile we're viewing
+                // Assuming API returns { user: {...}, is_followed_by_viewer: boolean }
+                const response = await apiService.get(`/users/${username}`);
+                setProfileUser(response.data.user || response.data);
+                setIsFollowing(response.data.is_followed_by_viewer || false);
             } catch (err) {
                 console.error("Failed to fetch profile:", err);
-                setErrorProfile(
-                    err.response?.data?.error?.message ||
-                    err.response?.data?.message ||
-                    (err.response?.status === 404 ? `Profile not found for user: ${username}` : null) ||
-                    err.message || "Could not load profile."
-                );
+                const message = err.response?.data?.error?.message || err.response?.data?.message || (err.response?.status === 404 ? `Profile not found for user: ${username}` : null) || err.message || "Could not load profile.";
+                setErrorProfile(message);
             } finally {
                 setIsLoadingProfile(false);
             }
         };
-
         fetchProfile();
+    }, [username, loggedInUser?.user_id]); // Refetch if username or loggedInUser changes
 
-    }, [username]); // Depend only on username from URL
-
-    // 2. Fetch Artworks (Created or Collected) IF it's the logged-in user's own profile
+    // --- Fetch Artworks ---
     useEffect(() => {
-        // Check prerequisites: Ensure we have a valid profile, no profile error, and that it's the user's own profile
-        if (!profileUser?.user_id || errorProfile || !isOwnProfile) {
-            setIsLoadingArtworks(false);
-            setArtworks([]);
-            console.log("Artwork fetch skipped (no profileUser.user_id, profile error, or not own profile).");
-            return; // Don't fetch artworks
+        if (!profileUser?.user_id || errorProfile) {
+             setIsLoadingArtworks(false); setDisplayedArtworks([]); return; // Skip if no profile user or error
         }
 
-        const fetchArtworks = async (page = 1) => {
-            setIsLoadingArtworks(true);
-            setErrorArtworks(null);
+        let endpoint = '';
+        let isFetchingCollected = false;
 
-            // Determine which endpoint to call based on the user's role
-            let endpoint = '';
-            if (profileUser.role === 'artist') {
-                endpoint = `/users/${profileUser.user_id}/created-artworks`;
-            } else if (profileUser.role === 'patron') {
-                endpoint = `/users/${profileUser.user_id}/collected-artworks`;
-            } else {
-                console.warn("Profile user has neither 'artist' nor 'patron' role. Cannot fetch artworks.");
-                setIsLoadingArtworks(false);
-                return;
-            }
+        if (isOwnProfile) { // Viewing Own Profile
+            if (profileUser.role === 'artist') endpoint = `/users/${profileUser.user_id}/created-artworks`;
+            else if (profileUser.role === 'patron') { endpoint = `/users/${profileUser.user_id}/collected-artworks`; isFetchingCollected = true; }
+        } else { // Viewing Someone Else's Profile
+            if (profileUser.role === 'artist') endpoint = `/users/${profileUser.user_id}/created-artworks`;
+            // else: Don't fetch for other patrons
+        }
 
+        if (!endpoint) { // No valid endpoint determined (e.g., viewing other patron)
+             setIsLoadingArtworks(false); setDisplayedArtworks([]); return;
+        }
+
+        const fetchArtworks = async (page) => {
+            setIsLoadingArtworks(true); setErrorArtworks(null);
             try {
-                console.log(`Fetching artworks from: ${endpoint}?page=${page}`);
                 const response = await apiService.get(endpoint, { params: { page } });
+                let artworksForState = [];
+                if (isFetchingCollected) artworksForState = response.data.collectedArtworks?.map(item => item.artwork).filter(art => art != null) || [];
+                else artworksForState = response.data.artworks || [];
 
-                if (profileUser.role === 'artist') {
-                    setArtworks(response.data.artworks || []);
-                    setPagination(response.data.pagination || { total_pages: 1, current_page: 1 });
-                } else if (profileUser.role === 'patron') {
-                    const collectedArtworks = response.data.collection?.map(item => ({
-                        ...item.artwork,
-                        artist: item.artist,
-                        collection_id: item.collection_id,
-                        acquired_at: item.acquired_at
-                    })) || [];
-                    setArtworks(collectedArtworks);
-                    setPagination(response.data.pagination || { total_pages: 1, current_page: 1 });
-                }
+                setDisplayedArtworks(artworksForState);
+                if (response.data.pagination) setPaginationData(response.data.pagination);
+                else setPaginationData({ totalItems: artworksForState.length, totalPages: 1, currentPage: 1, perPage: artworksForState.length || 12, hasNext: false, hasPrev: false });
             } catch (err) {
                 console.error(`Failed to fetch artworks from ${endpoint}:`, err);
-                if (err.response?.status === 403) {
-                    setErrorArtworks("You do not have permission to view these artworks.");
-                } else {
-                    setErrorArtworks(
-                        err.response?.data?.error?.message ||
-                        err.response?.data?.message ||
-                        err.message || "Could not load artworks."
-                    );
-                }
-                setArtworks([]);
-                setPagination({ total_pages: 1, current_page: 1 });
-            } finally {
-                setIsLoadingArtworks(false);
-            }
+                setErrorArtworks(err.response?.data?.error?.message || err.message || "Could not load artworks.");
+                setDisplayedArtworks([]);
+                setPaginationData({ totalPages: 1, currentPage: 1, perPage: 12 });
+            } finally { setIsLoadingArtworks(false); }
         };
 
-        console.log("Running fetchArtworks effect...");
-        fetchArtworks(pagination.current_page);
+        fetchArtworks(currentPage);
+    }, [profileUser?.user_id, profileUser?.role, isOwnProfile, currentPage, errorProfile]); // Dependencies
 
-    }, [profileUser?.user_id, isOwnProfile, pagination.current_page]);
+    // --- Follow/Unfollow Handlers ---
+    const handleFollowToggle = useCallback(async () => {
+        if (!profileUser?.user_id || !isAuthenticated) return;
+        const action = isFollowing ? 'delete' : 'post';
+        const endpoint = isFollowing ? `/follows/${profileUser.user_id}` : `/follows`; // Adjust endpoint structure as needed
+        const body = isFollowing ? null : { followed_id: profileUser.user_id };
 
-    const handlePageChange = (event, value) => {
-        if (value !== pagination.current_page) {
-            setPagination(prev => ({ ...prev, current_page: value }));
-            // The useEffect for fetching artworks will trigger due to pagination.current_page change
+        try {
+            if (action === 'post') await apiService.post(endpoint, body);
+            else await apiService.delete(endpoint); // Assumes DELETE for unfollow
+
+            // Toggle state and optimistically update count
+            setIsFollowing(!isFollowing);
+            setProfileUser(prev => ({
+                 ...prev,
+                 followers_count: (prev.followers_count ?? 0) + (isFollowing ? -1 : 1)
+            }));
+        } catch (err) {
+            console.error(`Failed to ${action} follow user:`, err);
+            // Add user feedback (e.g., toast notification)
         }
+    }, [profileUser?.user_id, isAuthenticated, isFollowing]);
+
+    // --- Pagination Handler ---
+    const handlePageChange = (event, value) => {
+        if (value !== currentPage) setCurrentPage(value);
     };
 
     // --- Render Logic ---
-
-    // Handle initial auth loading (affects knowing if it's own profile)
-    if (isAuthLoading) {
-        return <Container maxWidth="lg"><Box sx={{ display: 'flex', justifyContent: 'center', mt: 5 }}><CircularProgress /></Box></Container>;
+    if (isAuthLoading || isLoadingProfile) {
+        return <div className="profile-loading-container"><CircularProgress /></div>;
     }
-
-    // Handle profile loading state
-    if (isLoadingProfile) {
-        return <Container maxWidth="lg"><Box sx={{ display: 'flex', justifyContent: 'center', mt: 5 }}><CircularProgress /></Box></Container>;
-    }
-
-    // Handle profile fetch error (e.g., user not found)
     if (errorProfile) {
-        return <Container maxWidth="lg"><Alert severity="error" sx={{ mt: 4 }}>{errorProfile}</Alert></Container>;
+        return <div className="profile-error-container"><Alert severity="error">{errorProfile}</Alert></div>;
     }
-
-    // Handle case where profile user wasn't found or loaded
     if (!profileUser) {
-        return <Container maxWidth="lg"><Alert severity="warning" sx={{ mt: 4 }}>Profile data could not be loaded for '{username}'.</Alert></Container>;
+        return <div className="profile-error-container"><Alert severity="warning">Profile data could not be loaded for '{username}'.</Alert></div>;
     }
 
-    // --- Display Profile Info ---
+    // Determine if artworks should be shown based on logic
+    const shouldShowArtworks = (profileUser.role === 'artist' || (profileUser.role === 'patron' && isOwnProfile));
+
     return (
-        <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-            {/* Profile Header */}
-            <Box sx={{ mb: 4, p: 2, borderBottom: 1, borderColor: 'divider' }}>
-                <Typography variant="h4" component="h1" gutterBottom>
-                    {profileUser.username}'s Profile
-                </Typography>
-                <Typography variant="body1" color="text.secondary">
-                    Role: {profileUser.role}
-                </Typography>
-                {/* Display message if not viewing own profile (optional) */}
-                {!isOwnProfile && (
-                    <Alert severity="info" sx={{ mt: 2 }}>You are viewing {profileUser.username}'s public profile.</Alert>
-                )}
-            </Box>
+        <div className="profile-page-container"> {/* Main container */}
 
-            {/* Only show Artworks section if it's the user's OWN profile */}
-            {isOwnProfile ? (
-                <>
-                    <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 3 }}>
-                        {profileUser.role === 'artist' ? 'Created Artworks' : 'Collected Artworks'}
-                    </Typography>
+            {/* Profile Header Section */}
+            <section className="profile-header">
+                <div className="profile-info">
+                    <h1 className="profile-username">{profileUser.username}</h1>
+                    <p className="profile-role">Role: {profileUser.role}</p>
+                    <div className="profile-social-counts">
+                        <span>Followers: {profileUser.followers_count ?? 0}</span>
+                        <span>Following: {profileUser.following_count ?? 0}</span>
+                    </div>
+                </div>
+                <div className="profile-actions">
+                    {isAuthenticated && !isOwnProfile && (
+                        <Button
+                            variant={isFollowing ? "outlined" : "contained"}
+                            onClick={handleFollowToggle}
+                            size="small"
+                            className={`profile-follow-button ${isFollowing ? 'following' : ''}`}
+                        >
+                            {isFollowing ? 'Unfollow' : 'Follow'}
+                        </Button>
+                    )}
+                    {isOwnProfile && (
+                         <Button
+                            variant="outlined"
+                            size="small"
+                            component={RouterLink}
+                            to="/settings" /* Or your edit profile route */
+                            className="profile-edit-button"
+                         >
+                             Edit Profile
+                         </Button>
+                     )}
+                </div>
+            </section>
 
-                    {isLoadingArtworks && (<Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}><CircularProgress /></Box>)}
-                    {errorArtworks && !isLoadingArtworks && (<Alert severity="warning" sx={{ mt: 3 }}>{errorArtworks}</Alert>)}
-                    {!isLoadingArtworks && !errorArtworks && artworks.length === 0 && (
-                        <Typography sx={{ mt: 3, textAlign: 'center' }}>
-                            No {profileUser.role === 'artist' ? 'created' : 'collected'} artworks found.
-                        </Typography>
+            {/* Artwork Display Section */}
+            {shouldShowArtworks ? (
+                <section className="profile-artworks-section">
+                    <h2 className="profile-artworks-title">
+                        {isOwnProfile
+                            ? (profileUser.role === 'artist' ? 'My Created Artworks' : 'My Collected Artworks')
+                            : `${profileUser.username}'s Artworks`
+                        }
+                    </h2>
+
+                    {isLoadingArtworks && (<div className="profile-artworks-loading"><CircularProgress /></div>)}
+                    {errorArtworks && !isLoadingArtworks && (<div className="profile-artworks-error"><Alert severity="warning">{errorArtworks}</Alert></div>)}
+
+                    {!isLoadingArtworks && !errorArtworks && displayedArtworks.length === 0 && (
+                        <p className="profile-artworks-empty">
+                            No {isOwnProfile && profileUser.role === 'patron' ? 'collected' : 'artworks'} found.
+                        </p>
                     )}
 
-                    {!isLoadingArtworks && !errorArtworks && artworks.length > 0 && (
+                    {!isLoadingArtworks && !errorArtworks && displayedArtworks.length > 0 && (
                         <>
-                            <Grid container spacing={3}>
-                                {artworks.map((artwork) => (
-                                    <Grid item key={artwork.artwork_id || artwork.collection_id} xs={12} sm={6} md={4} lg={3}>
-                                        {/* Pass the correct artwork object structure to ArtworkCard */}
-                                        {/* ArtworkCard might need adjustment if collected items have different structure */}
-                                        <ArtworkCard artwork={artwork} />
-                                    </Grid>
-                                ))}
-                            </Grid>
-                            {/* Add Pagination controls if more than one page */}
-                            {pagination.total_pages > 1 && (
-                                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                            <div className="profile-artworks-grid"> {/* Use CSS Grid or Flexbox */}
+                                {displayedArtworks.map((artwork) => {
+                                    const isOwnedByViewer = ownedArtworkIds.has(artwork?.artwork_id);
+                                    // Blur only when viewing someone else's ARTIST profile and viewer doesn't own it
+                                    const shouldBlur = !isOwnProfile && profileUser.role === 'artist' && !isOwnedByViewer;
+
+                                    return artwork ? (
+                                        <div
+                                            key={artwork.artwork_id}
+                                            className={`profile-artwork-item ${shouldBlur ? 'artwork-blurred' : ''}`}
+                                        >
+                                            <ArtworkCard artwork={artwork} />
+                                        </div>
+                                    ) : null;
+                                })}
+                            </div>
+
+                            {/* Pagination */}
+                            {paginationData.totalPages > 1 && (
+                                <div className="profile-pagination-container">
                                     <Pagination
-                                        count={pagination.total_pages}
-                                        page={pagination.current_page}
+                                        count={paginationData.totalPages}
+                                        page={currentPage}
                                         onChange={handlePageChange}
-                                        color="primary"
+                                        color="primary" // MUI prop
+                                        // Add classes here if you want to style Pagination further
                                     />
-                                </Box>
+                                </div>
                             )}
                         </>
                     )}
-                </>
+                </section>
             ) : (
-                // Optional: Message indicating artworks aren't shown for public view
-                <Typography sx={{ mt: 3, textAlign: 'center', fontStyle: 'italic' }}>
-                    Artwork details are only visible on your own profile.
-                </Typography>
+                // Message if viewing another Patron's profile (or adjust as needed)
+                <section className="profile-artworks-private">
+                    <p>
+                        {profileUser.role === 'patron' ? "Patrons' collections are private." : "No artworks to display for this profile."}
+                    </p>
+                </section>
             )}
-
-        </Container>
+        </div> // End profile-page-container
     );
 }
 

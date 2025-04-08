@@ -1,0 +1,104 @@
+/* src/pages/ProfilePage.css */
+
+.profile-page-container {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+/* Header */
+.profile-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start; /* Align items to the top */
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #eee;
+}
+
+.profile-info .profile-username {
+    margin: 0 0 0.25rem 0;
+    font-size: 2rem; /* Example size */
+}
+
+.profile-info .profile-role {
+    color: #555;
+    margin-bottom: 0.5rem;
+}
+
+.profile-social-counts {
+    display: flex;
+    gap: 1rem; /* Space between follower/following */
+    font-size: 0.9rem;
+    color: #333;
+}
+
+.profile-actions {
+    padding-top: 0.5rem; /* Align button roughly */
+}
+/* 
+.profile-follow-button {
+    /* Add styles */
+
+/* .profile-follow-button.following {
+    /* Styles for when following (e.g., border color) */
+
+/* .profile-edit-button {
+     /* Add styles */
+ */
+ */ */
+
+/* Artworks Section */
+.profile-artworks-section {
+    margin-top: 2rem;
+}
+
+.profile-artworks-title {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.profile-artworks-loading,
+.profile-artworks-error,
+.profile-artworks-empty,
+.profile-artworks-private {
+    text-align: center;
+    padding: 2rem 0;
+    color: #666;
+}
+
+.profile-artworks-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); /* Responsive grid */
+    gap: 1.5rem;
+}
+
+
+
+/* Blur effect */
+.artwork-blurred {
+  filter: blur(4px);
+  transition: filter 0.3s ease-in-out;
+  opacity: 0.7;
+}
+.artwork-blurred:hover {
+  filter: blur(0);
+  opacity: 1;
+}
+
+/* Pagination */
+.profile-pagination-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 2.5rem;
+}
+
+/* Loading/Error Containers for whole page */
+.profile-loading-container,
+.profile-error-container {
+     display: flex;
+     justify-content: center;
+     align-items: center;
+     min-height: 60vh; /* Take up significant height */
+}

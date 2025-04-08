@@ -32,7 +32,7 @@ def create_app(config_object=None):
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         SQLALCHEMY_ECHO=False, # Set to True for debugging SQL
         JWT_SECRET_KEY=os.environ.get('JWT_SECRET_KEY'), # Load from env!
-        JWT_TOKEN_LOCATION=["cookies"],
+        JWT_TOKEN_LOCATION=["headers", "cookies"],
         JWT_ACCESS_TOKEN_EXPIRES=timedelta(hours=1),
         JWT_REFRESH_TOKEN_EXPIRES=timedelta(days=30),
         JWT_COOKIE_SAMESITE="Lax",

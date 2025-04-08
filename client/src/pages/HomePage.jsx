@@ -1,156 +1,172 @@
 // src/pages/HomePage.jsx
-import React, { useState, useEffect } from 'react'; // Import hooks
+import React, { useState, useEffect } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import Container from '@mui/material/Container';
-import Typography from '@mui/material/Typography';
+import Slider from 'react-slick'; // Import react-slick
+
+// Import slick carousel CSS
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
+
+// Import MUI components (can be gradually replaced if moving fully away from MUI)
+import Container from '@mui/material/Container'; // Still used for overall structure maybe
+import Typography from '@mui/material/Typography'; // Useful for consistent text styles
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Grid from '@mui/material/Grid'; // Needed for the artwork display layout
-import CircularProgress from '@mui/material/CircularProgress'; // For loading state
-import Alert from '@mui/material/Alert'; // For error state
+import Button from '@mui/material/Button'; // Keep for now
+import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert';
 
 import { useAuth } from '../context/AuthContext';
-import apiService from '../services/apiService'; // Import your API service
-import ArtworkCard from '../components/ArtworkCard'; // Import the reusable card
+import apiService from '../services/apiService';
+import ArtworkCard from '../components/ArtworkCard';
+import UserPacks from '../components/UserPacks'; // Import UserPacks
+
+// Import the CSS file
+import './HomePage.css';
 
 function HomePage() {
-  const { user } = useAuth(); // Get user info from context
+  const { user } = useAuth();
 
-  // --- State for fetching artworks ---
+  // State for fetching artworks
   const [artworks, setArtworks] = useState([]);
-  const [isLoading, setIsLoading] = useState(true); // Start loading
-  const [error, setError] = useState(null);
+  const [isLoadingArtworks, setIsLoadingArtworks] = useState(true);
+  const [errorArtworks, setErrorArtworks] = useState(null);
 
-  // --- Fetch artworks when component mounts ---
+  // Fetch artworks when component mounts
   useEffect(() => {
     const fetchRecentArtworks = async () => {
-      setIsLoading(true); // Set loading true at the start of fetch
-      setError(null); // Clear previous errors
+      setIsLoadingArtworks(true);
+      setErrorArtworks(null);
       try {
-        console.log("HomePage: Fetching recent artworks...");
-        const response = await apiService.get('/artworks'); // Assuming default limit is okay or handled by backend
-    
-        // --- FIX STATE UPDATE ---
-        // Access the 'artworks' array WITHIN response.data
+        const response = await apiService.get('/artworks');
         setArtworks(response.data.artworks || []);
-        // -----------------------
-    
-        // Log the correct data being set
-        console.log("HomePage: Artworks fetched successfully", response.data); // Log the whole response still useful
-        console.log("HomePage: Setting artworks state with:", response.data.artworks || []); // Log what's being set
-    
-    } catch (err) {
-       // ... error handling ...
-       console.error("HomePage: Failed to fetch artworks:", err);
-       setError( /* ... */ );
-       setArtworks([]); // Ensure state is an empty array on error
-    } finally {
-        setIsLoading(false);
-    }
+      } catch (err) {
+        console.error("HomePage: Failed to fetch artworks:", err);
+        setErrorArtworks(err.response?.data?.error || err.message || "Failed to load artworks.");
+        setArtworks([]);
+      } finally {
+        setIsLoadingArtworks(false);
+      }
     };
-
     fetchRecentArtworks();
-  }, []); // Empty dependency array means this runs only once when the component mounts
-
+  }, []);
 
   const welcomeMessage = user
     ? `Welcome back, ${user.username || user.email}!`
     : 'Welcome to Artifact!';
 
-
-    console.log("HomePage Rendering:");
-console.log("  isLoading:", isLoading);
-console.log("  error:", error);
-console.log("  artworks array length:", artworks.length);
-// Log the first artwork object if the array is not empty
-if (artworks.length > 0) {
-    console.log("  First artwork object:", artworks[0]);
-    // Check specifically for keys needed by ArtworkCard
-    console.log("    -> artwork_id:", artworks[0]?.artwork_id);
-    console.log("    -> title:", artworks[0]?.title);
-    console.log("    -> thumbnail_url:", artworks[0]?.thumbnail_url);
-    console.log("    -> artist object:", artworks[0]?.artist);
-    console.log("      -> artist.user_id:", artworks[0]?.artist?.user_id);
-    console.log("      -> artist.username:", artworks[0]?.artist?.username);
-}
+  // Carousel settings
+  const carouselSettings = {
+    dots: true,
+    infinite: artworks.length > 3, // Only loop if enough items
+    speed: 500,
+    slidesToShow: 4, // Show 4 items on larger screens
+    slidesToScroll: 1,
+    autoplay: true,
+    autoplaySpeed: 3000,
+    pauseOnHover: true,
+    responsive: [
+      {
+        breakpoint: 1200, // lg
+        settings: {
+          slidesToShow: 3,
+        }
+      },
+      {
+        breakpoint: 900, // md
+        settings: {
+          slidesToShow: 2,
+        }
+      },
+      {
+        breakpoint: 600, // sm
+        settings: {
+          slidesToShow: 1,
+        }
+      }
+    ]
+  };
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    // Use className for overall container styling
+    <div className="home-page-container">
 
-      {/* --- Top Section (Welcome & Role Actions) - Remains the Same --- */}
-      <Typography variant="h3" component="h1" gutterBottom align="center" sx={{ mb: 2, fontWeight: 'medium' }}>
-        {welcomeMessage}
-      </Typography>
-      <Typography variant="h6" component="p" color="text.secondary" align="center" sx={{ mb: 4 }}>
-        Discover, collect, and support digital artists.
-      </Typography>
-      <Box sx={{ textAlign: 'center', mb: 6 }}>
-        {/* Role specific buttons remain here */}
-        {user && user.role === 'artist' && (
+      {/* --- Top Section (Welcome & Role Actions) --- */}
+      <section className="welcome-section">
+        <h1 className="welcome-title">{welcomeMessage}</h1>
+        <p className="welcome-subtitle">Discover, collect, and support digital artists.</p>
+        <div className="role-actions">
+          {/* Role specific buttons - Keep using MUI Button for now, or style regular buttons */}
+          {user && user.role === 'artist' && (
             <>
-              <Typography variant="h5" gutterBottom sx={{ mb: 2 }}>Artist Dashboard</Typography>
-              <Button component={RouterLink} to="/upload" variant="contained" color="primary" size="large" sx={{ mr: 2 }}> Upload New Artwork </Button>
-              <Button component={RouterLink} to={`/users/${user.username}`} variant="outlined" size="large"> My Profile & Artworks </Button>
+              {/* Using Typography for heading style consistency */}
+              <Typography variant="h5" component="h3" gutterBottom sx={{ mb: 2 }}>Artist Dashboard</Typography>
+              <Button component={RouterLink} to="/upload" variant="contained" color="primary" size="large" sx={{ mr: 1, ml: 1 }}> Upload New Artwork </Button>
+              <Button component={RouterLink} to={`/users/${user.username}`} variant="outlined" size="large" sx={{ mr: 1, ml: 1 }}> My Profile & Artworks </Button>
             </>
           )}
           {user && user.role === 'patron' && (
               <>
-                <Typography variant="h5" gutterBottom sx={{ mb: 2 }}>Explore & Collect</Typography>
-                {/* Placeholder for Browse Gallery Button */}
-                <Button component={RouterLink} to="/gallery" variant="contained" color="primary" size="large" sx={{ mr: 2 }} > Browse Gallery </Button>
-                <Button component={RouterLink} to={`/users/${user.username}`} variant="outlined" size="large" > My Profile & Collections </Button>
-                 {/* Add Pack Opening Button Here Later */}
+                <Typography variant="h5" component="h3" gutterBottom sx={{ mb: 2 }}>Explore & Collect</Typography>
+                <Button component={RouterLink} to="/gallery" variant="contained" color="primary" size="large" sx={{ mr: 1, ml: 1 }} > Browse Gallery </Button>
+                <Button component={RouterLink} to={`/users/${user.username}`} variant="outlined" size="large" sx={{ mr: 1, ml: 1 }}> My Profile & Collections </Button>
               </>
           )}
           {!user && (
               <>
-                <Button component={RouterLink} to="/register" variant="contained" color="primary" size="large" sx={{ mr: 2 }}> Join as Artist or Patron </Button>
-                 {/* Placeholder for Browse Gallery Button */}
-                <Button component={RouterLink} to="/gallery" variant="outlined" size="large" > Explore Artworks </Button>
+                <Button component={RouterLink} to="/register" variant="contained" color="primary" size="large" sx={{ mr: 1, ml: 1 }}> Join as Artist or Patron </Button>
+                <Button component={RouterLink} to="/gallery" variant="outlined" size="large" sx={{ mr: 1, ml: 1 }}> Explore Artworks </Button>
               </>
           )}
-      </Box>
+        </div>
+      </section>
       {/* --- End Top Section --- */}
 
+      {/* === User Packs Section === */}
+      {/* Only show this section if the user is logged in */}
+      {user && (
+        <section className="packs-section">
+          <h2 className="packs-section-title">Your Unopened Packs</h2>
+          <UserPacks /> {/* Render the dedicated component here */}
+        </section>
+      )}
+      {/* === End User Packs Section === */}
 
-      {/* === Artwork Display Section === */}
-      {/* Replaces the previous Paper/Placeholder section */}
-      <Box sx={{ mt: 4 }}>
-        <Typography variant="h5" component="h2" gutterBottom align="center" sx={{ mb: 4 }}>
-          Recent Artworks
-        </Typography>
+
+      {/* === Artwork Carousel Section === */}
+      <section className="artworks-carousel-section">
+        <h2 className="artworks-carousel-title">Featured Artworks</h2>
 
         {/* Conditional Rendering based on fetch state */}
-        {isLoading ? (
-          // Display loading indicator centered
-          <Box sx={{ display: 'flex', justifyContent: 'center', my: 5 }}>
+        {isLoadingArtworks ? (
+          <div className="loading-container">
             <CircularProgress />
-          </Box>
-        ) : error ? (
-          // Display error message if fetch failed
-          <Alert severity="error" sx={{ my: 3 }}>
-            {error}
-          </Alert>
+          </div>
+        ) : errorArtworks ? (
+          <div className="error-container">
+            {/* Using Alert for consistency, but could be a simple p tag */}
+            <Alert severity="error" sx={{ width: '100%', justifyContent: 'center' }}>
+              {errorArtworks}
+            </Alert>
+          </div>
         ) : artworks.length > 0 ? (
-          // Display grid of artworks if fetch successful and artworks exist
-          <Grid container spacing={3}>
+          // Use the react-slick Slider component
+          <Slider {...carouselSettings}>
             {artworks.map((artwork) => (
-              <Grid item key={artwork.artwork_id} xs={12} sm={6} md={4} lg={3}>
-                {/* Use the reusable ArtworkCard component */}
+              // Add a div wrapper for potential slide padding/styling
+              <div key={artwork.artwork_id} className="carousel-slide">
                 <ArtworkCard artwork={artwork} />
-              </Grid>
+              </div>
             ))}
-          </Grid>
+          </Slider>
         ) : (
-          // Display message if fetch successful but no artworks returned
-          <Typography sx={{ mt: 3, textAlign: 'center', fontStyle: 'italic' }}>
-            No artworks found yet. Be the first to upload!
-          </Typography>
+          <div className="no-artworks-container">
+            <p>No artworks found yet.</p>
+          </div>
         )}
-      </Box>
-      {/* === End Artwork Display Section === */}
+      </section>
+      {/* === End Artwork Carousel Section === */}
 
-    </Container>
+    </div> // End home-page-container
   );
 }
 
