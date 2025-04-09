@@ -1,222 +1,167 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import apiService from '../services/apiService'; // <-- Import configured apiService
+import apiService from '../services/apiService';
+import { Formik, Form, Field, ErrorMessage } from 'formik';
+import * as Yup from 'yup';
+import toast from 'react-hot-toast'; // <-- Import toast
 
-// Ensure your Google Client ID is available via Vite's environment variables
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
-function LoginPage() {
-  // Use auth context
-  const { login, isLoading: isAuthLoading, isAuthenticated } = useAuth(); // Renamed isLoading to avoid conflict
+const LoginSchema = Yup.object().shape({
+  email: Yup.string().email('Invalid email address').required('Email is required'),
+  password: Yup.string().min(6, 'Password must be at least 6 characters').required('Password is required'),
+});
 
-  // Local state for the login form
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false); // Local submitting state for form
+function LoginPage() {
+  const { login, isLoading: isAuthLoading, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  // Note: We don't need local 'submitError' state anymore. Toasts will handle API errors.
 
   console.log('LoginPage: isAuthLoading:', isAuthLoading, 'isAuthenticated:', isAuthenticated);
 
-  // --- Handle initial loading state from AuthContext ---
-  // Prevent rendering the form or redirecting while initial auth check is running
   if (isAuthLoading) {
-    return <div className="auth-page"><div className="auth-container">Loading...</div></div>;
+    // Consider a more centered loading indicator if desired
+    return <div className="auth-page"><div className="auth-container">Loading Authentication Status...</div></div>;
   }
 
-  // --- Redirect if user is already authenticated ---
   if (isAuthenticated) {
     console.log('LoginPage: Already authenticated, redirecting to home...');
     return <Navigate to="/" replace />;
   }
 
-  // --- Handler for Email/Password Login ---
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError(null); // Clear previous errors
-    if (!email || !password) {
-      setError("Please enter both email and password.");
-      return;
-    }
-    setIsSubmitting(true); // Indicate form submission is in progress
+  const handleFormikSubmit = async (values, { setSubmitting }) => {
+    // Clear previous toasts if any linger (optional)
+    // toast.dismiss();
 
     try {
-      // Use apiService to make the request (handles base URL, credentials, CSRF)
       const response = await apiService.post('/auth/login', {
-         email, // Use state variables directly
-         password
+         email: values.email,
+         password: values.password
       });
 
-      // Check the response structure (expecting { message: ..., user: {...} })
-      if (response && response.data && response.data.user) {
+      if (response?.data?.user) { // Check response structure carefully
         const userData = response.data.user;
-        // Call AuthContext's login with ONLY the user data
-        login(userData);
-        navigate('/'); // Navigate to home/dashboard on successful login
+        // Call login from context, which now also fetches collection
+        await login(userData); // Make sure login awaits fetchUserDataAndCollection
+        toast.success(`Welcome back, ${userData.username || userData.email}!`); // Success toast
+        navigate('/'); // Navigate AFTER successful login and context update
       } else {
-        // Handle unexpected success response format from backend
+        // This case indicates a backend success (2xx) but unexpected response body
         console.error("Login successful but response missing user data:", response?.data);
-        setError('Login failed: Unexpected response from server.');
+        toast.error('Login failed: Unexpected response from server.');
       }
     } catch (err) {
-      // apiService interceptor might have logged details already
-      console.error("Email/Username/Password Login failed:", err);
-      // Extract error message from Axios error response or use generic message
-      setError(
-        err.response?.data?.error?.message || // Check for nested error object
-        err.response?.data?.message ||      // Check for simple message
-        err.message ||                      // Fallback to Axios/JS error message
-        "Failed to log in. Please check your credentials or try again."
-      );
+      // API errors (4xx, 5xx, network) are now handled by the apiService interceptor!
+      // The interceptor will display the toast.error.
+      // We don't need to call toast.error() here again.
+      console.error("Login Component Error Catch:", err); // Still log for component-level debugging if needed
+      // No need to set local submitError state
     } finally {
-      setIsSubmitting(false); // Re-enable form submission
+      setSubmitting(false); // Always re-enable the button
     }
   };
 
-  // --- Handler for Google Sign-In Success (Callback from Google Library) ---
   const handleGoogleSignInSuccess = async (googleResponse) => {
     console.log("Google Sign-In Success Callback Received:", googleResponse);
-    const id_token = googleResponse.credential; // Get the ID token from Google's response
-    setError(null); // Clear previous errors
-    setIsSubmitting(true); // Optionally indicate processing for Google sign-in too
+    const id_token = googleResponse.credential;
+    // Clear previous toasts (optional)
+    // toast.dismiss();
+    // Indicate loading specific to Google Sign-In
+    const googleLoginPromise = apiService.post('/auth/google', { token: id_token });
 
-    try {
-      // Use apiService to send the Google token to your backend
-      const apiResponse = await apiService.post('/auth/google', {
-         token: id_token
-      });
-
-      // Check backend response structure (expecting { message: ..., user: {...} })
-      if (apiResponse && apiResponse.data && apiResponse.data.user) {
-        const userData = apiResponse.data.user;
-        // Call AuthContext's login with ONLY the user data
-        login(userData);
-        navigate('/'); // Navigate on successful backend confirmation
-      } else {
-        // Handle unexpected success response format from backend
-        console.error("Backend response missing user data after Google Sign-In:", apiResponse?.data);
-        setError('Google Sign-In failed: Unexpected response from server.');
-      }
-    } catch (err) {
-      console.error("Google Sign-In Backend Call Failed:", err);
-      // Extract error message
-      setError(
-        err.response?.data?.error?.message ||
-        err.response?.data?.message ||
-        err.message ||
-        'An error occurred during Google Sign-In. Please try again.'
-      );
-    } finally {
-        setIsSubmitting(false); // Finish processing state
-    }
+    toast.promise(
+        googleLoginPromise,
+        {
+            loading: 'Verifying Google Sign-In...',
+            success: async (apiResponse) => { // Use async here if login() is async
+                if (apiResponse?.data?.user) {
+                    const userData = apiResponse.data.user;
+                    await login(userData); // Update context
+                    navigate('/'); // Navigate on success
+                    return `Welcome, ${userData.username || userData.email}!`; // Success message
+                } else {
+                    console.error("Backend response missing user data after Google Sign-In:", apiResponse?.data);
+                    // Throw an error to trigger the toast.promise 'error' state
+                    throw new Error('Google Sign-In failed: Unexpected server response.');
+                }
+            },
+            error: (err) => {
+                // Extract error message for the toast
+                return err.response?.data?.error?.message ||
+                       err.response?.data?.message ||
+                       err.message ||
+                       'An error occurred during Google Sign-In.';
+            }
+        }
+    );
   };
 
-  // --- useEffect Hook to Initialize Google Sign-In Button ---
-  // (This logic remains largely the same, ensuring Google's library is ready)
+
   useEffect(() => {
-    // Check if the Google library script has loaded
+    // --- Google Sign-In Button Initialization ---
     if (typeof window.google === 'undefined' || typeof window.google.accounts === 'undefined') {
       console.error("Google Identity Services library not loaded.");
-      // Optionally set an error or retry mechanism if the script fails to load
-      setError("Could not load Google Sign-In library.");
+      toast.error("Could not load Google Sign-In library.");
       return;
     }
-    // Check if the Client ID is configured
     if (!GOOGLE_CLIENT_ID) {
       console.error("VITE_GOOGLE_CLIENT_ID environment variable is missing.");
-      setError("Google Sign-In is not configured correctly (Missing Client ID).");
+      // Error message shown near the button below
       return;
     }
-
     try {
-      // Initialize the Google Identity Services library
-      window.google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: handleGoogleSignInSuccess, // Function to call on successful sign-in
-        // prompt_parent_id: 'googleSignInButtonContainer', // Optional: Specify parent container
-        // ux_mode: 'popup', // Optional: Use 'popup' or 'redirect' flow
-      });
-
-      // Render the Google Sign-In button
-      window.google.accounts.id.renderButton(
-        document.getElementById("googleSignInButtonContainer"), // Target element ID
-        { theme: "outline", size: "large", type: "standard", width: '300px' } // Button customization
-      );
-
-      // Optional: Display the One Tap prompt if desired
-      // window.google.accounts.id.prompt();
-
+      window.google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleSignInSuccess });
+      window.google.accounts.id.renderButton(document.getElementById("googleSignInButtonContainer"), { theme: "outline", size: "large", type: "standard", width: '300px' });
     } catch (initError) {
       console.error("Error initializing Google Sign-In:", initError);
-      setError("Failed to initialize Google Sign-In.");
+      toast.error("Failed to initialize Google Sign-In.");
     }
+  }, []);
 
-    // Cleanup function (optional, usually not needed for renderButton)
-    // return () => {
-    //   // Potentially disable prompt if needed on component unmount
-    // };
-
-  }, []); // Empty dependency array ensures this runs only once on mount
-
-  // --- Render the Login Page UI ---
   return (
     <div className="auth-page">
       <div className="auth-container">
         <h3 className="auth-title">Login to your account</h3>
 
-        {/* --- Email/Password Form --- */}
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label htmlFor="email" className="form-label">Email</label>
-            <input
-              type="email"
-              placeholder="you@example.com"
-              id="email"
-              className="form-input"
-              onChange={(e) => setEmail(e.target.value)}
-              value={email}
-              required
-              disabled={isSubmitting} // Disable during submission
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="password" className="form-label">Password</label>
-            <input
-              type="password"
-              placeholder="••••••••"
-              id="password"
-              className="form-input"
-              onChange={(e) => setPassword(e.target.value)}
-              value={password}
-              required
-              disabled={isSubmitting} // Disable during submission
-            />
-          </div>
+        <Formik
+          initialValues={{ email: '', password: '' }}
+          validationSchema={LoginSchema}
+          onSubmit={handleFormikSubmit}
+        >
+          {({ isSubmitting, errors, touched }) => (
+            <Form className="auth-form">
+              <div className="form-group">
+                <label htmlFor="email" className="form-label">Email</label>
+                <Field type="email" name="email" placeholder="you@example.com" id="email" className={`form-input ${touched.email && errors.email ? 'is-invalid' : ''}`} disabled={isSubmitting} />
+                <ErrorMessage name="email" component="div" className="error-message validation-error" />
+              </div>
+              <div className="form-group">
+                <label htmlFor="password" className="form-label">Password</label>
+                <Field type="password" name="password" placeholder="••••••••" id="password" className={`form-input ${touched.password && errors.password ? 'is-invalid' : ''}`} disabled={isSubmitting} />
+                <ErrorMessage name="password" component="div" className="error-message validation-error" />
+              </div>
 
-          {/* Display errors */}
-          {error && <p className="error-message">{error}</p>}
+              {/* Removed the local submitError display - toasts handle API errors */}
+              {/* {submitError && <p className="error-message submit-error">{submitError}</p>} */}
 
-          <div className="form-actions">
-            <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-              {isSubmitting ? 'Processing...' : 'Login'}
-            </button>
-            {/* Link to registration page */}
-            <Link to="/register" className="auth-link">
-              Don't have an account? Register
-            </Link>
-          </div>
-        </form>
+              <div className="form-actions">
+                <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+                  {isSubmitting ? 'Processing...' : 'Login'}
+                </button>
+                <Link to="/register" className="auth-link">
+                  Don't have an account? Register
+                </Link>
+              </div>
+            </Form>
+          )}
+        </Formik>
 
-        {/* Separator */}
         <div className="auth-separator">OR</div>
 
-        {/* --- Google Sign-In Button --- */}
         <div className="google-signin-container">
-          {/* The Google library will render the button inside this div */}
           <div id="googleSignInButtonContainer"></div>
-           {/* Display error specific to Google setup if Client ID is missing */}
-           {!GOOGLE_CLIENT_ID && <p className="error-message">Google Sign-In is unavailable (Configuration missing).</p>}
+          {!GOOGLE_CLIENT_ID && <p className="error-message">Google Sign-In is unavailable (Configuration missing).</p>}
         </div>
       </div>
     </div>

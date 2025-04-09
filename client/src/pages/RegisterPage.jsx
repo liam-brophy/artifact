@@ -1,199 +1,141 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { API_BASE_URL } from '../config';
-import apiService from '../services/apiService'; // <--- IMPORT apiService
+import apiService from '../services/apiService';
+import { Formik, Form, Field, ErrorMessage } from 'formik';
+import * as Yup from 'yup';
+import toast from 'react-hot-toast'; // <-- Import toast
 
 // --- Constants ---
-const ROLES = {
-  PATRON: 'patron',
-  ARTIST: 'artist',
-};
+const ROLES = { PATRON: 'patron', ARTIST: 'artist' };
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const GOOGLE_BUTTON_CONTAINER_ID = 'googleSignUpButtonContainer';
 
-// --- Helper to format API errors ---
-const formatApiError = (errorData) => {
-  let message = errorData?.error?.message || 'An unknown error occurred.';
-  if (errorData?.error?.details) {
-    const details = Object.entries(errorData.error.details)
-      .map(([key, value]) => `${key}: ${value}`)
-      .join('; ');
-    message += ` (${details})`;
-  }
-  return message;
-};
+// Removed formatApiError - interceptor handles formatting
+
+// --- Validation Schema ---
+const RegisterSchema = Yup.object().shape({
+  username: Yup.string()
+    .min(3, 'Username must be at least 3 characters')
+    .max(50, 'Username cannot be longer than 50 characters')
+    .matches(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores')
+    .required('Username is required'),
+  email: Yup.string().email('Invalid email address').required('Email is required'),
+  password: Yup.string().min(8, 'Password must be at least 8 characters').required('Password is required'),
+  confirmPassword: Yup.string().oneOf([Yup.ref('password'), null], 'Passwords must match').required('Please confirm your password'),
+  role: Yup.string().oneOf([ROLES.PATRON, ROLES.ARTIST], 'Invalid role selected').required('Please select a role'),
+});
 
 function RegisterPage() {
-  // --- State ---
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState(ROLES.PATRON); // Default role
-
-  const [manualLoading, setManualLoading] = useState(false);
-  const [manualError, setManualError] = useState(null);
-
-  const [googleLoading, setGoogleLoading] = useState(false); // Separate loading for Google
-  const [googleError, setGoogleError] = useState(null);
+  // Role state needed for Google flow
+  const [role, setRole] = useState(ROLES.PATRON);
+  // Google specific loading state
+  const [googleLoading, setGoogleLoading] = useState(false);
+  // Removed local error states (submitError, googleError)
 
   const navigate = useNavigate();
-  const { login } = useAuth(); // Get login function from context
+  const { login } = useAuth(); // Still need login to update context after Google success
 
-  // --- API Call Functions ---
+  // --- Formik Submission Handler (Manual Registration) ---
+  const handleManualFormSubmit = async (values, { setSubmitting }) => {
+    // No need to clear local error state
+    const registerPromise = apiService.post('/auth/register', {
+      username: values.username,
+      email: values.email,
+      password: values.password,
+      role: values.role
+    });
 
-  const handleManualRegister = async () => {
-    setManualError(null);
-    // Client-side validation
-    if (!username || !email || !password || !confirmPassword || !role) {
-      setManualError("Please fill in all fields.");
-      return;
-    }
-    if (password !== confirmPassword) {
-      setManualError("Passwords do not match.");
-      return;
-    }
-    if (password.length < 8) {
-      setManualError("Password must be at least 8 characters long.");
-      return;
-    }
-
-    setManualLoading(true);
-    try {
-      // Use apiService to post the registration data
-      const response = await apiService.post('/auth/register', {
-        username,
-        email,
-        password,
-        role
-      });
-      // Axios automatically throws for non-2xx responses, response data is in response.data
-      console.log('Manual registration successful (backend response):', response.data);
-      alert('Registration successful! Please log in with your new credentials.');
-      navigate('/login'); // Redirect to login page after successful registration
-    } catch (err) {
-      console.error("Manual Registration failed:", err);
-      let errorMessage = "Failed to register. Please try again.";
-      if (err.response?.data) {
-        errorMessage = formatApiError(err.response.data);
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      setManualError(errorMessage);
-    } finally {
-      setManualLoading(false);
-    }
+    toast.promise(
+        registerPromise,
+        {
+            loading: 'Registering account...',
+            success: (response) => { // Success callback
+                // Instead of alert, show success toast
+                // Alert('Registration successful! Please log in.');
+                navigate('/login'); // Redirect to login page
+                return 'Registration successful! Please log in.'; // Toast message
+            },
+            error: (err) => { // Error callback
+                // Interceptor handles showing the toast with backend error message
+                console.error("Manual Registration Component Catch:", err);
+                // Return the error message for the toast.promise error state if needed,
+                // but interceptor likely already showed one. Maybe return a generic fallback.
+                return err.response?.data?.error?.message || err.message || 'Registration failed.';
+            }
+        }
+    ).finally(() => {
+        // Ensure submit state is always reset
+        setSubmitting(false);
+    });
   };
 
-  // This function is called by the Google library upon successful sign-in/up
-  // It needs to be stable or wrapped in useCallback if dependencies change often,
-  // but here role is the main dependency which we *want* it to read fresh.
+
+  // --- Google Sign-Up/In Callback Handler ---
   const handleGoogleCallback = useCallback(async (googleResponse) => {
     console.log("Google Sign-Up/In Callback Received:", googleResponse);
     const id_token = googleResponse.credential;
     if (!id_token) {
-        console.error("Google response missing credential (token).");
-        setGoogleError("Failed to get token from Google.");
-        return;
-    }
-
-    setGoogleError(null);
-    setGoogleLoading(true); // Start Google-specific loading
-
-    try {
-      console.log(`Sending token and selected role ('${role}') to backend...`); // Log the role being sent
-
-      // Send the token AND the currently selected role to the backend
-      const apiResponse = await fetch(`${API_BASE_URL}/auth/google`, {
-        method: 'POST',
-        headers: {
-           'Content-Type': 'application/json',
-           'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          token: id_token,
-          role: role // Include the selected role state here
-        }),
-      });
-
-      const data = await apiResponse.json();
-
-      if (!apiResponse.ok) {
-        throw new Error(formatApiError(data));
-      }
-
-      // --- Backend Google Auth/Registration Successful ---
-      console.log("Backend Google Auth/Register Response:", data);
-      if (data.access_token && data.user) {
-        // Use the login function from context to update state and store tokens
-        login(data.access_token, data.refresh_token, data.user);
-        console.log("Login context updated, navigating home.");
-        navigate('/'); // Redirect to home/dashboard after successful sign-up/in
-      } else {
-        // Should not happen if backend response is correct
-        throw new Error("Backend response missing token or user data after Google Sign-Up/In.");
-      }
-    } catch (err) {
-      console.error("Google Sign-Up/In Backend Call Failed:", err);
-      setGoogleError(err.message || 'An error occurred during Google Sign-Up/In.');
-    } finally {
-      setGoogleLoading(false); // Stop Google-specific loading
-    }
-  // Include role in dependency array so the callback always has the latest role
-  // This is technically correct with useCallback, ensuring the function passed
-  // to Google Init *could* be updated if needed, though Google Init usually runs once.
-  // The key is that the function closure captures the role when called.
-  }, [role, login, navigate]);
-
-
-  // --- Event Handlers ---
-  const onManualFormSubmit = (e) => {
-    e.preventDefault();
-    handleManualRegister();
-  };
-
-  // --- Effects ---
-  useEffect(() => {
-    if (!GOOGLE_CLIENT_ID) {
-      console.error("VITE_GOOGLE_CLIENT_ID is missing in .env file.");
-      setGoogleError("Google Sign-In is not configured properly (Missing Client ID).");
+      console.error("Google response missing credential (token).");
+      toast.error("Failed to get token from Google.");
       return;
     }
 
-    if (window.google && window.google.accounts && window.google.accounts.id) {
+    setGoogleLoading(true); // Indicate Google processing start
+
+    const googleAuthPromise = apiService.post('/auth/google', {
+      token: id_token,
+      role: role // Include the currently selected role
+    });
+
+    toast.promise(
+        googleAuthPromise,
+        {
+            loading: `Registering as ${role} with Google...`,
+            success: async (response) => { // Success callback receives API response
+                 if (response?.data?.user) {
+                    const userData = response.data.user;
+                    await login(userData); // Update auth context
+                    navigate('/'); // Redirect to home/dashboard
+                    return `Successfully signed in as ${userData.username || userData.email}!`; // Toast message
+                 } else {
+                     console.error("Google Sign-In backend response missing user data:", response?.data);
+                     throw new Error('Google Sign-In failed: Unexpected server response.'); // Trigger error toast
+                 }
+            },
+            error: (err) => { // Error callback receives error object
+                console.error("Google Sign-Up/In Backend Component Catch:", err);
+                // Interceptor likely showed an error, return message for toast.promise
+                return err.response?.data?.error?.message || err.message || 'Google Sign-Up/In failed.';
+            }
+        }
+    ).finally(() => {
+         setGoogleLoading(false); // Stop Google loading indicator
+    });
+
+  }, [role, login, navigate]);
+
+
+  // --- Effect for Google Sign-In Initialization ---
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) {
+      console.error("VITE_GOOGLE_CLIENT_ID is missing.");
+      // Error message shown near button below
+      return;
+    }
+    if (window.google?.accounts?.id) {
       try {
-        window.google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: handleGoogleCallback, // Pass the callback function
-          // auto_select: false, // Usually false for registration page
-          // ux_mode: 'popup', // Alternative to redirect
-        });
-
-        window.google.accounts.id.renderButton(
-          document.getElementById(GOOGLE_BUTTON_CONTAINER_ID),
-          { theme: "outline", size: "large", type: "standard", text: "signup_with" } // Customize button
-        );
-
-        // Optional: Prompt for account selection if needed, useful if auto_select was true
-        // window.google.accounts.id.prompt();
-
+        window.google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleCallback });
+        window.google.accounts.id.renderButton(document.getElementById(GOOGLE_BUTTON_CONTAINER_ID), { theme: "outline", size: "large", type: "standard", text: "signup_with" });
       } catch (initError) {
         console.error("Error initializing Google Sign-In:", initError);
-        setGoogleError("Failed to initialize Google Sign-In library.");
+        toast.error("Failed to initialize Google Sign-In library.");
       }
     } else {
-      console.warn("Google Identity Services library not loaded yet or failed to load.");
-      // You might want to add a retry mechanism or inform the user
-      setGoogleError("Google Sign-In library failed to load. Please refresh or try again later.");
+      console.warn("Google Identity Services library not loaded yet.");
+      // Optionally show a message or retry loading
     }
-
-    // Cleanup function (optional, potentially useful if dynamically loading scripts)
-    return () => {
-      // If you need to cleanup anything related to google accounts id
-      // e.g., google.accounts.id.disableAutoSelect();
-    };
-  }, [handleGoogleCallback]); // Re-run if the callback function identity changes (due to role dependency)
+  }, [handleGoogleCallback]);
 
 
   // --- Render ---
@@ -202,114 +144,77 @@ function RegisterPage() {
       <div className="auth-container">
         <h3 className="auth-title">Create your account</h3>
 
-        {/* --- Manual Registration Form --- */}
-        <form onSubmit={onManualFormSubmit} className="auth-form">
-          {/* Username */}
-          <div className="form-group">
-            <label className="form-label" htmlFor="username">Username</label>
-            <input
-              type="text"
-              placeholder="Choose a username"
-              id="username"
-              onChange={(e) => setUsername(e.target.value)}
-              value={username}
-              className="form-input"
-              required
-              disabled={manualLoading || googleLoading} // Disable if any loading active
-            />
-          </div>
-          {/* Email */}
-          <div className="form-group">
-            <label className="form-label" htmlFor="email">Email</label>
-            <input
-              type="email"
-              placeholder="you@example.com"
-              id="email"
-              onChange={(e) => setEmail(e.target.value)}
-              value={email}
-              className="form-input"
-              required
-              disabled={manualLoading || googleLoading}
-            />
-          </div>
-          {/* Password */}
-          <div className="form-group">
-            <label className="form-label" htmlFor="password">Password</label>
-            <input
-              type="password"
-              placeholder="Password (min 8 characters)"
-              id="password"
-              onChange={(e) => setPassword(e.target.value)}
-              value={password}
-              className="form-input"
-              required
-              minLength="8" // HTML5 validation
-              disabled={manualLoading || googleLoading}
-            />
-          </div>
-          {/* Confirm Password */}
-          <div className="form-group">
-            <label className="form-label" htmlFor="confirmPassword">Confirm Password</label>
-            <input
-              type="password"
-              placeholder="Confirm Password"
-              id="confirmPassword"
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              value={confirmPassword}
-              className="form-input"
-              required
-              disabled={manualLoading || googleLoading}
-            />
-          </div>
-          {/* Role Selection */}
-          <div className="form-group">
-            <label className="form-label" htmlFor="role">Register As</label>
-            <select
-              id="role"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className="form-input"
-              disabled={manualLoading || googleLoading}
-            >
-              <option value={ROLES.PATRON}>Patron (Collector)</option>
-              <option value={ROLES.ARTIST}>Artist (Creator)</option>
-            </select>
-          </div>
+        <Formik
+          initialValues={{ username: '', email: '', password: '', confirmPassword: '', role: role }}
+          validationSchema={RegisterSchema}
+          onSubmit={handleManualFormSubmit}
+          enableReinitialize // Keep role synced if external state changes it
+        >
+          {({ isSubmitting, errors, touched, setFieldValue }) => (
+            <Form className="auth-form">
+              {/* Username, Email, Password, Confirm Password Fields (remain the same) */}
+              {/* ... Field components with ErrorMessage ... */}
+               <div className="form-group">
+                 <label className="form-label" htmlFor="username">Username</label>
+                 <Field type="text" name="username" placeholder="Choose a username" id="username" className={`form-input ${touched.username && errors.username ? 'is-invalid' : ''}`} disabled={isSubmitting || googleLoading}/>
+                 <ErrorMessage name="username" component="div" className="error-message validation-error" />
+               </div>
+               <div className="form-group">
+                 <label className="form-label" htmlFor="email">Email</label>
+                 <Field type="email" name="email" placeholder="you@example.com" id="email" className={`form-input ${touched.email && errors.email ? 'is-invalid' : ''}`} disabled={isSubmitting || googleLoading}/>
+                 <ErrorMessage name="email" component="div" className="error-message validation-error" />
+               </div>
+               <div className="form-group">
+                 <label className="form-label" htmlFor="password">Password</label>
+                 <Field type="password" name="password" placeholder="Password (min 8 characters)" id="password" className={`form-input ${touched.password && errors.password ? 'is-invalid' : ''}`} disabled={isSubmitting || googleLoading}/>
+                 <ErrorMessage name="password" component="div" className="error-message validation-error" />
+               </div>
+               <div className="form-group">
+                 <label className="form-label" htmlFor="confirmPassword">Confirm Password</label>
+                 <Field type="password" name="confirmPassword" placeholder="Confirm Password" id="confirmPassword" className={`form-input ${touched.confirmPassword && errors.confirmPassword ? 'is-invalid' : ''}`} disabled={isSubmitting || googleLoading}/>
+                 <ErrorMessage name="confirmPassword" component="div" className="error-message validation-error" />
+               </div>
 
-          {/* Manual Error Display */}
-          {manualError && <p className="error-message manual-error">{manualError}</p>}
 
-          {/* Form Actions */}
-          <div className="form-actions">
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={manualLoading || googleLoading}
-            >
-              {manualLoading ? 'Registering...' : 'Register'}
-            </button>
-            <Link to="/login" className="auth-link">
-              Already have an account? Login
-            </Link>
-          </div>
-        </form>
+              {/* Role Selection */}
+              <div className="form-group">
+                <label className="form-label" htmlFor="role">Register As</label>
+                <Field as="select" name="role" id="role" className={`form-input ${touched.role && errors.role ? 'is-invalid' : ''}`} disabled={isSubmitting || googleLoading}
+                  onChange={e => {
+                    const newRole = e.target.value;
+                    setFieldValue('role', newRole); // Update Formik
+                    setRole(newRole); // Update local state (for Google)
+                  }}>
+                  <option value={ROLES.PATRON}>Patron (Collector)</option>
+                  <option value={ROLES.ARTIST}>Artist (Creator)</option>
+                </Field>
+                <ErrorMessage name="role" component="div" className="error-message validation-error" />
+              </div>
 
-        {/* --- Separator --- */}
+              {/* Removed local submitError display */}
+
+              <div className="form-actions">
+                <button type="submit" className="btn btn-primary" disabled={isSubmitting || googleLoading}>
+                  {isSubmitting ? 'Registering...' : 'Register'}
+                </button>
+                <Link to="/login" className="auth-link">
+                  Already have an account? Login
+                </Link>
+              </div>
+            </Form>
+          )}
+        </Formik>
+
         <div className="auth-separator">OR</div>
 
-        {/* --- Google Sign-Up --- */}
         <div className="google-signin-container">
-           {/* Google Error Display */}
-          {googleError && <p className="error-message google-error">{googleError}</p>}
-
-          {/* Target div for the Google Button */}
-          {/* Render a placeholder or spinner while googleLoading is true */}
+          {/* Removed local googleError display */}
           {googleLoading ? (
-            <div className="spinner">Loading Google Sign-In...</div>
+            <div className="spinner">Processing Google Sign-Up...</div>
           ) : (
             <div id={GOOGLE_BUTTON_CONTAINER_ID}></div>
           )}
-
+           {!GOOGLE_CLIENT_ID && <p className="error-message">Google Sign-Up is unavailable (Configuration missing).</p>}
         </div>
       </div>
     </div>

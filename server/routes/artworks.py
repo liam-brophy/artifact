@@ -4,6 +4,7 @@ from server.services.auth_helper import artist_required
 from server.models.user import User
 from server.models.artwork import Artwork
 from server.app import db
+from sqlalchemy.exc import IntegrityError
 
 artworks_bp = Blueprint('artworks', __name__)
 
@@ -16,100 +17,133 @@ def check_artist_role(user_id):
 
 # === POST /api/artworks ===
 @artworks_bp.route('', methods=['POST'])
-@artist_required # to enforce artist role at the route level
-@jwt_required() # Protect the route
+@artist_required
+@jwt_required()
 def create_artwork():
     """Creates a new artwork. Requires artist role."""
     current_user_id = get_jwt_identity()
-    is_artist, user_or_error, status_code = check_artist_role(current_user_id)
-    if not is_artist:
-        return user_or_error, status_code
+    # The @artist_required decorator should handle the role check already
+    # is_artist, user_or_error, status_code = check_artist_role(current_user_id)
+    # if not is_artist:
+    #     return user_or_error, status_code
 
     data = request.get_json()
     if not data:
         return jsonify({"error": {"code": "INVALID_INPUT", "message": "No input data provided"}}), 400
 
-    # --- Validation ---
+    current_app.logger.info(f"Received artwork creation data: {data}") # Good to keep this log
+
+    # --- Extract ALL required fields from Frontend ---
     title = data.get('title')
+    artist_name = data.get('artist_name') # Extracted from request
     image_url = data.get('image_url')
+    thumbnail_url = data.get('thumbnail_url') # Optional but expected key
+    year_str = data.get('year') # Get potential null/empty string
+    medium = data.get('medium')
+    rarity = data.get('rarity')
     description = data.get('description') # Optional
-    thumbnail_url = data.get('thumbnail_url') # Optional
-    edition_size_str = data.get('edition_size', '1') # Default to 1 if not provided
-    is_available = data.get('is_available', True) # Default to True
 
+    # --- Validation ---
     errors = {}
-    is_valid, msg = Artwork.validate_title(title)
-    if not is_valid: errors['title'] = msg
+    # Basic presence checks (consider adding model-level validation later)
+    if not title: errors['title'] = "Title is required."
+    if not artist_name: errors['artist_name'] = "Artist name is required." # Add validation
+    if not image_url: errors['image_url'] = "Image URL is required."
+    if not medium: errors['medium'] = "Medium is required." # Add validation
+    if not rarity: errors['rarity'] = "Rarity is required." # Add validation
 
-    is_valid, msg = Artwork.validate_url(image_url, "Image URL")
-    if not is_valid: errors['image_url'] = msg
-
-    if thumbnail_url: # Validate thumbnail only if provided
+    # Validate URLs if present
+    if image_url:
+        is_valid, msg = Artwork.validate_url(image_url, "Image URL")
+        if not is_valid: errors['image_url'] = msg
+    if thumbnail_url:
         is_valid, msg = Artwork.validate_url(thumbnail_url, "Thumbnail URL")
         if not is_valid: errors['thumbnail_url'] = msg
 
-    try:
-        edition_size = int(edition_size_str)
-        is_valid, msg = Artwork.validate_edition_size(edition_size)
-        if not is_valid: errors['edition_size'] = msg
-    except (ValueError, TypeError):
-        errors['edition_size'] = "Edition size must be a valid integer."
-
+    # Validate description length if present
     if description and len(description) > 2000:
         errors['description'] = "Description exceeds maximum length of 2000 characters."
 
-    if not isinstance(is_available, bool):
-         errors['is_available'] = "is_available must be true or false."
+    # Validate year format (handle potential None or non-digit strings)
+    year = None
+    if year_str is not None and str(year_str).strip(): # Check if not None and not empty string
+        try:
+            year = int(year_str)
+            if year < 0: # Example additional check
+                 errors['year'] = "Year cannot be negative."
+            # Add max year check if desired
+        except (ValueError, TypeError):
+            errors['year'] = "Year must be a valid whole number."
+    # else: year remains None, which is allowed by DB if nullable=True, or needs handling if nullable=False
 
+    # Add specific check for rarity against allowed ENUM values (optional but good practice)
+    # allowed_rarities = ['common', 'uncommon', 'rare', 'epic', 'legendary'] # Define or import
+    # if rarity and rarity not in allowed_rarities:
+    #     errors['rarity'] = f"Invalid rarity value. Must be one of: {', '.join(allowed_rarities)}"
 
     if errors:
         return jsonify({"error": {"code": "VALIDATION_001", "message": "Input validation failed", "details": errors}}), 400
     # --- End Validation ---
 
-    # Create Artwork instance
-    # For simplicity now, assuming edition_number defaults to 1 on creation.
-    # You might need more complex logic if handling multiple editions of the same conceptual piece.
+    # Create Artwork instance with ALL fields
     new_artwork = Artwork(
         artist_id=current_user_id,
-        title=title,
-        description=description,
+        title=title.strip(),
+        # artist_name=artist_name.strip(), # Pass the extracted artist_name
+        description=description.strip() if description else None,
         image_url=image_url,
         thumbnail_url=thumbnail_url,
+        year=year,                       # Pass the validated/converted year
+        medium=medium.strip(),           # Pass the extracted medium
+        rarity=rarity                    # Pass the extracted rarity
     )
 
     try:
         db.session.add(new_artwork)
         db.session.commit()
+        current_app.logger.info(f"Artwork ID {new_artwork.artwork_id} created successfully.")
+    except IntegrityError as e: # Catch specific IntegrityError
+        db.session.rollback()
+        current_app.logger.error(f"Database integrity error creating artwork: {e}", exc_info=True)
+        # Provide more specific feedback if possible
+        error_msg = f"Database error: {e.orig}" if hasattr(e, 'orig') else "Could not save artwork due to database integrity constraint."
+        return jsonify({"error": {"code": "DB_INTEGRITY_ERROR", "message": error_msg}}), 500
     except Exception as e:
         db.session.rollback()
-        print(f"ERROR: Database error creating artwork - {e}")
+        current_app.logger.error(f"Generic database error creating artwork: {e}", exc_info=True)
         return jsonify({"error": {"code": "DB_ERROR", "message": "Could not save artwork due to database error"}}), 500
 
-    # Fetch again to include relationships/defaults if needed by to_dict
+    # --- Serialization (Adjust if needed) ---
+    # Fetch again is good practice if defaults/triggers modify the row
     created_artwork = Artwork.query.get(new_artwork.artwork_id)
     if not created_artwork:
-         print(f"ERROR: Failed to fetch newly created artwork ID: {new_artwork.artwork_id}")
+         current_app.logger.error(f"Failed to fetch newly created artwork ID: {new_artwork.artwork_id}")
          return jsonify({"error": {"code": "INTERNAL_SERVER_ERROR", "message": "Failed to retrieve created artwork details"}}), 500
 
-
-    # --- Serialization ---
     try:
-        # Serialize the artwork data while excluding the 'artist' relationship
-        response_data = created_artwork.to_dict(rules=('-artist',))
+        # Use a schema or a method that includes the new fields if desired
+        # artwork_schema = ArtworkSchema() # Example using Marshmallow
+        # response_data = artwork_schema.dump(created_artwork)
+
+        # Or update your to_dict or manual construction
+        response_data = {
+            "artwork_id": created_artwork.artwork_id,
+            "artist_id": created_artwork.artist_id,
+            "title": created_artwork.title,
+            # "artist_name": created_artwork.artist_name, # Include artist_name
+            "description": created_artwork.description,
+            "image_url": created_artwork.image_url,
+            "thumbnail_url": created_artwork.thumbnail_url,
+            "year": created_artwork.year,           # Include year
+            "medium": created_artwork.medium,       # Include medium
+            "rarity": created_artwork.rarity,       # Include rarity
+            "created_at": created_artwork.created_at.isoformat() if created_artwork.created_at else None, # Format datetime
+            "updated_at": created_artwork.updated_at.isoformat() if created_artwork.updated_at else None, # Format datetime
+        }
+
     except Exception as e:
         current_app.logger.exception("Serialization failed after creating artwork")
         return jsonify({"error": {"code": "SERIALIZATION_ERROR", "message": "Failed to serialize artwork data"}}), 500
-
-    # Match the spec response format for POST /api/artworks
-    response_data = {
-        "artwork_id": response_data['artwork_id'],
-        "artist_id": current_user_id, # Add artist_id explicitly
-        "title": response_data['title'],
-        "description": response_data['description'],
-        "image_url": response_data['image_url'],
-        "thumbnail_url": response_data['thumbnail_url'],
-        "created_at": response_data['created_at'],
-    }
     # --- End Serialization ---
 
     return jsonify(response_data), 201

@@ -225,6 +225,53 @@ def get_current_user_profile():
     return jsonify(user_data), 200
 
 
+# *** NEW: DELETE /me Route ***
+@auth_bp.route('/me', methods=['DELETE'])
+@jwt_required() # Ensures user is logged in
+def delete_current_user_profile():
+    """
+    Deletes the currently authenticated user's profile.
+    CRITICAL: Relies on database/ORM cascade deletes being configured correctly
+    in the models (e.g., User, Artwork, UserFollow, Collection)
+    using `cascade='all, delete-orphan'` on relevant relationships OR
+    `ondelete='CASCADE'` on database foreign keys.
+    """
+    current_user_id = get_jwt_identity()
+    current_app.logger.info(f"Attempting deletion for user ID: {current_user_id}")
+
+    user_to_delete = User.query.get(current_user_id)
+
+    if not user_to_delete:
+        current_app.logger.warning(f"User ID {current_user_id} from token not found in DB for deletion.")
+        # Unset cookies as a precaution if token somehow references deleted user
+        response = jsonify({"error": {"code": "USER_NOT_FOUND", "message": "User to delete not found."}})
+        unset_jwt_cookies(response)
+        return response, 404
+
+    try:
+        # --- Delete the User Record ---
+        # If cascades are properly configured, deleting the User object
+        # will trigger the deletion of associated records (UserFollow, Collection, etc.)
+        db.session.delete(user_to_delete)
+
+        # --- Commit Transaction ---
+        db.session.commit()
+        current_app.logger.info(f"Successfully deleted user ID: {current_user_id} and associated data via cascade.")
+
+        # --- Prepare Success Response ---
+        # 204 No Content is standard. Unset JWT cookies.
+        response = make_response('', 204) # Create an empty response with 204 status
+        unset_jwt_cookies(response)       # Add headers to clear cookies
+        return response
+
+    except Exception as e:
+        # --- Rollback on Error ---
+        db.session.rollback()
+        current_app.logger.exception(f"Error during cascade delete for user ID {current_user_id}: {str(e)}")
+        # Return a server error. Don't unset cookies here; maybe it was temporary.
+        return jsonify({"error": {"code": "DELETE_FAILED", "message": "An error occurred while deleting the profile. Please check server logs or try again."}}), 500
+
+
 @auth_bp.route('/logout', methods=['POST'])
 @jwt_required(refresh=True)  # Decorator uses 'jwt' imported from extensions
 def logout_user():

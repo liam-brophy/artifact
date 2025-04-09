@@ -1,34 +1,53 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, Link as RouterLink } from 'react-router-dom'; // Import RouterLink
+import { useParams, Link as RouterLink, useNavigate } from 'react-router-dom';
 import apiService from '../services/apiService';
 import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 
-// Import components we'll still use
+// MUI Components (keep for now)
+import Container from '@mui/material/Container';
+import Typography from '@mui/material/Typography';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert'; // Keep for specific non-API errors if needed
+import Grid from '@mui/material/Grid';
+import Pagination from '@mui/material/Pagination';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogTitle from '@mui/material/DialogTitle';
+import Stack from '@mui/material/Stack'; // Optional, replace with CSS if desired
+
+// Import Components
 import ArtworkCard from '../components/ArtworkCard';
-import CircularProgress from '@mui/material/CircularProgress'; // Keep for loading
-import Alert from '@mui/material/Alert'; // Keep for errors
-import Button from '@mui/material/Button'; // Keep for actions
-import Pagination from '@mui/material/Pagination'; // Keep for pagination UI
 
-// Import the CSS file for styling
-import './ProfilePage.css';
+// Import the CSS file
+import './ProfilePage.css'; // Ensure you have this file
 
 function ProfilePage() {
     const { username } = useParams();
-    const { user: loggedInUser, isLoading: isAuthLoading, isAuthenticated, ownedArtworkIds = new Set() } = useAuth();
+    const { user: loggedInUser, isLoading: isAuthLoading, isAuthenticated, ownedArtworkIds = new Set(), logout } = useAuth();
+    const navigate = useNavigate();
 
-    // Profile User State
+    // Profile State
     const [profileUser, setProfileUser] = useState(null);
     const [isLoadingProfile, setIsLoadingProfile] = useState(true);
-    const [errorProfile, setErrorProfile] = useState(null);
+    const [profileLoadError, setProfileLoadError] = useState(null); // For specific profile load failure msg
     const [isFollowing, setIsFollowing] = useState(false);
 
-    // Artworks State (Created or Collected)
+    // Artworks State
     const [displayedArtworks, setDisplayedArtworks] = useState([]);
     const [isLoadingArtworks, setIsLoadingArtworks] = useState(false);
-    const [errorArtworks, setErrorArtworks] = useState(null);
-    const [paginationData, setPaginationData] = useState({ totalPages: 1, currentPage: 1, perPage: 12 });
+    // Error state for artwork fetch (optional, if specific handling needed beyond toast)
+    // const [errorArtworks, setErrorArtworks] = useState(null);
+    const [paginationData, setPaginationData] = useState({ totalPages: 1, currentPage: 1, perPage: 12, totalItems: 0, hasNext: false, hasPrev: false });
     const [currentPage, setCurrentPage] = useState(1);
+
+    // Delete Dialog State
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Derived State
     const isOwnProfile = isAuthenticated && profileUser && loggedInUser?.user_id === profileUser.user_id;
@@ -36,122 +55,191 @@ function ProfilePage() {
     // --- Fetch Profile User Data ---
     useEffect(() => {
         if (!username) {
-            setErrorProfile("Username parameter is missing.");
+            setProfileLoadError("Username parameter missing.");
             setIsLoadingProfile(false);
             return;
         }
         const fetchProfile = async () => {
             setIsLoadingProfile(true);
-            setErrorProfile(null);
-            // Reset states on username change
+            setProfileLoadError(null); // Reset specific error
             setProfileUser(null);
             setDisplayedArtworks([]);
-            setErrorArtworks(null);
+            // setErrorArtworks(null); // Reset if using local state
             setIsLoadingArtworks(false);
             setCurrentPage(1);
-            setPaginationData({ totalPages: 1, currentPage: 1, perPage: 12 });
+            setPaginationData({ totalPages: 1, currentPage: 1, perPage: 12, totalItems: 0, hasNext: false, hasPrev: false });
             setIsFollowing(false);
+            setIsDeleteDialogOpen(false);
+            setIsDeleting(false);
 
             try {
-                // Assuming API returns { user: {...}, is_followed_by_viewer: boolean }
                 const response = await apiService.get(`/users/${username}`);
                 setProfileUser(response.data.user || response.data);
                 setIsFollowing(response.data.is_followed_by_viewer || false);
             } catch (err) {
-                console.error("Failed to fetch profile:", err);
+                console.error("ProfilePage: Failed to fetch profile:", err);
                 const message = err.response?.data?.error?.message || err.response?.data?.message || (err.response?.status === 404 ? `Profile not found for user: ${username}` : null) || err.message || "Could not load profile.";
-                setErrorProfile(message);
+                setProfileLoadError(message); // Set specific error for conditional render
+                // Interceptor will show a toast for general API errors (like 500)
+                 if (err.response?.status === 404) {
+                     toast.error(`Profile not found for ${username}`, { id: 'profile-not-found'});
+                 }
             } finally {
                 setIsLoadingProfile(false);
             }
         };
         fetchProfile();
-    }, [username, loggedInUser?.user_id]); // Refetch if username or loggedInUser changes
+    }, [username, loggedInUser?.user_id]);
 
     // --- Fetch Artworks ---
     useEffect(() => {
-        if (!profileUser?.user_id || errorProfile) {
-             setIsLoadingArtworks(false); setDisplayedArtworks([]); return; // Skip if no profile user or error
+        // Don't fetch if profile hasn't loaded or failed specifically
+        if (!profileUser?.user_id || profileLoadError) {
+            setIsLoadingArtworks(false);
+            setDisplayedArtworks([]);
+            return;
         }
 
         let endpoint = '';
         let isFetchingCollected = false;
 
-        if (isOwnProfile) { // Viewing Own Profile
-            if (profileUser.role === 'artist') endpoint = `/users/${profileUser.user_id}/created-artworks`;
-            else if (profileUser.role === 'patron') { endpoint = `/users/${profileUser.user_id}/collected-artworks`; isFetchingCollected = true; }
-        } else { // Viewing Someone Else's Profile
-            if (profileUser.role === 'artist') endpoint = `/users/${profileUser.user_id}/created-artworks`;
-            // else: Don't fetch for other patrons
+        if (isOwnProfile) {
+            if (profileUser.role === 'artist') {
+                endpoint = `/users/${profileUser.user_id}/created-artworks`;
+            } else if (profileUser.role === 'patron') {
+                endpoint = `/users/${profileUser.user_id}/collected-artworks`;
+                isFetchingCollected = true;
+            }
+        } else {
+            if (profileUser.role === 'artist') {
+                endpoint = `/users/${profileUser.user_id}/created-artworks`;
+            }
+            // else: Viewing other patron - no endpoint set
         }
 
-        if (!endpoint) { // No valid endpoint determined (e.g., viewing other patron)
-             setIsLoadingArtworks(false); setDisplayedArtworks([]); return;
+        if (!endpoint) {
+            setIsLoadingArtworks(false);
+            setDisplayedArtworks([]);
+            return; // Don't fetch if no endpoint determined
         }
 
         const fetchArtworks = async (page) => {
-            setIsLoadingArtworks(true); setErrorArtworks(null);
+            setIsLoadingArtworks(true);
+            // setErrorArtworks(null); // Clear local error state if using it
             try {
-                const response = await apiService.get(endpoint, { params: { page } });
+                const response = await apiService.get(endpoint, { params: { page } }); // Assuming backend uses 'page'
+
                 let artworksForState = [];
-                if (isFetchingCollected) artworksForState = response.data.collectedArtworks?.map(item => item.artwork).filter(art => art != null) || [];
-                else artworksForState = response.data.artworks || [];
+                if (isFetchingCollected) {
+                    artworksForState = response.data.collectedArtworks?.map(item => item.artwork).filter(art => art != null) || [];
+                } else {
+                    artworksForState = response.data.artworks || [];
+                }
 
                 setDisplayedArtworks(artworksForState);
-                if (response.data.pagination) setPaginationData(response.data.pagination);
-                else setPaginationData({ totalItems: artworksForState.length, totalPages: 1, currentPage: 1, perPage: artworksForState.length || 12, hasNext: false, hasPrev: false });
+
+                if (response.data.pagination) {
+                    setPaginationData(response.data.pagination);
+                } else {
+                    // Reset or provide default if backend doesn't return pagination
+                    setPaginationData({ totalItems: artworksForState.length, totalPages: 1, currentPage: 1, perPage: artworksForState.length || 12, hasNext: false, hasPrev: false });
+                }
             } catch (err) {
-                console.error(`Failed to fetch artworks from ${endpoint}:`, err);
-                setErrorArtworks(err.response?.data?.error?.message || err.message || "Could not load artworks.");
+                // Interceptor will show toast error. Component logs it.
+                console.error(`ProfilePage: Failed to fetch artworks from ${endpoint}:`, err);
+                // setErrorArtworks("Could not load artworks."); // Set local state if needed for UI
                 setDisplayedArtworks([]);
-                setPaginationData({ totalPages: 1, currentPage: 1, perPage: 12 });
-            } finally { setIsLoadingArtworks(false); }
+                setPaginationData({ totalPages: 1, currentPage: 1, perPage: 12, totalItems: 0, hasNext: false, hasPrev: false }); // Reset pagination
+            } finally {
+                setIsLoadingArtworks(false);
+            }
         };
 
         fetchArtworks(currentPage);
-    }, [profileUser?.user_id, profileUser?.role, isOwnProfile, currentPage, errorProfile]); // Dependencies
+    // Depend on profile ID, role (in case it changes?), ownership, page, and profile error status
+    }, [profileUser?.user_id, profileUser?.role, isOwnProfile, currentPage, profileLoadError]);
 
-    // --- Follow/Unfollow Handlers ---
+    // --- Follow/Unfollow Handler ---
     const handleFollowToggle = useCallback(async () => {
         if (!profileUser?.user_id || !isAuthenticated) return;
         const action = isFollowing ? 'delete' : 'post';
-        const endpoint = isFollowing ? `/follows/${profileUser.user_id}` : `/follows`; // Adjust endpoint structure as needed
+        const endpoint = isFollowing ? `/follows/${profileUser.user_id}` : `/follows`; // Adjust endpoint
         const body = isFollowing ? null : { followed_id: profileUser.user_id };
 
-        try {
-            if (action === 'post') await apiService.post(endpoint, body);
-            else await apiService.delete(endpoint); // Assumes DELETE for unfollow
+        const followPromise = action === 'post' ? apiService.post(endpoint, body) : apiService.delete(endpoint);
 
-            // Toggle state and optimistically update count
-            setIsFollowing(!isFollowing);
-            setProfileUser(prev => ({
-                 ...prev,
-                 followers_count: (prev.followers_count ?? 0) + (isFollowing ? -1 : 1)
-            }));
-        } catch (err) {
-            console.error(`Failed to ${action} follow user:`, err);
-            // Add user feedback (e.g., toast notification)
-        }
-    }, [profileUser?.user_id, isAuthenticated, isFollowing]);
+        toast.promise(
+            followPromise,
+            {
+                loading: isFollowing ? 'Unfollowing...' : 'Following...',
+                success: () => {
+                    setIsFollowing(!isFollowing);
+                    setProfileUser(prev => ({
+                        ...prev,
+                        followers_count: (prev.followers_count ?? 0) + (isFollowing ? -1 : 1)
+                    }));
+                    return `Successfully ${isFollowing ? 'unfollowed' : 'followed'} ${profileUser.username}!`;
+                },
+                error: (err) => {
+                    console.error(`ProfilePage: Failed to ${action} follow:`, err);
+                    return `Could not ${isFollowing ? 'unfollow' : 'follow'} user.`;
+                }
+            }
+        );
+    }, [profileUser?.user_id, profileUser?.username, isAuthenticated, isFollowing]);
 
     // --- Pagination Handler ---
     const handlePageChange = (event, value) => {
-        if (value !== currentPage) setCurrentPage(value);
+        if (value !== currentPage) {
+            setCurrentPage(value);
+        }
+    };
+
+    // --- Delete Profile Handlers ---
+    const openDeleteDialog = () => setIsDeleteDialogOpen(true);
+    const closeDeleteDialog = () => { if (!isDeleting) setIsDeleteDialogOpen(false); };
+
+    const handleConfirmDelete = async () => {
+        if (!isOwnProfile) return;
+        setIsDeleting(true);
+        const deletePromise = apiService.delete('/users/me'); // Ensure endpoint is correct
+
+        toast.promise(
+            deletePromise,
+            {
+                loading: 'Deleting your account...',
+                success: async () => {
+                    closeDeleteDialog();
+                    await logout();
+                    navigate('/');
+                    return 'Account successfully deleted.';
+                },
+                error: (err) => {
+                    console.error("ProfilePage: Failed to delete profile:", err);
+                    setIsDeleting(false); // Re-enable dialog buttons on error
+                    return err.response?.data?.error || err.message || 'Could not delete profile.';
+                }
+            }
+        );
     };
 
     // --- Render Logic ---
     if (isAuthLoading || isLoadingProfile) {
         return <div className="profile-loading-container"><CircularProgress /></div>;
     }
-    if (errorProfile) {
-        return <div className="profile-error-container"><Alert severity="error">{errorProfile}</Alert></div>;
-    }
-    if (!profileUser) {
-        return <div className="profile-error-container"><Alert severity="warning">Profile data could not be loaded for '{username}'.</Alert></div>;
+
+    // Handle profile load error *before* trying to render profile info
+    if (profileLoadError) {
+        return <div className="profile-error-container"><Alert severity="error">{profileLoadError}</Alert></div>;
     }
 
-    // Determine if artworks should be shown based on logic
-    const shouldShowArtworks = (profileUser.role === 'artist' || (profileUser.role === 'patron' && isOwnProfile));
+    // Handle case where profile user wasn't found (should be caught by errorProfile now)
+    if (!profileUser) {
+        return <div className="profile-error-container"><Alert severity="warning">Profile data is unavailable for '{username}'.</Alert></div>;
+    }
+
+    // Determine if artworks section should be attempted
+    const shouldAttemptArtworkLoad = (profileUser.role === 'artist') || (profileUser.role === 'patron' && isOwnProfile);
 
     return (
         <div className="profile-page-container"> {/* Main container */}
@@ -168,90 +256,82 @@ function ProfilePage() {
                 </div>
                 <div className="profile-actions">
                     {isAuthenticated && !isOwnProfile && (
-                        <Button
-                            variant={isFollowing ? "outlined" : "contained"}
-                            onClick={handleFollowToggle}
-                            size="small"
-                            className={`profile-follow-button ${isFollowing ? 'following' : ''}`}
-                        >
+                        <Button variant={isFollowing ? "outlined" : "contained"} onClick={handleFollowToggle} size="small" className={`profile-follow-button ${isFollowing ? 'following' : ''}`}>
                             {isFollowing ? 'Unfollow' : 'Follow'}
                         </Button>
                     )}
                     {isOwnProfile && (
-                         <Button
-                            variant="outlined"
-                            size="small"
-                            component={RouterLink}
-                            to="/settings" /* Or your edit profile route */
-                            className="profile-edit-button"
-                         >
-                             Edit Profile
-                         </Button>
+                         <Box sx={{ display: 'flex', gap: 1 }}> {/* Using Box for simple inline flex layout */}
+                            <Button variant="outlined" size="small" component={RouterLink} to="/settings" className="profile-edit-button">
+                                Edit Profile
+                            </Button>
+                            <Button variant="outlined" color="error" size="small" onClick={openDeleteDialog} className="profile-delete-button" disabled={isDeleting}>
+                                {isDeleting ? <CircularProgress size={20} color="inherit"/> : 'Delete Profile'}
+                            </Button>
+                         </Box>
                      )}
                 </div>
             </section>
 
-            {/* Artwork Display Section */}
-            {shouldShowArtworks ? (
+            {/* --- Delete Confirmation Dialog --- */}
+            <Dialog open={isDeleteDialogOpen} onClose={closeDeleteDialog}>
+                <DialogTitle>Confirm Profile Deletion</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Are you sure you want to delete your profile? This action is permanent and cannot be undone.
+                    </DialogContentText>
+                    {/* No need to show deleteError here, toast handles it */}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={closeDeleteDialog} disabled={isDeleting}>Cancel</Button>
+                    <Button onClick={handleConfirmDelete} color="error" variant="contained" disabled={isDeleting} startIcon={isDeleting ? <CircularProgress size={20} color="inherit" /> : null}>
+                        Confirm Delete
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* === Artwork Display Section === */}
+            {shouldAttemptArtworkLoad ? (
                 <section className="profile-artworks-section">
-                    <h2 className="profile-artworks-title">
-                        {isOwnProfile
-                            ? (profileUser.role === 'artist' ? 'My Created Artworks' : 'My Collected Artworks')
-                            : `${profileUser.username}'s Artworks`
-                        }
-                    </h2>
+                     <h2 className="profile-artworks-title">{isOwnProfile ? (profileUser.role === 'artist' ? 'My Created Artworks' : 'My Collected Artworks') : `${profileUser.username}'s Artworks`}</h2>
 
-                    {isLoadingArtworks && (<div className="profile-artworks-loading"><CircularProgress /></div>)}
-                    {errorArtworks && !isLoadingArtworks && (<div className="profile-artworks-error"><Alert severity="warning">{errorArtworks}</Alert></div>)}
+                     {isLoadingArtworks && (<div className="profile-artworks-loading"><CircularProgress /></div>)}
+                     {/* Removed local artwork error display */}
+                     {/* {errorArtworks && !isLoadingArtworks && (<div className="profile-artworks-error"><Alert severity="warning">{errorArtworks}</Alert></div>)} */}
 
-                    {!isLoadingArtworks && !errorArtworks && displayedArtworks.length === 0 && (
-                        <p className="profile-artworks-empty">
-                            No {isOwnProfile && profileUser.role === 'patron' ? 'collected' : 'artworks'} found.
-                        </p>
+                     {!isLoadingArtworks && displayedArtworks.length === 0 && (
+                        <p className="profile-artworks-empty">No {isOwnProfile && profileUser.role === 'patron' ? 'collected' : 'artworks'} found.</p>
                     )}
 
-                    {!isLoadingArtworks && !errorArtworks && displayedArtworks.length > 0 && (
-                        <>
-                            <div className="profile-artworks-grid"> {/* Use CSS Grid or Flexbox */}
-                                {displayedArtworks.map((artwork) => {
-                                    const isOwnedByViewer = ownedArtworkIds.has(artwork?.artwork_id);
-                                    // Blur only when viewing someone else's ARTIST profile and viewer doesn't own it
-                                    const shouldBlur = !isOwnProfile && profileUser.role === 'artist' && !isOwnedByViewer;
+                     {!isLoadingArtworks && displayedArtworks.length > 0 && (
+                         <>
+                             <div className="profile-artworks-grid">
+                                 {displayedArtworks.map((artwork) => {
+                                     const isOwnedByViewer = ownedArtworkIds.has(artwork?.artwork_id);
+                                     const shouldBlur = !isOwnProfile && profileUser.role === 'artist' && !isOwnedByViewer;
+                                     return artwork ? (<div key={artwork.artwork_id} className={`profile-artwork-item ${shouldBlur ? 'artwork-blurred' : ''}`}><ArtworkCard artwork={artwork} /></div>) : null;
+                                 })}
+                             </div>
+                             {paginationData.totalPages > 1 && (
+                                 <div className="profile-pagination-container">
+                                     <Pagination
+                                         count={paginationData.totalPages || 1} // Ensure count is at least 1
+                                         page={currentPage}
+                                         onChange={handlePageChange}
+                                         color="primary"
+                                     />
+                                 </div>
+                             )}
+                         </>
+                     )}
+                 </section>
+             ) : ( // Only shows if viewing another patron's profile
+                 <section className="profile-artworks-private">
+                     <p>{profileUser.role === 'patron' ? "Patrons' collections are private." : "" /* Should ideally not reach here if artist */}</p>
+                 </section>
+             )}
+            {/* === End Artwork Display Section === */}
 
-                                    return artwork ? (
-                                        <div
-                                            key={artwork.artwork_id}
-                                            className={`profile-artwork-item ${shouldBlur ? 'artwork-blurred' : ''}`}
-                                        >
-                                            <ArtworkCard artwork={artwork} />
-                                        </div>
-                                    ) : null;
-                                })}
-                            </div>
-
-                            {/* Pagination */}
-                            {paginationData.totalPages > 1 && (
-                                <div className="profile-pagination-container">
-                                    <Pagination
-                                        count={paginationData.totalPages}
-                                        page={currentPage}
-                                        onChange={handlePageChange}
-                                        color="primary" // MUI prop
-                                        // Add classes here if you want to style Pagination further
-                                    />
-                                </div>
-                            )}
-                        </>
-                    )}
-                </section>
-            ) : (
-                // Message if viewing another Patron's profile (or adjust as needed)
-                <section className="profile-artworks-private">
-                    <p>
-                        {profileUser.role === 'patron' ? "Patrons' collections are private." : "No artworks to display for this profile."}
-                    </p>
-                </section>
-            )}
         </div> // End profile-page-container
     );
 }

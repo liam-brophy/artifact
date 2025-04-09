@@ -1,43 +1,70 @@
 import React, { useState, useCallback } from 'react';
+import { Formik, Form /* Removed Field, ErrorMessage as direct imports - using MUI components */ } from 'formik';
+import * as Yup from 'yup';
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
-import Input from '@mui/material/Input'; // For the hidden file input
+import Input from '@mui/material/Input';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import Typography from '@mui/material/Typography';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import InputLabel from '@mui/material/InputLabel';
+import FormControl from '@mui/material/FormControl';
+import FormHelperText from '@mui/material/FormHelperText';
 
 import apiService from '../services/apiService';
-// useAuth is no longer strictly needed unless you use 'user' elsewhere
-// import { useAuth } from '../context/AuthContext';
+import { ARTWORK_RARITIES, RARITY_VALUES, ALLOWED_MIME_TYPES, MAX_FILE_SIZE_MB } from '../constants/artwork';
 
-const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-const MAX_FILE_SIZE_MB = 10;
+// --- Yup Validation Schema ---
+const UploadSchema = Yup.object().shape({
+    title: Yup.string()
+        .trim()
+        .max(200, 'Title cannot be longer than 200 characters')
+        .required('Title is required'),
+    // Keeping 'artist' as the field name for Formik state/validation
+    artist: Yup.string()
+        .trim()
+        .max(100, 'Artist name cannot be longer than 100 characters')
+        .required('Artist name is required'),
+    year: Yup.number()
+        .typeError('Year must be a valid number')
+        .integer('Year must be a whole number')
+        .min(0, 'Year cannot be negative')
+        .max(new Date().getFullYear() + 1, `Year seems too far in the future`) // Allow current year + 1
+        .nullable() // Allows empty string or non-number initially, typeError handles invalid numbers
+        .transform((value, originalValue) => // Transform empty string to null for validation
+            String(originalValue).trim() === "" ? null : value
+        ),
+    medium: Yup.string()
+        .trim()
+        .max(100, 'Medium cannot be longer than 100 characters')
+        .required('Medium is required'),
+    rarity: Yup.string()
+        .oneOf(RARITY_VALUES, 'Invalid rarity selected')
+        .required('Rarity selection is required'),
+    // File validation is handled outside Yup schema in this setup
+});
 
-function Upload({ fields = ['image', 'title', 'artist', 'year', 'medium'] }) { // Added artist back to default fields
-    // const { user } = useAuth(); // Remove if not used elsewhere
-
-    // --- Form State ---
-    const [title, setTitle] = useState('');
-    const [artist, setArtist] = useState(''); // <-- Initialize as empty string
-    const [year, setYear] = useState('');
-    const [medium, setMedium] = useState('');
+function Upload() {
+    // State for file, processing steps, and non-validation errors
     const [selectedFile, setSelectedFile] = useState(null);
     const [previewSource, setPreviewSource] = useState('');
-
-    // --- Process State ---
     const [isUploadingFile, setIsUploadingFile] = useState(false);
     const [isSubmittingMeta, setIsSubmittingMeta] = useState(false);
-    const [error, setError] = useState(null);
+    const [submitError, setSubmitError] = useState(null);
     const [successMessage, setSuccessMessage] = useState('');
+    const [fileValidationError, setFileValidationError] = useState('');
 
-    // --- File Handling (Validation and Preview) ---
+    // --- File Handling ---
     const handleFileChange = useCallback((event) => {
-        // ... (no changes here) ...
-        setError(null);
+        setFileValidationError('');
+        setSubmitError(null);
         setSuccessMessage('');
         const file = event.target.files?.[0];
+        const fileInput = event.target; // Keep reference to clear later if invalid
 
         if (!file) {
             setSelectedFile(null);
@@ -45,13 +72,13 @@ function Upload({ fields = ['image', 'title', 'artist', 'year', 'medium'] }) { /
             return;
         }
         if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-            setError({ type: 'validation', message: `Invalid file type. Please select a PNG, JPG, GIF, or WEBP image.` });
-            setSelectedFile(null); setPreviewSource(''); event.target.value = null;
+            setFileValidationError(`Invalid file type. Allowed: ${ALLOWED_MIME_TYPES.map(t => t.split('/')[1]).join(', ')}`);
+            setSelectedFile(null); setPreviewSource(''); if (fileInput) fileInput.value = null; // Clear input
             return;
         }
         if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-            setError({ type: 'validation', message: `File is too large. Maximum size is ${MAX_FILE_SIZE_MB} MB.` });
-            setSelectedFile(null); setPreviewSource(''); event.target.value = null;
+            setFileValidationError(`File is too large. Max size: ${MAX_FILE_SIZE_MB} MB.`);
+            setSelectedFile(null); setPreviewSource(''); if (fileInput) fileInput.value = null; // Clear input
             return;
         }
         setSelectedFile(file);
@@ -60,41 +87,20 @@ function Upload({ fields = ['image', 'title', 'artist', 'year', 'medium'] }) { /
         reader.onloadend = () => setPreviewSource(reader.result);
     }, []);
 
-    // --- Form Reset ---
-    const clearForm = useCallback(() => {
-        // ... (reset other fields) ...
-        setTitle('');
-        setArtist(''); // <-- Reset artist to empty string
-        setYear('');
-        setMedium('');
-        setSelectedFile(null);
-        setPreviewSource('');
-        const fileInput = document.getElementById('artwork-file-input');
-        if (fileInput) fileInput.value = null;
-    }, []); // Removed 'user' dependency if not used
-
-    // --- Form Submission ---
-    const handleSubmit = useCallback(async (event) => {
-        // ... (prevent default, clear errors) ...
-        event.preventDefault();
-        setError(null);
+    // --- Form Submission (Formik onSubmit) ---
+    const handleFormikSubmit = async (values, { setSubmitting, resetForm }) => {
+        setSubmitError(null);
         setSuccessMessage('');
+        setFileValidationError('');
 
-        // --- Frontend Form Validation (includes artist) ---
-        let validationErrors = {};
-        if (!selectedFile && fields.includes('image')) validationErrors.file = "Please select an image file.";
-        if (!title.trim() && fields.includes('title')) validationErrors.title = "Please enter a title.";
-        if (!artist.trim() && fields.includes('artist')) validationErrors.artist = "Please enter the artist name."; // Standard validation
-        if ((!year.trim() || !/^\d{1,4}$/.test(year.trim())) && fields.includes('year')) validationErrors.year = "Please enter a valid year (up to 4 digits).";
-        if (!medium.trim() && fields.includes('medium')) validationErrors.medium = "Please enter the medium.";
-
-        if (Object.keys(validationErrors).length > 0) {
-            setError({ type: 'validation', message: "Please correct the highlighted fields.", details: validationErrors });
+        if (!selectedFile) {
+            setFileValidationError("Please select an image file.");
+            setSubmitting(false);
             return;
         }
 
-        // --- Step 1: Upload Image File ---
         setIsUploadingFile(true);
+        setSubmitting(true); // Indicate overall process starts
         const imageFormData = new FormData();
         imageFormData.append('image', selectedFile);
 
@@ -102,141 +108,188 @@ function Upload({ fields = ['image', 'title', 'artist', 'year', 'medium'] }) { /
         let thumbnailUrl = '';
 
         try {
-            console.log("Attempting image upload...");
+            // Step 1: Upload Image
             const uploadResponse = await apiService.post('/upload-image', imageFormData);
-            console.log("Image upload response:", uploadResponse.data); // Keep this log for confirmation
+            imageUrl = uploadResponse.data.imageUrl; // Adjust key if needed
+            thumbnailUrl = uploadResponse.data.thumbnailUrl || imageUrl; // Adjust key if needed
+            if (!imageUrl) throw new Error("Server response missing 'imageUrl'.");
+            setIsUploadingFile(false); // Image upload part done
 
-            // --- FIX THE KEY ACCESS ---
-            // Check for the camelCase key 'imageUrl'
-            if (!uploadResponse.data.imageUrl) { // <-- CHANGE image_url to imageUrl
-                throw new Error("File uploaded, but server response did not contain the expected 'imageUrl' field.");
-            }
-            // Access the camelCase key 'imageUrl'
-            imageUrl = uploadResponse.data.imageUrl; // <-- CHANGE image_url to imageUrl
+            // Step 2: Submit Metadata
+            setIsSubmittingMeta(true);
+            const artworkMetadata = {
+                title: values.title.trim(),
+                artist_name: values.artist.trim(), // Map Formik 'artist' to 'artist_name' for backend
+                image_url: imageUrl,
+                thumbnail_url: thumbnailUrl,
+                // Ensure year is integer or null
+                year: values.year ? parseInt(values.year, 10) : null,
+                medium: values.medium.trim(),
+                rarity: values.rarity, // Directly from Formik state
+            };
 
-            // Access the camelCase key 'thumbnailUrl' (or use imageUrl as fallback)
-            thumbnailUrl = uploadResponse.data.thumbnailUrl || imageUrl; // <-- CHANGE thumbnail_url to thumbnailUrl
-
-        } catch (err) {
-            // ... (error handling for image upload - no changes here) ...
-            console.error("File upload error:", err);
-            setError({ type: 'file_upload', message: `File Upload Failed: ${err.response?.data?.message || err.message || 'Unknown error'}` });
-            setIsUploadingFile(false);
-            return;
-        } finally {
-            setIsUploadingFile(false);
-        }
-
-        // --- Step 2: Submit Artwork Metadata ---
-        setIsSubmittingMeta(true);
-        const artworkMetadata = {
-            title: title.trim(),
-            artist_name: artist.trim(), // <-- Use the state value entered by user
-            image_url: imageUrl,         // <-- KEEP underscore here IF your Artwork MODEL uses image_url
-            thumbnail_url: thumbnailUrl, // <-- KEEP underscore here IF your Artwork MODEL uses thumbnail_url
-            year: year.trim() ? parseInt(year.trim(), 10) : null,
-            medium: medium.trim(),
-        };
-
-        try {
-            // ... (apiService call for metadata - no changes here) ...
-            console.log("Submitting artwork metadata:", artworkMetadata);
             const metaResponse = await apiService.post('/artworks', artworkMetadata);
-            console.log("Metadata submission response:", metaResponse.data);
-            setSuccessMessage(`Artwork "${metaResponse.data.title || artworkMetadata.title}" created successfully!`);
-            clearForm();
+            setSuccessMessage(`Artwork "${metaResponse.data.title || artworkMetadata.title}" created!`);
+
+            // Clear form completely on final success
+            resetForm();
+            setSelectedFile(null);
+            setPreviewSource('');
+            const fileInput = document.getElementById('artwork-file-input');
+            if (fileInput) fileInput.value = null;
+
         } catch (err) {
-            // ... (error handling for metadata - no changes here) ...
-            console.error("Metadata submission error:", err);
+            console.error("Upload process error:", err);
+            // Determine if error was during file upload or metadata submit for better message
+            const stage = isUploadingFile ? 'File Upload' : 'Metadata Submission';
+            let errorMessage = `${stage} Failed: ${err.response?.data?.message || err.message || 'Unknown error'}`;
             if (err.response?.status === 400 && err.response?.data?.error?.details) {
-                setError({ type: 'validation', message: err.response.data.error.message || "Validation failed", details: err.response.data.error.details });
-            } else {
-                setError({ type: 'metadata_submit', message: `Metadata Submission Failed: ${err.response?.data?.message || err.message || 'Unknown error'}` });
+                const details = Object.entries(err.response.data.error.details)
+                    .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
+                    .join('; ');
+                errorMessage = `${stage} Validation Failed: ${err.response.data.error.message || "Check details"}: ${details}`;
             }
+            setSubmitError(errorMessage);
         } finally {
+            // Ensure all loading states are reset regardless of success/failure
+            setIsUploadingFile(false);
             setIsSubmittingMeta(false);
+            setSubmitting(false); // Tell Formik the overall submission process is finished
         }
+    };
 
-    }, [selectedFile, title, artist, year, medium, clearForm, fields]); // Keep artist in dependencies
+    const isProcessing = isUploadingFile || isSubmittingMeta; // Combine for overall processing state
 
-
-    // Helper to get specific field error for display
-    const getFieldError = (fieldName) => error?.type === 'validation' && error.details?.[fieldName];
-
-    const isProcessing = isUploadingFile || isSubmittingMeta;
-
-    // --- Render Form ---
     return (
-        <Box
-            component="form"
-            onSubmit={handleSubmit}
-            sx={{ /* Styling remains the same */
-                display: 'flex', flexDirection: 'column', gap: 2, p: { xs: 1, sm: 2 },
-                border: '1px solid', borderColor: 'grey.300', borderRadius: 1,
-                maxWidth: '600px', mx: 'auto',
+        <Formik
+            initialValues={{
+                title: '',
+                artist: '',
+                year: '',
+                medium: '',
+                rarity: '', // Initialize rarity as empty string
             }}
-            noValidate
+            validationSchema={UploadSchema}
+            onSubmit={handleFormikSubmit}
+            validateOnMount={false} // Optional: disable initial validation
+            validateOnChange={true} // Validate fields as they change
+            validateOnBlur={true}  // Validate fields when they lose focus
         >
-            {/* File Input Section (remains the same) */}
-            {fields.includes('image') && (
-                <Box sx={{ border: '1px dashed grey', p: 2, textAlign: 'center', borderRadius: 1 }}>
-                    <label htmlFor="artwork-file-input">
-                        <Input
-                            accept={ALLOWED_MIME_TYPES.join(',')} id="artwork-file-input" type="file"
-                            onChange={handleFileChange} sx={{ display: 'none' }} disabled={isProcessing}
-                        />
-                        <Button variant="outlined" component="span" startIcon={<CloudUploadIcon />} disabled={isProcessing} >
-                            {selectedFile ? `Selected: ${selectedFile.name}` : 'Choose Artwork Image'}
-                        </Button>
-                    </label>
-                    {getFieldError('file') && <Typography color="error" variant="caption" display="block" mt={1}>{getFieldError('file')}</Typography>}
-                    {previewSource && (
-                        <Box mt={2}>
-                            <Typography variant="caption" display="block">Preview:</Typography>
-                            <img src={previewSource} alt="Preview" style={{ maxHeight: '150px', maxWidth: '100%', height: 'auto', objectFit: 'contain', marginTop: '8px', border: '1px solid #eee' }} />
+            {/* Get helpers from Formik render prop */}
+            {({ errors, touched, values, handleChange, handleBlur, isSubmitting }) => (
+                <Form noValidate>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, p: { xs: 1, sm: 2 }, border: '1px solid', borderColor: 'grey.300', borderRadius: 1, maxWidth: '600px', mx: 'auto' }}>
+
+                        {/* File Input Section - Largely unchanged, uses its own state */}
+                        <Box sx={{ border: '1px dashed grey', p: 2, textAlign: 'center', borderRadius: 1 }}>
+                            <label htmlFor="artwork-file-input">
+                                <Input
+                                    accept={ALLOWED_MIME_TYPES.join(',')} id="artwork-file-input" type="file"
+                                    onChange={handleFileChange} sx={{ display: 'none' }} disabled={isSubmitting} // Disable if Formik is submitting
+                                />
+                                <Button variant="outlined" component="span" startIcon={<CloudUploadIcon />} disabled={isSubmitting} >
+                                    {selectedFile ? `Selected: ${selectedFile.name}` : 'Choose Artwork Image *'}
+                                </Button>
+                            </label>
+                            {fileValidationError && <Typography color="error" variant="caption" display="block" mt={1}>{fileValidationError}</Typography>}
+                            {previewSource && ( <Box mt={2}> {/* Preview */} </Box> )}
                         </Box>
-                    )}
-                </Box>
-            )}
 
-            {/* Text Inputs (Render based on fields prop) */}
-            {fields.includes('title') && (
-                <TextField label="Artwork Title" variant="outlined" required fullWidth value={title} onChange={(e) => setTitle(e.target.value)} disabled={isProcessing} error={!!getFieldError('title')} helperText={getFieldError('title') || ' '} />
-            )}
-            {fields.includes('artist') && (
-                <TextField
-                    label="Artist Name"
-                    variant="outlined"
-                    required
-                    fullWidth
-                    value={artist} // <-- Bound to empty-initialized state
-                    onChange={(e) => setArtist(e.target.value)} // <-- Standard change handler
-                    disabled={isProcessing}
-                    error={!!getFieldError('artist')}
-                    helperText={getFieldError('artist') || ' '}
-                    // Removed InputProps readOnly logic
-                />
-            )}
-            {fields.includes('year') && (
-                <TextField label="Year" variant="outlined" required fullWidth type="number" value={year} onChange={(e) => setYear(e.target.value)} disabled={isProcessing} error={!!getFieldError('year')} helperText={getFieldError('year') || ' '} inputProps={{ maxLength: 4 }} />
-            )}
-            {fields.includes('medium') && (
-                <TextField label="Medium" variant="outlined" required fullWidth value={medium} onChange={(e) => setMedium(e.target.value)} disabled={isProcessing} error={!!getFieldError('medium')} helperText={getFieldError('medium') || ' '} />
-            )}
+                        {/* Text & Select Inputs using MUI + Formik helpers */}
+                        <TextField
+                            label="Artwork Title" variant="outlined" required fullWidth
+                            name="title"
+                            value={values.title}
+                            onChange={handleChange}
+                            onBlur={handleBlur}
+                            error={touched.title && Boolean(errors.title)}
+                            helperText={touched.title ? errors.title : ' '}
+                            disabled={isSubmitting} // Use Formik's isSubmitting
+                        />
 
-            {/* Error/Success Alerts (remain the same) */}
-            {error && error.type !== 'validation' && ( <Alert severity="error" sx={{ mt: 1 }}>{error.message || "An unexpected error occurred."}</Alert> )}
-            {error && error.type === 'validation' && !error.details?.file && ( <Alert severity="warning" sx={{ mt: 1 }}>{error.message || "Please check the fields for errors."}</Alert> )}
-            {successMessage && ( <Alert severity="success" sx={{ mt: 1 }}>{successMessage}</Alert> )}
+                        <TextField
+                            label="Artist Name" variant="outlined" required fullWidth
+                            name="artist"
+                            value={values.artist}
+                            onChange={handleChange}
+                            onBlur={handleBlur}
+                            error={touched.artist && Boolean(errors.artist)}
+                            helperText={touched.artist ? errors.artist : ' '}
+                            disabled={isSubmitting}
+                        />
 
-            {/* Submit Button & Loading Indicator (remains the same) */}
-            <Box sx={{ position: 'relative', mt: 2, textAlign: 'center' }}>
-                <Button type="submit" variant="contained" color="primary" disabled={isProcessing || (fields.includes('image') && !selectedFile)} size="large" sx={{ minWidth: '180px' }} >
-                    {isUploadingFile ? 'Uploading...' : isSubmittingMeta ? 'Saving...' : 'Upload Artwork'}
-                </Button>
-                {isProcessing && <CircularProgress size={24} sx={{ color: 'primary.main', position: 'absolute', top: '50%', left: '50%', marginTop: '-12px', marginLeft: '-12px', }} />}
-            </Box>
-        </Box>
+                        <TextField
+                            label="Year" variant="outlined" fullWidth
+                            name="year"
+                            type="number"
+                            value={values.year}
+                            onChange={handleChange}
+                            onBlur={handleBlur}
+                            error={touched.year && Boolean(errors.year)}
+                            helperText={touched.year ? errors.year : ' '}
+                            disabled={isSubmitting}
+                            InputProps={{ inputProps: { min: 0, step: 1 } }}
+                        />
+
+                         <TextField
+                            label="Medium" variant="outlined" required fullWidth
+                            name="medium"
+                            value={values.medium}
+                            onChange={handleChange}
+                            onBlur={handleBlur}
+                            error={touched.medium && Boolean(errors.medium)}
+                            helperText={touched.medium ? errors.medium : ' '}
+                            disabled={isSubmitting}
+                        />
+
+                        {/* Rarity Dropdown using MUI FormControl/Select */}
+                        <FormControl fullWidth required error={touched.rarity && Boolean(errors.rarity)} disabled={isSubmitting}>
+                            <InputLabel id="rarity-select-label">Rarity</InputLabel>
+                            <Select
+                                labelId="rarity-select-label"
+                                id="rarity"
+                                name="rarity" // Connects to Formik
+                                value={values.rarity} // Controlled by Formik
+                                label="Rarity" // Required for label positioning
+                                onChange={handleChange} // Formik handles the change
+                                onBlur={handleBlur} // Formik handles blur
+                            >
+                                <MenuItem value="" disabled>
+                                  <em>Select Rarity...</em>
+                                </MenuItem>
+                                {ARTWORK_RARITIES.map((rarityOpt) => (
+                                    <MenuItem key={rarityOpt.value} value={rarityOpt.value}>
+                                        {rarityOpt.label}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                            {/* Display validation error */}
+                            <FormHelperText>{touched.rarity ? errors.rarity : ' '}</FormHelperText>
+                        </FormControl>
+
+                        {/* API Error Alert */}
+                        {submitError && ( <Alert severity="error" sx={{ mt: 1 }}>{submitError}</Alert> )}
+                        {/* Success Alert */}
+                        {successMessage && ( <Alert severity="success" sx={{ mt: 1 }}>{successMessage}</Alert> )}
+
+                        {/* Submit Button & Loading Indicator */}
+                         <Box sx={{ position: 'relative', mt: 2, textAlign: 'center' }}>
+                            <Button
+                                type="submit" variant="contained" color="primary"
+                                // Disable if Formik is submitting OR if file not selected
+                                disabled={isSubmitting || !selectedFile}
+                                size="large" sx={{ minWidth: '180px' }}
+                            >
+                                {/* Show granular status if available, else Formik's generic state */}
+                                {isUploadingFile ? 'Uploading Image...' : isSubmittingMeta ? 'Saving Artwork...' : isSubmitting ? 'Processing...' : 'Upload Artwork'}
+                            </Button>
+                            {/* Show spinner whenever Formik isSubmitting */}
+                            {isSubmitting && <CircularProgress size={24} sx={{ color: 'primary.main', position: 'absolute', top: '50%', left: '50%', marginTop: '-12px', marginLeft: '-12px', }} />}
+                         </Box>
+                    </Box>
+                </Form>
+            )}
+        </Formik>
     );
 }
 

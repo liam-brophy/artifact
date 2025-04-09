@@ -3,11 +3,13 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
-  Navigate
+  Navigate,
+  Outlet // Import Outlet for layout routes
 } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext'; // useAuth still needed in child components/layouts
+import { Toaster } from 'react-hot-toast';
 
-import NavBar from './components/NavBar'; // <-- Import NavBar
+import NavBar from './components/NavBar'; // Assuming this exists
 
 // Import Page Components
 import LoginPage from './pages/LoginPage';
@@ -16,62 +18,103 @@ import HomePage from './pages/HomePage';
 import ProfilePage from './pages/ProfilePage';
 import NotFoundPage from './pages/NotFoundPage';
 import UploadPage from './pages/UploadPage';
+import SettingsPage from './pages/SettingsPage'; // Import SettingsPage
 
-function App() {
-    const { isLoading, isAuthenticated, user } = useAuth();
-    console.log('App Routing: isLoading:', isLoading, 'isAuthenticated:', isAuthenticated);
+// --- Layout Component for Authenticated Users ---
+// This component will render the NavBar and the nested route content (Outlet)
+function AuthenticatedLayout() {
+    const { isAuthenticated } = useAuth(); // Check auth status here
 
-    // *** CRITICAL: Handle loading state explicitly ***
-    if (isLoading) {
-         // Show a global spinner or a blank screen while checking auth
-         return <div>Loading Application...</div>;
+    // You could add more sophisticated loading checks if needed
+    if (!isAuthenticated) {
+        // This should theoretically not be reached if ProtectedRoute works,
+        // but acts as a safeguard or for direct access attempts.
+        return <Navigate to="/login" replace />;
     }
 
     return (
+        <>
+            <NavBar /> 
+            <main>
+                 <Outlet /> 
+            </main>
+        </>
+    );
+}
+
+// --- Protected Route Logic Component ---
+function ProtectedRoute({ children }) {
+    const { isAuthenticated, isLoading } = useAuth();
+
+    if (isLoading) {
+        return <div>Loading Authentication...</div>; // Or a spinner component
+    }
+
+    if (!isAuthenticated) {
+        return <Navigate to="/login" replace />;
+    }
+
+    // If authenticated, render the child component (the actual page)
+    return children;
+}
+
+// --- Artist Only Route Logic Component ---
+function ArtistOnlyRoute({ children }) {
+     const { isAuthenticated, isLoading, user } = useAuth();
+
+     if (isLoading) {
+         return <div>Loading User Data...</div>;
+     }
+
+     if (!isAuthenticated) {
+         return <Navigate to="/login" replace />;
+     }
+
+     if (user?.role !== 'artist') {
+          // toast.error("Access Denied: Artist role required.");
+          return <Navigate to="/" replace />; // Redirect non-artists (e.g., to home)
+     }
+
+     return children; // Render the child if user is an authenticated artist
+}
+
+
+// --- Main App Structure ---
+function App() {
+    // No need for useAuth() here anymore
+
+    return (
         <Router>
-            {/* Render NavBar on every page after login */}
-            {isAuthenticated && <NavBar />}
             <Routes>
                 {/* Public Routes */}
-                <Route path="/login" element={
-                    !isAuthenticated ? <LoginPage /> : <Navigate to="/" replace />
-                } />
-                <Route path="/register" element={
-                    !isAuthenticated ? <RegisterPage /> : <Navigate to="/" replace />
-                } />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
 
-                {/* Protected Routes */}
-                <Route path="/" element={
-                    isAuthenticated ? <HomePage /> : <Navigate to="/login" replace />
-                } />
-                <Route path="/users/:username" element={
-                    isAuthenticated ? <ProfilePage /> : <Navigate to="/login" replace state={{ from: location }} />
-                } /> <Route
+                {/*  */}
+                <Route element={<AuthenticatedLayout />}> {/* s */}
+                    <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+                    <Route path="/users/:username" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+                    <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} /> {/* */}
+                    <Route
                         path="/upload"
                         element={
-                            isAuthenticated ? ( // 1. Check if logged in
-                                (user && user.role === 'artist') ? ( // 2. Check if user exists and is an artist
-                                    <UploadPage /> // 3. Render UploadPage if artist
-                                ) : (
-                                    // 4. Logged in BUT NOT an artist - Redirect (e.g., to home)
-                                    <Navigate to="/" replace state={{ message: "Access Denied: Artist role required for uploads." }} />
-                                    // Or redirect to a specific '/unauthorized' page:
-                                    // <Navigate to="/unauthorized" replace state={{ requiredRole: "artist" }}/>
-                                )
-                            ) : (
-                                // 5. Not logged in - Redirect to login
-                                <Navigate to="/login" replace />
-                            )
+                            <ArtistOnlyRoute> {/* Specific protection for artists */}
+                                <UploadPage />
+                            </ArtistOnlyRoute>
                         }
                     />
+                     {/* */}
+                </Route>
 
-                {/* Catch-all or Not Found */}
+                {/* Catch-all or Not Found - Render outside AuthenticatedLayout if NavBar shouldn't show */}
                 <Route path="*" element={<NotFoundPage />} />
             </Routes>
+            <Toaster position="top-center" /* ... options ... */ />
         </Router>
     );
 }
 
+// provides the AuthContext
 function AppWrapper() {
   return (
     <AuthProvider>
