@@ -78,7 +78,7 @@ function SettingsPage() {
             return;
         }
 
-        const updatePromise = apiService.put('/users/me', changedValues); // Send only changed values
+        const updatePromise = apiService.put('/auth/me', changedValues); // Send only changed values
 
         toast.promise(
             updatePromise,

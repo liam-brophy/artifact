@@ -17,7 +17,9 @@ class Artwork(db.Model, SerializerMixin):
     # --- ADDED ondelete='CASCADE' to artist_id ForeignKey ---
     artist_id = Column(Integer, ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False)
     title = Column(String(255), nullable=False)
+    artist_name = Column(String(100), nullable=True)  # Add field for artist name 
     description = Column(Text, nullable=True)
+    series = Column(String(100), nullable=True)  # Added field for artwork series
     image_url = Column(String(500), nullable=False) # Increased length based on User model example
     thumbnail_url = Column(String(500), nullable=True) # Increased length
     year = Column(Integer, nullable=True)

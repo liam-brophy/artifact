@@ -25,79 +25,58 @@ export const AuthProvider = ({ children }) => {
   // --- Renamed Function to Fetch User Data AND Collection ---
   // This runs on initial load and potentially after login
   const fetchUserDataAndCollection = useCallback(async (isInitialLoad = false) => {
-    // Only set global loading true on initial load, not on subsequent fetches (e.g., after login)
     if (isInitialLoad) {
-        console.log('AuthContext: Initializing auth check.');
         setIsLoading(true);
-    } else {
-        console.log('AuthContext: Re-fetching user data and collection (e.g., after login).');
     }
 
-    let fetchedUser = null; // Temporary variable to hold user
+    let fetchedUser = null;
 
     try {
-        console.log('AuthContext: Calling apiService.get(AUTH_STATUS_ENDPOINT)');
+        // Improved error handling for the auth status request
         const response = await apiService.get(AUTH_STATUS_ENDPOINT);
-        console.log('AuthContext: Received response status', response.status);
-        console.log('AuthContext: Received response data', response.data);
-
-        if (response.status === 200 && response.data.user) {
-            console.log('AuthContext: User FOUND.');
-            fetchedUser = response.data.user; // Store user temporarily
-            setUser(fetchedUser);             // Update user state
-            setIsAuthenticated(true);       // Update auth state
+        
+        if (response && response.status === 200 && response.data && response.data.user) {
+            fetchedUser = response.data.user;
+            setUser(fetchedUser);
+            setIsAuthenticated(true);
         } else {
-            console.log('AuthContext: User NOT found or null response. Clearing state.');
+            console.log("Auth status check: Invalid or empty response");
             setUser(null);
             setIsAuthenticated(false);
-            setOwnedArtworkIds(new Set()); // Clear collection if no user
-            if(isInitialLoad) setIsLoading(false); // Stop loading if initial check failed here
-            return; // Stop execution if no user found
+            setOwnedArtworkIds(new Set());
+            if(isInitialLoad) setIsLoading(false);
+            return;
         }
     } catch (error) {
-        console.error('AuthContext: Error during auth check:', error.response?.data || error.message);
-        console.log('AuthContext: Clearing state due to error.');
+        console.error("Auth status check failed:", error.message || error);
         setUser(null);
         setIsAuthenticated(false);
-        setOwnedArtworkIds(new Set()); // Clear collection on error
-        if(isInitialLoad) setIsLoading(false); // Stop loading if initial check failed here
-        return; // Stop execution on error
+        setOwnedArtworkIds(new Set());
+        if(isInitialLoad) setIsLoading(false);
+        return;
     }
 
-    // --- Fetch Collection IDs IF User was found ---
     if (fetchedUser?.user_id) {
         const userId = fetchedUser.user_id;
-        console.log(`AuthContext: Fetching collection IDs for user ${userId}`);
         try {
-            // Fetch collection data - consider a dedicated lightweight endpoint later
-            // For now, fetch with a large limit. Ensure your backend handles large per_page.
             const collectionResponse = await apiService.get(`/users/${userId}/collected-artworks`, {
-                params: { page: 1, per_page: 5000 } // Fetch a large number
+                params: { page: 1, per_page: 5000 }
             });
 
-            // Extract IDs from the 'collectedArtworks' array, accessing the nested 'artwork' object
             const ids = collectionResponse.data?.collectedArtworks
-                ?.map(item => item?.artwork?.artwork_id) // Safely access nested ID
-                .filter(id => id != null) || [];      // Filter out any null/undefined IDs
+                ?.map(item => item?.artwork?.artwork_id)
+                .filter(id => id != null) || [];
 
             const newIdSet = new Set(ids);
             setOwnedArtworkIds(newIdSet);
-            console.log(`AuthContext: Set of owned artwork IDs updated`, newIdSet);
-
         } catch (collectionError) {
-            // Don't block the app if collection fetch fails, just log it
-            console.error("AuthContext: Failed to fetch collection IDs:", collectionError.response?.data || collectionError.message);
-            setOwnedArtworkIds(new Set()); // Reset to empty set on error
+            setOwnedArtworkIds(new Set());
         }
     } else {
-        // Should not happen if fetchedUser was set, but as a safeguard
         setOwnedArtworkIds(new Set());
     }
-    // -------------------------------------------------
 
-    // Finally, stop loading indicator if it was the initial load
     if (isInitialLoad) {
-        console.log('AuthContext: Auth check finished. Setting isLoading = false.');
         setIsLoading(false);
     }
   }, []); // useCallback with empty dependency array makes this function stable
@@ -112,36 +91,25 @@ export const AuthProvider = ({ children }) => {
   // This function is likely called from your LoginPage component AFTER
   // a successful /api/auth/login API call. Pass the user data from the login response.
   const login = useCallback(async (userDataFromLoginResponse) => {
-    console.log('AuthContext: login called with user data:', userDataFromLoginResponse);
-    // Immediately update user state for faster UI feedback
     setUser(userDataFromLoginResponse);
     setIsAuthenticated(true);
-    // Fetch the collection IDs associated with the logged-in user
-    // We refetch everything here to ensure context is fully up-to-date
-    await fetchUserDataAndCollection(false); // Pass false as it's not initial load
-    console.log('AuthContext: User data and collection refetched after login.');
+    await fetchUserDataAndCollection(false);
   }, [fetchUserDataAndCollection]); // Depend on the fetch function
 
   // --- Update User Data --- (remains the same)
   const updateUser = useCallback((newUserData) => {
-    console.log("AuthContext: Updating user data in context");
     setUser(prevUser => ({ ...prevUser, ...newUserData }));
   }, []);
 
   // --- Logout Function ---
   const logout = useCallback(async () => {
-    console.log('AuthContext: logout called');
-    // Clear client-side state immediately
     setUser(null);
     setIsAuthenticated(false);
-    setOwnedArtworkIds(new Set()); // <-- Clear owned IDs
+    setOwnedArtworkIds(new Set());
 
     try {
       await apiService.post(LOGOUT_ENDPOINT);
-      console.log('AuthContext: Server logout successful.');
-    } catch (error) {
-      console.error('AuthContext: Error during server logout:', error.response?.data?.message || error.message);
-    }
+    } catch (error) {}
   }, []);
 
   // --- Memoized Context Value ---

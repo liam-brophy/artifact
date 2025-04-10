@@ -272,6 +272,85 @@ def delete_current_user_profile():
         return jsonify({"error": {"code": "DELETE_FAILED", "message": "An error occurred while deleting the profile. Please check server logs or try again."}}), 500
 
 
+# === NEW: PUT /auth/me Route ===
+@auth_bp.route('/me', methods=['PUT']) # Add PUT method handler for /me
+@jwt_required()
+def update_current_user_profile():
+    """Updates profile data for the currently authenticated user."""
+    current_user_id = get_jwt_identity()
+    user = db.session.get(User, current_user_id)
+
+    if not user:
+        # Should typically not happen if JWT is valid
+        return jsonify({"error": "Authenticated user not found in database."}), 404
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No update data provided in request body."}), 400
+
+    errors = {}
+    updated_fields_response = {"user_id": user.user_id} # Start response with ID
+
+    # --- Process fields provided in the request body ---
+    # Username
+    if 'username' in data:
+        new_username = data['username']
+        if new_username != user.username:
+            is_valid, message = User.validate_username(new_username) # Use your model's validation
+            if not is_valid:
+                errors['username'] = message
+            else:
+                # Check uniqueness against other users
+                exists = User.query.filter(User.user_id != current_user_id, User.username == new_username).first()
+                if exists:
+                    errors['username'] = "Username is already taken."
+                else:
+                    user.username = new_username
+                    updated_fields_response['username'] = new_username # Add to response
+
+    # Bio
+    if 'bio' in data:
+         # Add length validation etc. if needed
+         if data['bio'] != user.bio:
+             user.bio = data['bio']
+             updated_fields_response['bio'] = data['bio'] # Add to response
+
+    # Profile Image URL
+    if 'profile_image_url' in data:
+         # Add URL format validation etc. if needed
+         if data['profile_image_url'] != user.profile_image_url:
+             user.profile_image_url = data['profile_image_url']
+             updated_fields_response['profile_image_url'] = data['profile_image_url'] # Add to response
+
+    # --- Add other updatable fields similarly ---
+
+
+    # If validation errors occurred during processing
+    if errors:
+        return jsonify({"error": {"code": "VALIDATION_ERROR", "message": "Update validation failed", "details": errors}}), 400
+
+    # Check if any fields were actually staged for update
+    if len(updated_fields_response) == 1: # Only user_id means no valid fields changed
+        return jsonify({"message": "No valid fields provided or values are unchanged."}), 304 # 304 Not Modified is appropriate
+
+    # --- Attempt to commit changes ---
+    try:
+        db.session.commit()
+        # Add other relevant fields from 'user' object to the response if needed
+        updated_fields_response['email'] = user.email # Example: always include email
+        updated_fields_response['role'] = user.role   # Example: always include role
+        return jsonify({"message": "Profile updated successfully", "user": updated_fields_response}), 200
+    except IntegrityError as e:
+        db.session.rollback()
+        current_app.logger.error(f"IntegrityError updating profile for user {current_user_id}: {e}")
+        # Be specific if possible, e.g., check for unique constraint violation
+        return jsonify({"error": "Database error: Potential duplicate username or email."}), 409 # Conflict
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error updating profile for user {current_user_id}: {e}", exc_info=True)
+        return jsonify({"error": "An internal server error occurred during profile update."}), 500
+
+
 @auth_bp.route('/logout', methods=['POST'])
 @jwt_required(refresh=True)  # Decorator uses 'jwt' imported from extensions
 def logout_user():

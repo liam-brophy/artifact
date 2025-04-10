@@ -45,6 +45,12 @@ const UploadSchema = Yup.object().shape({
     rarity: Yup.string()
         .oneOf(RARITY_VALUES, 'Invalid rarity selected')
         .required('Rarity selection is required'),
+    description: Yup.string()
+        .trim()
+        .max(2000, 'Description cannot be longer than 2000 characters'),
+    series: Yup.string()
+        .trim()
+        .max(100, 'Series name cannot be longer than 100 characters'),
     // File validation is handled outside Yup schema in this setup
 });
 
@@ -126,6 +132,8 @@ function Upload() {
                 year: values.year ? parseInt(values.year, 10) : null,
                 medium: values.medium.trim(),
                 rarity: values.rarity, // Directly from Formik state
+                description: values.description.trim(),
+                series: values.series.trim(),
             };
 
             const metaResponse = await apiService.post('/artworks', artworkMetadata);
@@ -168,6 +176,8 @@ function Upload() {
                 year: '',
                 medium: '',
                 rarity: '', // Initialize rarity as empty string
+                description: '',
+                series: '',
             }}
             validationSchema={UploadSchema}
             onSubmit={handleFormikSubmit}
@@ -240,6 +250,30 @@ function Upload() {
                             error={touched.medium && Boolean(errors.medium)}
                             helperText={touched.medium ? errors.medium : ' '}
                             disabled={isSubmitting}
+                        />
+
+                        <TextField
+                            label="Series (Optional)" variant="outlined" fullWidth
+                            name="series"
+                            value={values.series}
+                            onChange={handleChange}
+                            onBlur={handleBlur}
+                            error={touched.series && Boolean(errors.series)}
+                            helperText={touched.series ? errors.series : ' '}
+                            disabled={isSubmitting}
+                        />
+                        
+                        <TextField
+                            label="Description (Optional)" variant="outlined" fullWidth
+                            name="description"
+                            value={values.description}
+                            onChange={handleChange}
+                            onBlur={handleBlur}
+                            error={touched.description && Boolean(errors.description)}
+                            helperText={touched.description ? errors.description : ' '}
+                            disabled={isSubmitting}
+                            multiline
+                            rows={4}
                         />
 
                         {/* Rarity Dropdown using MUI FormControl/Select */}

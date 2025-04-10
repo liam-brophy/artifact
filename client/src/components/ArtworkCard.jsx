@@ -1,33 +1,43 @@
 import React from 'react';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import CardMedia from '@mui/material/CardMedia';
-import Typography from '@mui/material/Typography';
-import Box from '@mui/material/Box';
-import { Link } from 'react-router-dom'; // Import Link for navigation
+import './ArtworkCard.css'; // Import the CSS
+import { useNavigate } from 'react-router-dom';
 
 // Placeholder image if artwork image is missing or fails to load
 const PLACEHOLDER_IMAGE_URL = 'https://via.placeholder.com/300x200.png?text=Artwork';
 
+// Helper to format artist details (optional)
+const formatArtistDetails = (artist) => {
+  if (!artist) return '';
+  const details = [];
+  if (artist.nationality) details.push(artist.nationality);
+  if (artist.birthYear) details.push(`b. ${artist.birthYear}`);
+  // Add death year if available:
+  // if (artist.deathYear) details[details.length - 1] += ` - ${artist.deathYear}`;
+  return details.join(', ');
+};
+
+// Helper to format edition (optional)
+const formatEdition = (artwork) => {
+    if (!artwork?.edition_number || !artwork?.edition_total) return '';
+    // Use artist_name if available, otherwise use username initials
+    const artistName = artwork.artist_name || artwork.artist?.username || '';
+    const initials = artistName.split(' ').map(n => n[0]).join('') || '??';
+    return `${initials}: ${artwork.edition_number}/${artwork.edition_total}`;
+};
+
 function ArtworkCard({ artwork }) {
-    // Basic check if artwork data is provided
+    const navigate = useNavigate();
+
+    // Basic check if artwork data exists
     if (!artwork) {
-        return null; // Or render a placeholder card/error
+        return <div className="artwork-card-container">Loading...</div>;
     }
 
-    // Destructure needed properties (ensure these keys match your backend response/model)
-    const {
-        artwork_id,
-        title,
-        image_url,
-        thumbnail_url, // Use thumbnail if available for list views, fallback to image_url
-        artist, // Assuming backend sends nested artist object { user_id, username }
-        year,
-        medium
-    } = artwork;
+    const artistDetailsString = formatArtistDetails(artwork.artist);
+    const editionString = formatEdition(artwork);
 
     // Determine the best image URL to use (prefer thumbnail for cards)
-    const displayImageUrl = thumbnail_url || image_url || PLACEHOLDER_IMAGE_URL;
+    const displayImageUrl = artwork.thumbnail_url || artwork.image_url || PLACEHOLDER_IMAGE_URL;
 
     // Handle potential image loading errors
     const handleImageError = (event) => {
@@ -35,67 +45,113 @@ function ArtworkCard({ artwork }) {
         event.target.src = PLACEHOLDER_IMAGE_URL;
         console.warn(`Failed to load image: ${displayImageUrl}`);
     };
+    
+    // Handle click on the card (navigate to artwork detail)
+    const handleCardClick = () => {
+        navigate(`/artworks/${artwork.artwork_id}`);
+    };
+    
+    // Handle artist click (navigate to artist profile)
+    const handleArtistClick = (e) => {
+        e.stopPropagation(); // Prevent card click from triggering
+        if (artwork.artist && artwork.artist.username) {
+            navigate(`/users/${artwork.artist.username}`);
+        }
+    };
+
+    // Placeholder description - replace with real data when available
+    const placeholderDescription = "Placeholder description for the artwork. This will be replaced with real data when available.";
+    
+    // Use artist_name if available, otherwise fallback to username
+    const displayArtistName = artwork.artist_name || artwork.artist?.username || 'Unknown Artist';
 
     return (
-        // Link the entire card to the artwork detail page (adjust path later)
-        // Remove the Link wrapper if you only want specific elements clickable
-        <Link to={`/artworks/${artwork_id}`} style={{ textDecoration: 'none', display: 'block', height: '100%' }}>
-            <Card sx={{
-                height: '100%', // Ensure card takes full height of grid item
-                display: 'flex',
-                flexDirection: 'column',
-                transition: 'box-shadow 0.3s ease-in-out, transform 0.2s ease-in-out', // Add transition
-                '&:hover': {
-                    boxShadow: 6, // Enhance shadow on hover (theme-aware shadow)
-                    transform: 'translateY(-4px)', // Slight lift effect
-                }
-            }}>
-                <CardMedia
-                    component="img"
-                    // Control aspect ratio or height for consistency
-                    sx={{
-                        aspectRatio: '4/3', // Example aspect ratio
-                        objectFit: 'contain', // Or 'cover' depending on desired effect
-                        backgroundColor: '#f0f0f0' // Background while loading or if image fails
-                    }}
-                    image={displayImageUrl}
-                    alt={title || 'Artwork'}
-                    onError={handleImageError} // Handle image load errors
-                />
-                <CardContent sx={{ flexGrow: 1 }}> {/* Allow content to grow */}
-                    <Typography gutterBottom variant="h6" component="div" noWrap title={title}>
-                        {/* Display title, use noWrap and title attribute for long titles */}
-                        {title || 'Untitled'}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        {/* Link to artist profile if artist data is available */}
-                        {artist ? (
-                            <Link
-                                to={`/users/${artist.username}`} // Adjust path if needed
-                                onClick={(e) => e.stopPropagation()} // Prevent card link navigation when clicking artist link
-                                style={{ color: 'inherit', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
-                            >
-                                {artist.username || 'Unknown Artist'}
-                            </Link>
+        <div 
+            className="artwork-card-container" 
+            onClick={handleCardClick}
+            data-rarity={artwork.rarity || "common"}
+        >
+            <div className="artwork-card-inner">
+                {/* --- Front Face --- */}
+                <div className="artwork-card-front">
+                    <div className="artwork-card-front__image-container">
+                        {displayImageUrl ? (
+                            <img
+                                src={displayImageUrl}
+                                alt={artwork.title || 'Artwork'}
+                                className="artwork-card-front__image"
+                                onError={handleImageError}
+                            />
                         ) : (
-                            'Unknown Artist'
+                            <div className="artwork-card-front__image-placeholder">No Image</div>
                         )}
-                    </Typography>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-                         <Typography variant="caption" color="text.secondary">
-                            {medium || 'Unknown Medium'}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                            {year || ''}
-                        </Typography>
-                    </Box>
-                </CardContent>
-                {/* Optional: CardActions for buttons like 'Add to Cart', 'Like', etc. */}
-                {/* <CardActions>
-                    <Button size="small">View Details</Button>
-                </CardActions> */}
-            </Card>
-        </Link>
+                        {/* Overlay with frosted glass effect */}
+                        <div className="artwork-card-front__overlay">
+                            <h2 className="artwork-card-front__title">{artwork.title || 'Untitled'}</h2>
+                            <p 
+                                className="artwork-card-front__artist" 
+                                onClick={handleArtistClick}
+                            >
+                                {displayArtistName}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* --- Back Face --- */}
+                <div className="artwork-card-back">
+                    {/* Add blurred background image */}
+                    <div 
+                        className="artwork-card-back__bg-image" 
+                        style={{backgroundImage: `url(${displayImageUrl})`}}
+                    ></div>
+                    <div className="artwork-card-back__content">
+                        <div className="artwork-card-back__artist-info">
+                            <h2 className="artwork-card-back__title">
+                                {artwork.title || 'Untitled'}
+                            </h2>
+                            <h3 
+                                className="artwork-card-back__artist-name" 
+                                onClick={handleArtistClick}
+                            >
+                                {displayArtistName}
+                            </h3>
+                            {artistDetailsString && (
+                                <p className="artwork-card-back__artist-details">{artistDetailsString}</p>
+                            )}
+                            
+                            {/* Display Series if available */}
+                            {artwork.series && (
+                                <p className="artwork-card-back__series">Series: {artwork.series}</p>
+                            )}
+                            
+                            {/* Display Medium/Year if available */}
+                            <p className="artwork-card-back__artwork-details">
+                                {artwork.year && <span>{artwork.year}</span>}
+                                {artwork.year && artwork.medium && <span> | </span>}
+                                {artwork.medium && <span>{artwork.medium}</span>}
+                            </p>
+                        </div>
+
+                        {/* Use real description when available */}
+                        <div className="artwork-card-back__description">
+                            {artwork.description || placeholderDescription}
+                        </div>
+
+                        <div className="artwork-card-back__meta-info">
+                            {/* Use artwork_id */}
+                            <span className="artwork-card-back__artifact-id">
+                                Artifact #{artwork.artwork_id || 'N/A'}
+                            </span>
+                            {/* Use formatted edition string */}
+                            <span className="artwork-card-back__edition">
+                                {editionString || 'Unique'} {/* Or handle open editions etc. */}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     );
 }
 

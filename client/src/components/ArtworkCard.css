@@ -1,0 +1,333 @@
+.artwork-card-container {
+    background-color: transparent; /* Container doesn't need a background */
+    width: 300px; /* Adjust width as needed */
+    height: 400px; /* or whatever height you prefer */
+    aspect-ratio: 2 / 3; /* Example aspect ratio, adjust as needed */
+    perspective: 1000px; /* Adds depth for the 3D flip */
+    cursor: pointer;
+    font-family: sans-serif; /* Basic font */
+    margin: 1rem; /* Spacing around the card */
+    border: none; /* Remove outer border */
+    box-sizing: border-box;
+  }
+  
+  .artwork-card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.8s; /* Animation speed */
+    transform-style: preserve-3d;
+    box-sizing: border-box;
+  }
+  
+  /* Apply the flip on hover to the container */
+  .artwork-card-container:hover .artwork-card-inner {
+    transform: rotateY(180deg);
+  }
+  
+  /* Front and Back face common styles */
+  .artwork-card-front,
+  .artwork-card-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden; /* Hides the back side when facing away */
+    -webkit-backface-visibility: hidden; /* Safari */
+    background-color: transparent; /* Transparent background instead of black */
+    color: #fff; /* White text */
+    border: none; /* Remove inner border for the card faces */
+    box-sizing: border-box; /* Include padding/border in element's total width/height */
+    display: flex;
+    flex-direction: column; /* Stack elements vertically */
+    overflow: hidden; /* Prevent content spillover */
+    border-radius: 15px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Slightly stronger shadow */
+  }
+  
+  /* --- Front Face Styling --- */
+  .artwork-card-front {
+    /* Layout: Title, Image, Artist Name */
+    justify-content: flex-start; /* Align items to the top */
+    align-items: center; /* Center items horizontally */
+    padding: 0; /* Remove padding to allow full-width image */
+    background-color: transparent; /* Make background transparent */
+  }
+  
+  .artwork-card-front__title {
+    font-size: 1.1rem; /* Slightly smaller title */
+    font-weight: 600;
+    margin: 0 0 4px 0; /* Reduced margin */
+    text-align: left; /* Align left for a cleaner look */
+    width: 100%;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8); /* Stronger shadow for better readability */
+  }
+  
+  .artwork-card-front__image-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    flex-grow: 1; /* Allow image container to take remaining space */
+    display: flex; /* Center image vertically */
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 0; /* Remove bottom margin causing white space */
+    overflow: hidden; /* Ensure image doesn't break layout */
+  }
+  
+  .artwork-card-front__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Cover ensures the image fills the entire container */
+    display: block; /* Remove extra space below image */
+    position: absolute; /* Position the image absolutely within the container */
+    top: 0;
+    left: 0;
+  }
+  
+  .artwork-card-front__artist {
+    font-size: 0.85rem; /* Smaller artist name */
+    text-align: left;
+    width: 100%;
+    margin: 0;
+    color: rgba(255, 255, 255, 0.85);
+    font-style: italic;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8); /* Matching shadow with title */
+  }
+  
+  .artwork-card-front__overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 10px 15px; /* Reduced padding to make it slimmer */
+    background: rgba(30, 30, 30, 0.6); /* Darker, slightly more opaque for better text contrast */
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-top: none; /* Remove top border */
+    /* Add a subtle gradient overlay for better text visibility */
+    background: linear-gradient(to top, 
+                rgba(0, 0, 0, 0.7) 0%,
+                rgba(0, 0, 0, 0.5) 50%,
+                rgba(0, 0, 0, 0) 100%);
+  }
+  
+  .artwork-card-front__artist:hover {
+    text-decoration: underline;
+  }
+  
+  .artwork-card-front__image-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f0f0f0;
+    color: #888;
+  }
+  
+  /* --- Back Face Styling --- */
+  .artwork-card-back {
+    transform: rotateY(180deg); /* Start flipped */
+    padding: 20px;
+    justify-content: space-between; /* Push top content up, bottom content down */
+    align-items: flex-start; /* Align text to the left */
+    font-size: 0.9em; /* Slightly smaller base font size for details */
+    background: rgba(255, 255, 255, 0.35); /* This will be an overlay on the image */
+    backdrop-filter: blur(4px); /* Less blur for the overlay since we'll blur the image */
+    -webkit-backdrop-filter: blur(4px);
+    border: none;
+    display: flex;
+    flex-direction: column;
+    position: relative; /* For absolute positioning of the background image */
+    overflow: hidden; /* Keep the blurred image within bounds */
+  }
+  
+  /* Blurred background image for card back */
+  .artwork-card-back__bg-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-size: cover;
+    background-position: center;
+    filter: blur(20px); /* Strong blur effect */
+    transform: scale(1.2); /* Slightly scale up to avoid blur edges */
+    opacity: 0.8; /* Adjust opacity as needed */
+    z-index: -1; /* Behind the content */
+  }
+  
+  /* Container for the content to ensure it's above the blurred background */
+  .artwork-card-back__content {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .artwork-card-back__artist-info {
+    margin-bottom: 15px;
+    width: 100%;
+  }
+  
+  .artwork-card-back__title {
+    font-size: 1.4em;
+    font-weight: 600;
+    margin: 0 0 10px 0;
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  }
+  
+  .artwork-card-back__artist-name {
+    font-size: 1.3em;
+    font-weight: bold;
+    margin-bottom: 5px;
+    margin: 0 0 5px 0;
+    font-size: 1.2rem;
+    color: #fff;
+    cursor: pointer;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); /* Add shadow to text for better readability */
+  }
+  
+  .artwork-card-back__artist-name:hover {
+    text-decoration: underline;
+  }
+  
+  .artwork-card-back__artist-details {
+    font-size: 1.1em;
+    color: #ddd;
+    margin-bottom: 15px;
+    margin: 0 0 10px 0;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.7);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); /* Add shadow to text for better readability */
+  }
+  
+  .artwork-card-back__series,
+  .artwork-card-back__rarity {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 5px 0;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  }
+  
+  /* Rarity color coding */
+  .rarity-common {
+    color: #a0a0a0; /* Light gray */
+  }
+  
+  .rarity-uncommon {
+    color: #4CAF50; /* Green */
+  }
+  
+  .rarity-rare {
+    color: #2196F3; /* Blue */
+  }
+  
+  .rarity-epic {
+    color: #9C27B0; /* Purple */
+  }
+  
+  .rarity-legendary {
+    color: #FFC107; /* Gold/yellow */
+    font-weight: bold;
+  }
+  
+  .artwork-card-back__description {
+    flex-grow: 1; /* Allow description to take available space */
+    margin-bottom: 15px;
+    line-height: 1.4;
+    overflow-y: auto; /* Add scroll if description is too long */
+    width: 100%;
+    color: #eee;
+    /* Ensure placeholder looks okay */
+    word-wrap: break-word;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 15px 0;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); /* Add shadow to text for better readability */
+  }
+  
+  .artwork-card-back__meta-info {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    font-size: 1em;
+    font-weight: bold;
+    color: #ccc;
+    flex-shrink: 0; /* Prevent meta info from shrinking */
+    border-top: 1px solid rgba(255, 255, 255, 0.3); /* Lighter separator line */
+    padding-top: 10px;
+    margin-top: auto; /* Push to bottom */
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); /* Add shadow to text for better readability */
+  }
+  
+  .artwork-card-back__content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .artwork-card-back__artwork-details {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.8);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); /* Add shadow to text for better readability */
+  }
+  
+  /* Optional: Add subtle glow or shadow on hover */
+  .artwork-card-container:hover {
+    box-shadow: 0 8px 16px rgba(255, 255, 255, 0.15); /* Slightly reduced glow */
+  }
+
+  /* Apply different border styles based on rarity */
+  /* Common rarity - subtle light gray border */
+  .artwork-card-container[data-rarity="common"] .artwork-card-inner > div {
+    box-shadow: 0 4px 8px rgba(160, 160, 160, 0.4);
+    border: 1px solid rgba(160, 160, 160, 0.3);
+  }
+  
+  /* Uncommon rarity - green border */
+  .artwork-card-container[data-rarity="uncommon"] .artwork-card-inner > div {
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+    border: 1px solid rgba(76, 175, 80, 0.5);
+  }
+  
+  /* Rare rarity - blue border and glow */
+  .artwork-card-container[data-rarity="rare"] .artwork-card-inner > div {
+    box-shadow: 0 4px 16px rgba(33, 150, 243, 0.5);
+    border: 1px solid rgba(33, 150, 243, 0.6);
+  }
+  
+  /* Epic rarity - purple/violet border and glow */
+  .artwork-card-container[data-rarity="epic"] .artwork-card-inner > div {
+    box-shadow: 0 4px 20px rgba(156, 39, 176, 0.5);
+    border: 1px solid rgba(156, 39, 176, 0.7);
+  }
+  
+  /* Legendary rarity - gold border and glow */
+  .artwork-card-container[data-rarity="legendary"] .artwork-card-inner > div {
+    box-shadow: 0 4px 24px rgba(255, 193, 7, 0.6);
+    border: 1px solid rgba(255, 193, 7, 0.8);
+  }
+  
+  /* Optional: Add a slight animation to legendary cards */
+  .artwork-card-container[data-rarity="legendary"] .artwork-card-inner {
+    animation: legendary-pulse 3s infinite;
+  }
+  
+  @keyframes legendary-pulse {
+    0% { box-shadow: 0 0 5px rgba(255, 193, 7, 0.3); }
+    50% { box-shadow: 0 0 20px rgba(255, 193, 7, 0.6); }
+    100% { box-shadow: 0 0 5px rgba(255, 193, 7, 0.3); }
+  }

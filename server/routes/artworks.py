@@ -36,6 +36,7 @@ def create_artwork():
     # --- Extract ALL required fields from Frontend ---
     title = data.get('title')
     artist_name = data.get('artist_name') # Extracted from request
+    series = data.get('series')  # Extract series field
     image_url = data.get('image_url')
     thumbnail_url = data.get('thumbnail_url') # Optional but expected key
     year_str = data.get('year') # Get potential null/empty string
@@ -89,7 +90,8 @@ def create_artwork():
     new_artwork = Artwork(
         artist_id=current_user_id,
         title=title.strip(),
-        # artist_name=artist_name.strip(), # Pass the extracted artist_name
+        artist_name=artist_name.strip() if artist_name else None,  # Pass the extracted artist_name
+        series=series.strip() if series else None,  # Pass the extracted series
         description=description.strip() if description else None,
         image_url=image_url,
         thumbnail_url=thumbnail_url,
@@ -130,7 +132,8 @@ def create_artwork():
             "artwork_id": created_artwork.artwork_id,
             "artist_id": created_artwork.artist_id,
             "title": created_artwork.title,
-            # "artist_name": created_artwork.artist_name, # Include artist_name
+            "artist_name": created_artwork.artist_name,  # Include artist_name
+            "series": created_artwork.series,  # Include series
             "description": created_artwork.description,
             "image_url": created_artwork.image_url,
             "thumbnail_url": created_artwork.thumbnail_url,
@@ -177,10 +180,14 @@ def get_artworks():
         artwork_card_fields = (
             "artwork_id",
             "title",
+            "description",
+            "series",
+            "rarity",
             "image_url",
             "thumbnail_url",
             "year",
             "medium",
+            "artist_name",     # Include the artist_name field
             "artist_id",       # Include artist ID from the artwork table itself
             "artist.user_id",  # Include nested artist ID (can be redundant but explicit)
             "artist.username"  # Include nested artist username
@@ -232,8 +239,190 @@ def get_artwork_details(artwork_id):
 
 
     # --- Serialization ---
-    # Use to_dict, ensuring artist info is included as per spec
-    response_data = artwork.to_dict(include_artist=True)
+    # Define fields to include, similar to get_artworks route
+    artwork_detail_fields = (
+        "artwork_id",
+        "title",
+        "description",
+        "series",
+        "rarity",
+        "image_url", 
+        "thumbnail_url",
+        "year",
+        "medium",
+        "artist_name",
+        "artist_id",
+        "artist.user_id",
+        "artist.username",
+        "created_at",
+        "updated_at"
+    )
+    # Use to_dict with the only parameter for consistent serialization
+    response_data = artwork.to_dict(only=artwork_detail_fields)
     # --- End Serialization ---
 
     return jsonify(response_data), 200
+
+# === PUT /api/artworks/:artwork_id ===
+@artworks_bp.route('/<int:artwork_id>', methods=['PUT'])
+@jwt_required()
+def update_artwork(artwork_id):
+    """Updates an existing artwork. Only the creator can update their artwork."""
+    current_user_id = get_jwt_identity()
+    
+    # Find the artwork or return 404
+    artwork = Artwork.query.get_or_404(artwork_id)
+    
+    # Check if the current user is the creator of this artwork
+    if artwork.artist_id != current_user_id:
+        return jsonify({
+            "error": {
+                "code": "UNAUTHORIZED",
+                "message": "You can only update artworks that you created."
+            }
+        }), 403
+    
+    # Get the data to update
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": {"code": "INVALID_INPUT", "message": "No update data provided"}}), 400
+    
+    # Validate fields
+    errors = {}
+    
+    # Check required fields
+    if 'title' in data and not data['title']:
+        errors['title'] = "Title cannot be empty."
+    if 'artist_name' in data and not data['artist_name']:
+        errors['artist_name'] = "Artist name cannot be empty."
+    if 'medium' in data and not data['medium']:
+        errors['medium'] = "Medium cannot be empty."
+    if 'rarity' in data and not data['rarity']:
+        errors['rarity'] = "Rarity cannot be empty."
+    
+    # Validate description length if provided
+    if 'description' in data and data['description'] and len(data['description']) > 2000:
+        errors['description'] = "Description exceeds maximum length of 2000 characters."
+    
+    # Validate series length if provided
+    if 'series' in data and data['series'] and len(data['series']) > 100:
+        errors['series'] = "Series name exceeds maximum length of 100 characters."
+    
+    # Validate year if provided
+    if 'year' in data:
+        year_value = data['year']
+        if year_value is not None:
+            try:
+                year_int = int(year_value)
+                if year_int < 0:
+                    errors['year'] = "Year cannot be negative."
+            except (ValueError, TypeError):
+                errors['year'] = "Year must be a valid whole number."
+    
+    if errors:
+        return jsonify({
+            "error": {
+                "code": "VALIDATION_ERROR", 
+                "message": "Validation failed",
+                "details": errors
+            }
+        }), 400
+    
+    try:
+        # Update fields if they are provided
+        if 'title' in data:
+            artwork.title = data['title'].strip()
+        if 'artist_name' in data:
+            artwork.artist_name = data['artist_name'].strip()
+        if 'description' in data:
+            artwork.description = data['description'].strip() if data['description'] else None
+        if 'series' in data:
+            artwork.series = data['series'].strip() if data['series'] else None
+        if 'year' in data:
+            artwork.year = int(data['year']) if data['year'] is not None and str(data['year']).strip() else None
+        if 'medium' in data:
+            artwork.medium = data['medium'].strip()
+        if 'rarity' in data:
+            artwork.rarity = data['rarity']
+        
+        # Save changes
+        db.session.commit()
+        
+        # Return updated artwork
+        artwork_detail_fields = (
+            "artwork_id",
+            "title",
+            "description",
+            "series",
+            "rarity",
+            "image_url", 
+            "thumbnail_url",
+            "year",
+            "medium",
+            "artist_name",
+            "artist_id",
+            "artist.user_id",
+            "artist.username",
+            "created_at",
+            "updated_at"
+        )
+        response_data = artwork.to_dict(only=artwork_detail_fields)
+        return jsonify(response_data), 200
+        
+    except IntegrityError as e:
+        db.session.rollback()
+        current_app.logger.error(f"Database integrity error updating artwork {artwork_id}: {e}", exc_info=True)
+        return jsonify({
+            "error": {
+                "code": "DB_ERROR", 
+                "message": "Database integrity error"
+            }
+        }), 500
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error updating artwork {artwork_id}: {e}", exc_info=True)
+        return jsonify({
+            "error": {
+                "code": "SERVER_ERROR", 
+                "message": "Failed to update artwork"
+            }
+        }), 500
+
+# === DELETE /api/artworks/:artwork_id ===
+@artworks_bp.route('/<int:artwork_id>', methods=['DELETE'])
+@jwt_required()
+def delete_artwork(artwork_id):
+    """Deletes an artwork. Only the creator can delete their artwork."""
+    current_user_id = get_jwt_identity()
+    
+    # Find the artwork or return 404
+    artwork = Artwork.query.get_or_404(artwork_id)
+    
+    # Check if the current user is the creator of this artwork
+    if artwork.artist_id != current_user_id:
+        return jsonify({
+            "error": {
+                "code": "UNAUTHORIZED",
+                "message": "You can only delete artworks that you created."
+            }
+        }), 403
+    
+    try:
+        # Delete the artwork
+        db.session.delete(artwork)
+        db.session.commit()
+        
+        return jsonify({
+            "message": "Artwork deleted successfully",
+            "artwork_id": artwork_id
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error deleting artwork {artwork_id}: {e}", exc_info=True)
+        return jsonify({
+            "error": {
+                "code": "SERVER_ERROR", 
+                "message": "Failed to delete artwork"
+            }
+        }), 500
