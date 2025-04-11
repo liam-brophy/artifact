@@ -2,6 +2,8 @@ import os
 from flask import Flask, jsonify
 from dotenv import load_dotenv
 from datetime import timedelta
+from flask_cors import CORS
+
 # from flask_seeder import Seeder # Not currently used, can be commented out or removed if not needed
 
 # Import extensions and BLOCKLIST from the new file
@@ -77,10 +79,11 @@ def create_app(config_object=None):
                 "http://localhost:5173",   # Your Vite frontend origin
                 "http://127.0.0.1:5173"
             ],
-             "supports_credentials": True # IMPORTANT for sending/receiving cookies
+            "supports_credentials": True, # IMPORTANT for sending/receiving cookies
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization", "X-CSRF-Token"]
         }
     })
-
 
     # --- JWT Loaders (Define them HERE, after jwt.init_app) ---
     @jwt.token_in_blocklist_loader

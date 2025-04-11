@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 import requests # Needed for Google auth transport
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
+from flask_cors import cross_origin
 # Import necessary items from the models package and the main app file
 from ..models.user import User
 from ..extensions import db, jwt, BLOCKLIST # Import db AND the example BLOCKLIST
@@ -189,21 +190,35 @@ def login_user():
         return jsonify({"error": {"code": "AUTH_002", "message": "Invalid email or password"}}), 401
 
 
-@auth_bp.route('/status', methods=['GET'])
-@jwt_required(optional=True)  # Decorator uses 'jwt' imported from extensions
+@auth_bp.route('/status', methods=['GET', 'OPTIONS'])
+@jwt_required(optional=True)
 def auth_status():
-    current_identity = get_jwt_identity()
-    if current_identity:
-        user = User.query.get(current_identity)  # Using User model
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    try:
+        current_identity = get_jwt_identity()
+        
+        if not current_identity:
+            return jsonify({"user": None}), 200
+
+        user = User.query.filter_by(user_id=current_identity).first()
         if user:
-            user_data = user.to_dict(only=["user_id", "username", "role", "email", "profile_image_url"])
-            return jsonify(user=user_data), 200
-        else:
-            response = jsonify(user=None)
-            unset_jwt_cookies(response)
-            return response, 200
-    else:
-        return jsonify(user=None), 200
+            return jsonify({
+                "user": {
+                    "user_id": user.user_id,
+                    "username": user.username,
+                    "role": user.role,
+                    "email": user.email,
+                    "profile_image_url": user.profile_image_url
+                }
+            }), 200
+        
+        return jsonify({"user": None}), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Auth status error: {str(e)}")
+        return jsonify({"user": None}), 200  # Fail gracefully instead of 500
 
 
 @auth_bp.route('/refresh', methods=['POST'])

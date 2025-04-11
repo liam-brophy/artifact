@@ -11,8 +11,8 @@ import apiService from '../services/apiService'; // Adjust path as needed
 const AuthContext = createContext(null);
 
 // --- Constants ---
-const AUTH_STATUS_ENDPOINT = '/auth/status'; // Or '/api/auth/me', '/api/users/me' etc.
-const LOGOUT_ENDPOINT = '/api/auth/logout';
+const AUTH_STATUS_ENDPOINT = '/auth/status'; // Now points to http://localhost:5000/api/auth/status
+const LOGOUT_ENDPOINT = '/auth/logout';      // Now points to http://localhost:5000/api/auth/logout
 
 export const AuthProvider = ({ children }) => {
   // --- State Initialization ---
@@ -26,58 +26,50 @@ export const AuthProvider = ({ children }) => {
   // This runs on initial load and potentially after login
   const fetchUserDataAndCollection = useCallback(async (isInitialLoad = false) => {
     if (isInitialLoad) {
-        setIsLoading(true);
+      setIsLoading(true);
     }
 
-    let fetchedUser = null;
-
     try {
-        // Improved error handling for the auth status request
-        const response = await apiService.get(AUTH_STATUS_ENDPOINT);
-        
-        if (response && response.status === 200 && response.data && response.data.user) {
-            fetchedUser = response.data.user;
-            setUser(fetchedUser);
-            setIsAuthenticated(true);
-        } else {
-            console.log("Auth status check: Invalid or empty response");
-            setUser(null);
-            setIsAuthenticated(false);
+      const response = await apiService.get(AUTH_STATUS_ENDPOINT);
+      const fetchedUser = response?.data?.user;
+      
+      if (fetchedUser) {
+        setUser(fetchedUser);
+        setIsAuthenticated(true);
+
+        // Only fetch collection if we have a valid user
+        if (fetchedUser.user_id) {
+          try {
+            const collectionResponse = await apiService.get(`/users/${fetchedUser.user_id}/collected-artworks`);
+            const ids = collectionResponse.data?.collectedArtworks
+              ?.map(item => item?.artwork?.artwork_id)
+              .filter(Boolean) || [];
+            setOwnedArtworkIds(new Set(ids));
+          } catch (err) {
+            console.warn("Failed to fetch collection:", err);
             setOwnedArtworkIds(new Set());
-            if(isInitialLoad) setIsLoading(false);
-            return;
+          }
         }
-    } catch (error) {
-        console.error("Auth status check failed:", error.message || error);
+      } else {
         setUser(null);
         setIsAuthenticated(false);
         setOwnedArtworkIds(new Set());
-        if(isInitialLoad) setIsLoading(false);
-        return;
-    }
-
-    if (fetchedUser?.user_id) {
-        const userId = fetchedUser.user_id;
-        try {
-            const collectionResponse = await apiService.get(`/users/${userId}/collected-artworks`, {
-                params: { page: 1, per_page: 5000 }
-            });
-
-            const ids = collectionResponse.data?.collectedArtworks
-                ?.map(item => item?.artwork?.artwork_id)
-                .filter(id => id != null) || [];
-
-            const newIdSet = new Set(ids);
-            setOwnedArtworkIds(newIdSet);
-        } catch (collectionError) {
-            setOwnedArtworkIds(new Set());
-        }
-    } else {
-        setOwnedArtworkIds(new Set());
-    }
-
-    if (isInitialLoad) {
+      }
+    } catch (error) {
+      // Don't treat 401 as an error - it's expected when not logged in
+      if (error.response && error.response.status === 401) {
+        console.log("User not authenticated - normal state before login");
+      } else {
+        console.error("Auth status check failed:", error);
+      }
+      
+      setUser(null);
+      setIsAuthenticated(false);
+      setOwnedArtworkIds(new Set());
+    } finally {
+      if (isInitialLoad) {
         setIsLoading(false);
+      }
     }
   }, []); // useCallback with empty dependency array makes this function stable
 

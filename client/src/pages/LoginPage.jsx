@@ -18,6 +18,8 @@ function LoginPage() {
     const { login, isLoading: isAuthLoading, isAuthenticated } = useAuth();
     const navigate = useNavigate();
     const googleButtonContainerRef = useRef(null);
+    const [isGoogleScriptLoaded, setIsGoogleScriptLoaded] = useState(false);
+    const initializationAttempts = useRef(0);
 
     const handleGoogleSignInSuccess = useCallback(async (googleResponse) => {
         const id_token = googleResponse.credential;
@@ -47,35 +49,58 @@ function LoginPage() {
         );
     }, [login, navigate]);
 
+    // Check if Google script is loaded
     useEffect(() => {
-        if (typeof window.google === 'undefined' || typeof window.google.accounts === 'undefined') {
-            if (GOOGLE_CLIENT_ID) {
-                toast.error("Could not load Google Sign-In library.");
-                console.warn("Google Sign-In library not loaded, but GOOGLE_CLIENT_ID is set.");
+        const checkGoogleScript = () => {
+            if (typeof window.google !== 'undefined' && typeof window.google.accounts !== 'undefined') {
+                setIsGoogleScriptLoaded(true);
+                return true;
             }
+            return false;
+        };
+
+        if (!checkGoogleScript() && GOOGLE_CLIENT_ID) {
+            const intervalId = setInterval(() => {
+                if (checkGoogleScript() || initializationAttempts.current >= 5) {
+                    clearInterval(intervalId);
+                }
+                initializationAttempts.current++;
+            }, 1000);
+
+            return () => clearInterval(intervalId);
+        }
+    }, []);
+
+    // Initialize Google Sign-In
+    useEffect(() => {
+        if (!isGoogleScriptLoaded || !GOOGLE_CLIENT_ID || !googleButtonContainerRef.current) {
             return;
         }
 
-        if (googleButtonContainerRef.current && GOOGLE_CLIENT_ID) {
-            try {
-                window.google.accounts.id.initialize({
-                    client_id: GOOGLE_CLIENT_ID,
-                    callback: handleGoogleSignInSuccess,
-                });
-                window.google.accounts.id.renderButton(
-                    googleButtonContainerRef.current,
-                    { theme: "outline", size: "large", type: "standard", width: '300px' }
-                );
-            } catch (initError) {
-                console.error("Google Sign-In initialization/render error:", initError);
-                toast.error("Failed to initialize/render Google Sign-In.");
-            }
-        } else if (GOOGLE_CLIENT_ID) {
-             console.warn("Google Sign-In button container ref not available when useEffect ran. This might resolve on the next effect run.");
-        } else {
-            console.log("Google Sign-In is disabled (GOOGLE_CLIENT_ID not set).");
+        try {
+            window.google.accounts.id.initialize({
+                client_id: GOOGLE_CLIENT_ID,
+                callback: handleGoogleSignInSuccess,
+            });
+
+            window.google.accounts.id.renderButton(
+                googleButtonContainerRef.current,
+                { theme: "outline", size: "large", type: "standard", width: '300px' }
+            );
+
+            // Cleanup function
+            return () => {
+                try {
+                    window.google.accounts.id.cancel();
+                } catch (err) {
+                    console.error("Error during Google Sign-In cleanup:", err);
+                }
+            };
+        } catch (initError) {
+            console.error("Google Sign-In initialization/render error:", initError);
+            toast.error("Failed to initialize Google Sign-In.");
         }
-    }, [GOOGLE_CLIENT_ID, handleGoogleSignInSuccess]);
+    }, [isGoogleScriptLoaded, GOOGLE_CLIENT_ID, handleGoogleSignInSuccess, googleButtonContainerRef.current]);
 
     // --- CONDITIONAL RENDERING / EARLY RETURNS (AFTER Hooks) ---
     if (isAuthLoading) {

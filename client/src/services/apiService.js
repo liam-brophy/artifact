@@ -4,8 +4,11 @@ import Cookies from 'js-cookie'; // Make sure you have run: npm install js-cooki
 
 // 1. Create Axios instance
 const apiService = axios.create({
-    baseURL: '/api', // Your API base URL prefix
+    baseURL: 'http://localhost:5000/api/', // Updated to include /api prefix
     withCredentials: true, // Essential for sending cookies
+    headers: {
+        'Content-Type': 'application/json',
+    }
     // timeout: 10000, // Optional timeout
 });
 
@@ -39,6 +42,12 @@ apiService.interceptors.response.use(
         return response;
     },
     (error) => {
+        // Skip showing errors for auth status check - it's normal to get 401 there
+        if (error.config && error.config.url && 
+            (error.config.url.includes('/auth/status') && error.response?.status === 401)) {
+            return Promise.reject(error);
+        }
+        
         // Handle errors (outside 2xx range)
         let errorMessage = 'An error occurred.'; // Default message
 

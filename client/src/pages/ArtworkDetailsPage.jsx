@@ -69,7 +69,7 @@ function ArtworkDetailsPage() {
       artist_name: artwork.artist_name || '',
       description: artwork.description || '',
       series: artwork.series || '',
-      year: artwork.year || '',
+      year: artwork.year?.toString() || '', // Convert number to string for form
       medium: artwork.medium || '',
       rarity: artwork.rarity || ''
     });
@@ -97,22 +97,29 @@ function ArtworkDetailsPage() {
       // Clean up form data - convert year to number or null
       const formattedData = {
         ...editFormData,
-        year: editFormData.year ? parseInt(editFormData.year, 10) : null
+        year: editFormData.year ? parseInt(editFormData.year, 10) : null,
+        // Ensure these fields are included
+        artwork_id: artwork.artwork_id,
+        artist_id: artwork.artist_id
       };
       
       const response = await apiService.put(`/artworks/${artworkId}`, formattedData);
       
-      // Update local artwork state with the updated data
-      setArtwork(response.data);
-      setEditSuccess(true);
-      
-      // Close edit mode after a brief delay to show success message
-      setTimeout(() => {
-        setIsEditing(false);
-      }, 1500);
+      if (response.data) {
+        // Update local artwork state with the updated data
+        setArtwork(response.data);
+        setEditSuccess(true);
+        
+        // Close edit mode after a brief delay to show success message
+        setTimeout(() => {
+          setIsEditing(false);
+        }, 1500);
+      } else {
+        throw new Error('No data received from server');
+      }
     } catch (err) {
       console.error('Error updating artwork:', err);
-      setEditError(err.response?.data?.error?.message || 'Failed to update artwork');
+      setEditError(err.response?.data?.message || err.message || 'Failed to update artwork');
     }
   };
 
