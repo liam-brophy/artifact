@@ -18,6 +18,7 @@ from .models.user_follow import UserFollow # Assuming you have user_follow.py
 # --- ADD THESE IMPORTS for the new pack models ---
 from .models.pack_type import PackType   # Import PackType model
 from .models.user_pack import UserPack   # Import UserPack model
+from .models.trade import Trade          # Import Trade model
 # ---------------------------------------------------
 # Import any other models you have (e.g., UserFollow)
 
@@ -106,6 +107,8 @@ def create_app(config_object=None):
     from server.routes.upload import uploads_bp
     # --- ADD Blueprint import for packs ---
     from server.routes.packs import packs_bp # Assuming you created pack_routes.py
+    # --- ADD Blueprint import for trades ---
+    from server.routes.trades import trades_bp
     # --------------------------------------
 
     # Register blueprints with appropriate URL prefixes
@@ -115,6 +118,8 @@ def create_app(config_object=None):
     app.register_blueprint(uploads_bp, url_prefix='/api/upload-image')
     # --- REGISTER pack blueprint ---
     app.register_blueprint(packs_bp, url_prefix='/api') # Using /api as base for packs routes
+    # --- REGISTER trades blueprint ---
+    app.register_blueprint(trades_bp, url_prefix='/api')
     # -------------------------------
 
     # --- Global Error Handlers ---

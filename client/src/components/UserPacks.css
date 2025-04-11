@@ -219,24 +219,92 @@
   z-index: 100 !important;
 }
 
-/* Pack backgrounds by type */
+/* Pack backgrounds by type - updated with iridescent effects */
 .pack-card.daily .pack-card-content {
-  background: linear-gradient(135deg, #38a169 0%, #68d391 100%);
-  box-shadow: 0 4px 16px rgba(56, 161, 105, 0.4);
-  border: 1px solid rgba(56, 161, 105, 0.3);
+  background: linear-gradient(135deg, #e3e4e5 0%, #c9d6df 25%, #f1f2f3 50%, #b8c6d1 75%, #e3e4e5 100%);
+  box-shadow: 0 4px 16px rgba(192, 192, 192, 0.5);
+  border: 1px solid rgba(192, 192, 192, 0.4);
+  position: relative;
+  overflow: hidden;
 }
 
+/* Iridescent silver overlay for daily pack */
+.pack-card.daily .pack-card-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, 
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,0.3) 25%, 
+    rgba(192,192,192,0.3) 50%,
+    rgba(255,255,255,0.3) 75%, 
+    rgba(255,255,255,0) 100%);
+  background-size: 200% 200%;
+  animation: iridescent-silver 3s ease infinite;
+  z-index: 1;
+}
+
+/* Iridescent gold premium pack */
 .pack-card.premium .pack-card-content {
-  background: linear-gradient(135deg, #d69e2e 0%, #f6e05e 100%);
+  background: linear-gradient(135deg, #f5d37f 0%, #e6b325 25%, #f6e27a 50%, #e6b325 75%, #f5d37f 100%);
   box-shadow: 0 4px 20px rgba(214, 158, 46, 0.5);
   border: 1px solid rgba(214, 158, 46, 0.4);
+  position: relative;
+  overflow: hidden;
 }
 
-/* Default pack style */
+/* Iridescent gold overlay for premium pack */
+.pack-card.premium .pack-card-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, 
+    rgba(255,223,0,0) 0%,
+    rgba(255,215,0,0.3) 25%, 
+    rgba(255,248,220,0.3) 50%,
+    rgba(255,215,0,0.3) 75%, 
+    rgba(255,223,0,0) 100%);
+  background-size: 200% 200%;
+  animation: iridescent-gold 3s ease infinite;
+  z-index: 1;
+}
+
+/* Standard pack style remains unchanged */
 .pack-card:not(.daily):not(.premium) .pack-card-content {
   background: linear-gradient(135deg, #3182ce 0%, #63b3ed 100%);
   box-shadow: 0 4px 12px rgba(49, 130, 206, 0.4);
   border: 1px solid rgba(49, 130, 206, 0.3);
+}
+
+/* Animations for iridescent effects */
+@keyframes iridescent-silver {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes iridescent-gold {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 /* Pack content styling */
@@ -580,14 +648,14 @@
 
 /* Daily pack stack shadows - green tint */
 .pack-card.daily .pack-stack-shadow {
-  background: linear-gradient(135deg, rgba(56, 161, 105, 0.5) 0%, rgba(104, 211, 145, 0.5) 100%);
-  border: 1px solid rgba(56, 161, 105, 0.2);
+  background: linear-gradient(135deg, rgba(192, 192, 192, 0.5) 0%, rgba(211, 211, 211, 0.5) 100%);
+  border: 1px solid rgba(192, 192, 192, 0.2);
 }
 
 /* Premium pack stack shadows - gold tint */
 .pack-card.premium .pack-stack-shadow {
-  background: linear-gradient(135deg, rgba(214, 158, 46, 0.5) 0%, rgba(246, 224, 94, 0.5) 100%);
-  border: 1px solid rgba(214, 158, 46, 0.2);
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.5) 0%, rgba(255, 223, 0, 0.5) 100%);
+  border: 1px solid rgba(255, 215, 0, 0.2);
 }
 
 /* Standard pack stack shadows - blue tint */
@@ -620,12 +688,11 @@
 
 /* Make badges different colors based on pack type */
 .pack-count-badge.daily {
-  background-color: #38a169;
+  background: linear-gradient(135deg, #c0c0c0, #e5e5e5, #a9a9a9);
 }
 
 .pack-count-badge.premium {
-  background-color: #d69e2e;
-  background: linear-gradient(135deg, #f6ad55, #d69e2e);
+  background: linear-gradient(135deg, #ffd700, #ffdf00, #f0c030);
 }
 
 /* Enhanced hover effect for stacked packs */

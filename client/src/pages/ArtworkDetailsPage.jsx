@@ -9,9 +9,11 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import apiService from '../services/apiService';
 import { useAuth } from '../context/AuthContext';
 import { ARTWORK_RARITIES, RARITY_VALUES } from '../constants/artwork';
+import TradeOfferDialog from '../components/TradeOfferDialog';
 import './ArtworkDetailsPage.css';
 
 function ArtworkDetailsPage() {
@@ -40,6 +42,9 @@ function ArtworkDetailsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
+
+  // Trade offer dialog state
+  const [tradeDialogOpen, setTradeDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchArtworkDetails = async () => {
@@ -165,6 +170,14 @@ function ArtworkDetailsPage() {
     if (artwork?.artist?.username) {
       navigate(`/users/${artwork.artist.username}`);
     }
+  };
+
+  const handleOpenTradeDialog = () => {
+    setTradeDialogOpen(true);
+  };
+
+  const handleCloseTradeDialog = () => {
+    setTradeDialogOpen(false);
   };
 
   if (loading) {
@@ -457,6 +470,27 @@ function ArtworkDetailsPage() {
                 <p>Artifact ID: {artwork.artwork_id}</p>
                 <p>Created: {new Date(artwork.created_at).toLocaleDateString()}</p>
               </div>
+
+              {/* Trade Button - only show if:
+                  1. User is logged in
+                  2. Artwork has a collection owner (it's in someone's collection)
+                  3. Current user is not the collection owner
+                  4. Current user is a patron (as only patrons can trade) */}
+              {user && 
+               artwork.collection_owner_id && 
+               artwork.collection_owner_id !== user.user_id &&
+               user.role === 'patron' && (
+                <Button 
+                  startIcon={<SwapHorizIcon />} 
+                  variant="contained" 
+                  color="primary" 
+                  size="small" 
+                  onClick={handleOpenTradeDialog}
+                  sx={{ mt: 2 }}
+                >
+                  Propose Trade
+                </Button>
+              )}
             </>
           )}
         </div>
@@ -499,6 +533,14 @@ function ArtworkDetailsPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Trade Offer Dialog */}
+      <TradeOfferDialog
+        open={tradeDialogOpen}
+        onClose={handleCloseTradeDialog}
+        requestedArtwork={artwork}
+        recipientId={artwork?.collection_owner_id}
+      />
     </div>
   );
 }
