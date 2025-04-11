@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiService from '../services/apiService';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import toast from 'react-hot-toast';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
@@ -19,6 +20,16 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
+import FormControl from '@mui/material/FormControl';
+import FormLabel from '@mui/material/FormLabel';
+import RadioGroup from '@mui/material/RadioGroup';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Radio from '@mui/material/Radio';
+import Divider from '@mui/material/Divider';
+import LightModeIcon from '@mui/icons-material/LightMode';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
+import SettingsBrightnessIcon from '@mui/icons-material/SettingsBrightness';
+import Paper from '@mui/material/Paper';
 
 // Define Validation Schema for editable fields
 const SettingsSchema = Yup.object().shape({
@@ -39,11 +50,46 @@ const SettingsSchema = Yup.object().shape({
 
 function SettingsPage() {
     const { user, logout, isLoading: isAuthLoading, updateUser } = useAuth(); // Get user and logout/updateUser
+    const { theme, setTheme } = useTheme(); // Get theme context
     const navigate = useNavigate();
+    const isDarkMode = theme === 'dark';
 
     // Delete Dialog State
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+
+    // Theme styles
+    const themeStyles = {
+        themeOption: {
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            padding: 2,
+            borderRadius: 1,
+            marginBottom: 1,
+            border: '1px solid',
+            borderColor: 'divider',
+        },
+        lightThemeColor: {
+            bgcolor: '#FFFFFF',
+            color: '#F50801',
+            border: '2px solid',
+            borderColor: theme === 'light' ? '#F50801' : 'transparent',
+        },
+        darkThemeColor: {
+            bgcolor: '#000000',
+            color: '#3BDBB2',
+            border: '2px solid',
+            borderColor: theme === 'dark' ? '#3BDBB2' : 'transparent',
+        },
+        colorSwatch: {
+            width: 24,
+            height: 24,
+            borderRadius: '50%',
+            marginRight: 1,
+            display: 'inline-block',
+        },
+    };
 
     // If auth is still loading or user is not loaded, show loading/redirect
     if (isAuthLoading) {
@@ -60,6 +106,12 @@ function SettingsPage() {
         username: user?.username || '',
         bio: user?.bio || '',
         profile_image_url: user?.profile_image_url || '',
+    };
+
+    // Theme change handler
+    const handleThemeChange = (event) => {
+        setTheme(event.target.value);
+        toast.success(`Theme changed to ${event.target.value} mode`);
     };
 
     // --- Profile Update Handler ---
@@ -152,6 +204,73 @@ function SettingsPage() {
             <Typography variant="h4" component="h1" gutterBottom>
                 Account Settings
             </Typography>
+
+            {/* Theme Settings Section */}
+            <Paper sx={{ p: 3, mt: 4, mb: 4, bgcolor: 'background.paper' }} elevation={1}>
+                <Typography variant="h6" component="h2" gutterBottom>
+                    Theme Preferences
+                </Typography>
+                <FormControl component="fieldset">
+                    <FormLabel component="legend">Choose your preferred theme</FormLabel>
+                    <RadioGroup
+                        aria-label="theme"
+                        name="theme-options"
+                        value={theme}
+                        onChange={handleThemeChange}
+                    >
+                        <FormControlLabel 
+                            value="light" 
+                            control={
+                                <Radio 
+                                    sx={{
+                                        color: '#F50801',
+                                        '&.Mui-checked': {
+                                            color: '#F50801',
+                                        },
+                                    }}
+                                />
+                            } 
+                            label={
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Box 
+                                        sx={{ 
+                                            ...themeStyles.colorSwatch, 
+                                            bgcolor: '#F50801'
+                                        }} 
+                                    />
+                                    <LightModeIcon sx={{ color: '#F50801' }} /> 
+                                    <Typography>Light Mode</Typography>
+                                </Box>
+                            } 
+                        />
+                        <FormControlLabel 
+                            value="dark" 
+                            control={
+                                <Radio 
+                                    sx={{
+                                        color: '#3BDBB2',
+                                        '&.Mui-checked': {
+                                            color: '#3BDBB2',
+                                        },
+                                    }}
+                                />
+                            } 
+                            label={
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Box 
+                                        sx={{ 
+                                            ...themeStyles.colorSwatch, 
+                                            bgcolor: '#3BDBB2'
+                                        }} 
+                                    />
+                                    <DarkModeIcon sx={{ color: '#3BDBB2' }} /> 
+                                    <Typography>Dark Mode</Typography>
+                                </Box>
+                            } 
+                        />
+                    </RadioGroup>
+                </FormControl>
+            </Paper>
 
             {/* --- Profile Update Form --- */}
             <Typography variant="h6" component="h2" gutterBottom sx={{ mt: 3 }}>

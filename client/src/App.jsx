@@ -7,6 +7,7 @@ import {
   Outlet // Import Outlet for layout routes
 } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext'; // useAuth still needed in child components/layouts
+import { ThemeProvider, useTheme } from './context/ThemeContext'; // Import ThemeProvider and useTheme
 import { Toaster } from 'react-hot-toast';
 
 import NavBar from './components/NavBar'; // Assuming this exists
@@ -25,6 +26,7 @@ import ArtworkDetailsPage from './pages/ArtworkDetailsPage'; // Import the new A
 // This component will render the NavBar and the nested route content (Outlet)
 function AuthenticatedLayout() {
     const { isAuthenticated } = useAuth(); // Check auth status here
+    const { isDarkMode } = useTheme(); // Access theme context
 
     // You could add more sophisticated loading checks if needed
     if (!isAuthenticated) {
@@ -34,12 +36,12 @@ function AuthenticatedLayout() {
     }
 
     return (
-        <>
+        <div className={`app-container ${isDarkMode ? 'dark-theme' : 'light-theme'}`}>
             <NavBar /> 
             <main>
                  <Outlet /> 
             </main>
-        </>
+        </div>
     );
 }
 
@@ -120,7 +122,9 @@ function App() {
 function AppWrapper() {
   return (
     <AuthProvider>
-      <App />
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>
     </AuthProvider>
   );
 }

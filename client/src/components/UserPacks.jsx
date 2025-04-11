@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import apiService from '../services/apiService';
-// Import any UI components you might want for displaying results or errors
-// import { CircularProgress, Button, Typography, List, ListItem, ListItemText, Box, Alert, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material'; // MUI Example
+import './UserPacks.css';
 
 function UserPacks() {
   const [packs, setPacks] = useState([]);
@@ -9,9 +8,10 @@ function UserPacks() {
   const [error, setError] = useState(null);
   const [openedPackResult, setOpenedPackResult] = useState(null); // Holds { message, artworks_received }
   const [isOpening, setIsOpening] = useState(false); // Tracks if a pack open request is in progress
+  const [nextPackInfo, setNextPackInfo] = useState(null); // Tracks next daily pack availability
+  const [packTypeBeingOpened, setPackTypeBeingOpened] = useState(null); // Track which pack type is being opened
 
-
-  // useEffect to fetch packs (remains the same)
+  // useEffect to fetch packs and next pack availability
   useEffect(() => {
     const fetchPacks = async () => {
       setIsLoading(true);
@@ -35,15 +35,27 @@ function UserPacks() {
         setIsLoading(false);
       }
     };
+
+    const fetchNextPackInfo = async () => {
+      try {
+        const response = await apiService.get('/user-packs/next-availability');
+        setNextPackInfo(response.data);
+      } catch (err) {
+        console.error("Error fetching next pack info:", err);
+        // Don't set main error - this is secondary information
+      }
+    };
+
     fetchPacks();
+    fetchNextPackInfo();
   }, []);
 
-  // --- IMPLEMENT pack opening function ---
-  const handleOpenPack = async (packId) => {
+  const handleOpenPack = async (packId, packName) => {
     console.log(`Attempting to open pack with ID: ${packId}`);
-    setIsOpening(true);        // Indicate opening process started
-    setError(null);           // Clear previous errors
-    setOpenedPackResult(null); // Clear previous results
+    setIsOpening(true);
+    setError(null);
+    setOpenedPackResult(null);
+    setPackTypeBeingOpened(packName); // Store the pack name being opened
 
     try {
       // Make the POST request to the backend endpoint
@@ -51,7 +63,10 @@ function UserPacks() {
 
       // Handle successful response (200 OK)
       console.log("Pack opened successfully:", response.data);
-      setOpenedPackResult(response.data); // Store the { message, artworks_received }
+      setOpenedPackResult({
+        ...response.data,
+        packType: packName // Add the pack type to the result
+      });
 
       // Update the packs list in the state to remove the opened pack
       setPacks(prevPacks => prevPacks.filter(pack => pack.user_pack_id !== packId));
@@ -59,85 +74,160 @@ function UserPacks() {
     } catch (err) {
       // Handle errors from the API call
       console.error(`Error opening pack ${packId}:`, err);
-      // Extract user-friendly error message
       const message = err.response?.data?.error || err.message || "Failed to open pack.";
-      setError(message); // Set error state to display message
-      setOpenedPackResult(null); // Ensure no results are shown on error
+      setError(message);
+      setOpenedPackResult(null);
 
     } finally {
-      setIsOpening(false); // Indicate opening process finished (success or fail)
+      setIsOpening(false);
+      setPackTypeBeingOpened(null);
     }
   };
 
-  // --- Render Logic (update results display) ---
-  if (isLoading) {
-    return <p>Loading your packs...</p>;
-    // return <CircularProgress />; // MUI example
-  }
+  // Function to format the next pack time in a user-friendly way
+  const formatNextPackTime = (isoTimeString) => {
+    if (!isoTimeString) return null;
+    
+    const nextTime = new Date(isoTimeString);
+    const now = new Date();
+    
+    // Calculate time difference in hours
+    const diffMs = nextTime - now;
+    const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (diffHrs > 24) {
+      return `Available in ${Math.floor(diffHrs / 24)} days`;
+    } else if (diffHrs > 0) {
+      return `Available in ${diffHrs}h ${diffMins}m`;
+    } else if (diffMins > 0) {
+      return `Available in ${diffMins} minutes`;
+    } else {
+      return 'Available now';
+    }
+  };
 
   // Function to close the results display (modal or section)
   const handleCloseResults = () => {
     setOpenedPackResult(null);
-  }
+  };
+
+  // Helper to determine pack card CSS class based on pack name
+  const getPackCardClass = (packName) => {
+    const name = packName.toLowerCase();
+    if (name.includes('premium')) return 'pack-card premium';
+    if (name.includes('daily')) return 'pack-card daily';
+    return 'pack-card';
+  };
+
+  // Helper to get rarity class for styling
+  const getRarityClass = (rarity) => {
+    if (!rarity) return 'rarity-common';
+    
+    const rarityLower = rarity.toLowerCase();
+    if (rarityLower.includes('legendary')) return 'rarity-legendary';
+    if (rarityLower.includes('rare')) return 'rarity-rare';
+    if (rarityLower.includes('uncommon')) return 'rarity-uncommon';
+    return 'rarity-common';
+  };
 
   return (
-    <div> {/* Or use Box, Paper, etc. from MUI */}
-      {error && !openedPackResult && ( // Only show main error if results aren't also showing
-         // <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert> // MUI example
-         <p style={{ color: 'red' }}>Error: {error} <button onClick={() => setError(null)}>X</button></p>
+    <div className="packs-container">
+      <h2 className="packs-title">Your Packs</h2>
+      
+      {error && (
+        <div className="error-message">
+          <span>{error}</span>
+          <button className="error-close" onClick={() => setError(null)}>✕</button>
+        </div>
       )}
 
-      {/* --- Simple Display for Opened Pack Results --- */}
-      {/* Replace this with a Modal component for better UX */}
-      {/* Example using basic HTML: */}
+      {/* Daily Pack Availability Information */}
+      {nextPackInfo && (
+        <div className="daily-pack-info">
+          <h3>Daily Pack</h3>
+          {nextPackInfo.has_unopened_daily_packs ? (
+            <p>You have an unopened daily pack! Open it below.</p>
+          ) : nextPackInfo.next_available_at ? (
+            <p>Next daily pack: <span className="countdown">{formatNextPackTime(nextPackInfo.next_available_at)}</span></p>
+          ) : (
+            <p>Your first daily pack will arrive tomorrow!</p>
+          )}
+        </div>
+      )}
+
+      {/* Pack Opening Results Modal */}
       {openedPackResult && (
-         <div style={{ border: '2px solid green', padding: '1rem', margin: '1rem 0', backgroundColor: '#e8f5e9' }}>
-            <h3>{openedPackResult.message || "Pack Opened!"}</h3>
+        <div className="pack-results-overlay">
+          <div className="pack-results-content">
+            <div className="pack-results-header">
+              <h2 className="pack-results-title">{openedPackResult.packType || 'Pack'} Opened!</h2>
+              <p>You received the following artwork{openedPackResult.artworks_received?.length !== 1 ? 's' : ''}:</p>
+            </div>
+            
             {openedPackResult.artworks_received && openedPackResult.artworks_received.length > 0 ? (
-                <ul>
-                    {openedPackResult.artworks_received.map(art => (
-                        <li key={art.artwork_id}>
-                            <img src={art.image_url} alt={art.title} width="50" style={{ marginRight: '10px', verticalAlign: 'middle' }} />
-                            <strong>{art.title}</strong> by {art.artist?.username || 'Unknown Artist'}
-                            {art.rarity && ` (${art.rarity})`}
-                        </li>
-                    ))}
-                </ul>
+              <div className="artwork-grid">
+                {openedPackResult.artworks_received.map(art => (
+                  <div className="artwork-item" key={art.artwork_id}>
+                    <img 
+                      src={art.image_url} 
+                      alt={art.title} 
+                      className="artwork-image" 
+                    />
+                    <div className="artwork-info">
+                      <h4 className="artwork-title">{art.title}</h4>
+                      <p className="artwork-artist">by {art.artist?.username || 'Unknown Artist'}</p>
+                      {art.rarity && (
+                        <span className={`rarity-badge ${getRarityClass(art.rarity)}`}>
+                          {art.rarity}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
-                <p>No specific artworks listed in response.</p> // Should not happen with current backend logic if successful
+              <p>No artworks were found in this pack.</p>
             )}
-            <button onClick={handleCloseResults}>Okay</button>
-            {/* If there was also an error during the process but some results were processed? Unlikely with current setup */}
-            {error && <p style={{ color: 'orange', marginTop: '10px' }}>Note: {error}</p>}
-         </div>
-      )}
-      {/* --- End Results Display --- */}
-
-
-      {!isLoading && packs.length === 0 && !error && !openedPackResult && ( // Also hide if results showing
-        // <Typography variant="body1">You have no unopened packs.</Typography> // MUI example
-        <p>You have no unopened packs.</p>
+            
+            <button className="close-button" onClick={handleCloseResults}>
+              Add to Collection
+            </button>
+          </div>
+        </div>
       )}
 
+      {/* Loading indicator */}
+      {isLoading && (
+        <div className="loader-container">
+          <div className="loader"></div>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!isLoading && packs.length === 0 && !error && !openedPackResult && (
+        <div className="empty-state">
+          <p>You have no unopened packs.</p>
+        </div>
+      )}
+
+      {/* Pack list */}
       {!isLoading && packs.length > 0 && (
-        // Render the list of packs if available
-        <ul> {/* <List> // MUI example */}
+        <ul className="packs-list">
           {packs.map((pack) => (
-            <li key={pack.user_pack_id}> {/* <ListItem key={pack.user_pack_id} ...> */}
-              <strong>{pack.name}</strong> {/* <ListItemText primary={pack.name} ... /> */}
-              {pack.description && <p>{pack.description}</p>}
-              <button // <Button variant="contained" ...>
-                onClick={() => handleOpenPack(pack.user_pack_id)}
-                disabled={isOpening} // Disable button while one is being opened
+            <li key={pack.user_pack_id} className={getPackCardClass(pack.name)}>
+              <h3 className="pack-title">{pack.name}</h3>
+              {pack.description && <p className="pack-description">{pack.description}</p>}
+              <button 
+                className="pack-button"
+                onClick={() => handleOpenPack(pack.user_pack_id, pack.name)}
+                disabled={isOpening}
               >
-                {/* Show specific loading text if THIS pack is being opened? More complex state needed. */}
-                {/* For now, any opening disables all buttons. */}
-                {isOpening ? 'Opening...' : 'Open Pack'}
+                {isOpening && packTypeBeingOpened === pack.name ? 'Opening...' : 'Open Pack'}
               </button>
             </li>
           ))}
         </ul>
-        // </List> // MUI example
       )}
     </div>
   );

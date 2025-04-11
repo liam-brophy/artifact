@@ -1,38 +1,75 @@
+/* Import fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Inter+Tight:wght@400;500;600;700&display=swap');
+/* Using Inter Tight for headers and Inter for body text - both are highly readable */
+
+/* Base CSS variables for both themes */
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  /* Update font family definitions */
+  --header-font: 'Inter Tight', sans-serif;
+  --body-font: 'Inter', sans-serif;
+  
   line-height: 1.5;
   font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  
+  /* Default light theme variables */
+  --text-color: #333333;
+  --background-color: #FFFFFF;
+  --card-background: #F8F8F8;
+  --border-color: #E0E0E0;
+  --accent-color: #F50801;
+  --accent-hover: #D90701;
+  --button-background: #F8F8F8;
+  --button-text: #333333;
+  --nav-background: rgba(255, 255, 255, 0.95);
+  --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --secondary-text: #666666;
+}
+
+/* Dark theme variables */
+[data-theme='dark'] {
+  --text-color: #FFFFFF;
+  --background-color: #000000;
+  --card-background: #121212;
+  --border-color: #333333;
+  --accent-color: #3BDBB2;
+  --accent-hover: #2FC69F;
+  --button-background: #121212;
+  --button-text: #FFFFFF;
+  --nav-background: rgba(0, 0, 0, 0.95);
+  --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --secondary-text: #AAAAAA;
+}
+
+/* Apply theme variables */
+body {
+  margin: 0;
+  display: flex;
+  flex-direction: column; /* Ensure proper vertical layout */
+  min-width: 320px;
+  min-height: 100vh;
+  color: var(--text-color);
+  background-color: var(--background-color);
+  transition: color 0.3s, background-color 0.3s;
+  font-family: var(--body-font);
 }
 
 a {
   font-weight: 500;
-  color: #646cff;
+  color: var(--accent-color);
   text-decoration: inherit;
 }
 a:hover {
-  color: #535bf2;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+  color: var(--accent-hover);
 }
 
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
+  font-family: var(--header-font);
 }
 
 button {
@@ -42,27 +79,54 @@ button {
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
+  background-color: var(--button-background);
+  color: var(--button-text);
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: border-color 0.25s, background-color 0.25s;
 }
 button:hover {
-  border-color: #646cff;
+  border-color: var(--accent-color);
 }
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+/* Classes for explicitly applying themes */
+.light-theme {
+  color: var(--text-color);
+  background-color: var(--background-color);
+}
+
+.dark-theme {
+  color: var(--text-color);
+  background-color: var(--background-color);
+}
+
+/* App container styling */
+.app-container {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Main content area */
+main {
+  flex: 1;
+  padding: 20px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* Card styling for consistency */
+.card {
+  background-color: var(--card-background);
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--box-shadow);
+  transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s;
 }

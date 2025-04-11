@@ -1,0 +1,245 @@
+/* ArtworkDetailsPage.css - Styles for the artwork details page with responsive design */
+
+/* Main container */
+.artwork-details-container {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+  max-width: 1600px; /* Wider than homepage to accommodate large artwork */
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  font-family: var(--body-font);
+}
+
+/* Back button */
+.back-button {
+  margin-bottom: 1rem;
+  transition: background-color 0.3s;
+}
+
+.back-button:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+/* Main content layout */
+.artwork-content-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* For medium screens and up - side by side layout */
+@media (min-width: 768px) {
+  .artwork-content-container {
+    flex-direction: row;
+  }
+}
+
+/* Artwork image container */
+.artwork-image-container {
+  flex: 1 1 70%;
+  background-color: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  height: 50vh; /* Default height for mobile */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (min-width: 768px) {
+  .artwork-image-container {
+    height: calc(100vh - 180px); /* Taller on larger screens */
+  }
+}
+
+/* Artwork image */
+.artwork-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+/* Details panel */
+.artwork-details-panel {
+  flex: 1 1 30%;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  background-color: #fff;
+  max-height: 50vh; /* Default height for mobile */
+  overflow: auto;
+}
+
+@media (min-width: 768px) {
+  .artwork-details-panel {
+    max-height: calc(100vh - 180px); /* Taller on larger screens */
+  }
+}
+
+/* Artwork title */
+.artwork-title {
+  font-size: 1.5rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  font-family: var(--header-font);
+}
+
+/* Artist name */
+.artwork-artist {
+  font-size: 1.1rem;
+  margin-bottom: 0.75rem;
+  cursor: pointer;
+  color: #555;
+}
+
+.artwork-artist:hover {
+  text-decoration: underline;
+}
+
+/* Rarity badge */
+.artwork-rarity {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  margin: 0.5rem 0;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  text-transform: capitalize;
+}
+
+.artwork-rarity-common {
+  background-color: #e0e0e0;
+  color: #757575;
+}
+
+.artwork-rarity-uncommon {
+  background-color: #a5d6a7;
+  color: #2e7d32;
+}
+
+.artwork-rarity-rare {
+  background-color: #90caf9;
+  color: #1565c0;
+}
+
+.artwork-rarity-epic {
+  background-color: #ce93d8;
+  color: #7b1fa2;
+}
+
+.artwork-rarity-legendary {
+  background-color: #ffe082;
+  color: #ff8f00;
+}
+
+/* Creator action buttons */
+.artwork-creator-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin: 0.75rem 0 1rem;
+}
+
+/* Section divider */
+.artwork-divider {
+  margin: 1rem 0;
+  border: 0;
+  border-top: 1px solid #e0e0e0;
+}
+
+/* Detail sections */
+.artwork-section {
+  margin-bottom: 1rem;
+}
+
+.artwork-section-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  color: #555;
+  font-family: var(--header-font);
+}
+
+.artwork-section-content {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #333;
+}
+
+/* Metadata */
+.artwork-metadata {
+  font-size: 0.75rem;
+  color: #777;
+}
+
+/* Edit form styles */
+.artwork-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.form-row {
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.form-field {
+  width: 100%;
+}
+
+.form-field-small {
+  width: 40%;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+/* Form field custom styling */
+.compact-form-field label {
+  font-size: 0.8rem;
+}
+
+.compact-form-field input,
+.compact-form-field textarea,
+.compact-form-field select {
+  font-size: 0.9rem;
+  padding: 0.5rem;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 480px) {
+  .form-row {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .form-field-small {
+    width: 100%;
+  }
+}
+
+/* Alert messages */
+.artwork-alert {
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.artwork-alert-error {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+.artwork-alert-success {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}

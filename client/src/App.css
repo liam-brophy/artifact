@@ -3,6 +3,12 @@
   margin: 0 auto;
   padding: 2rem;
   text-align: center;
+  font-family: var(--body-font);
+}
+
+/* Apply header font to all heading elements */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--header-font);
 }
 
 .logo {

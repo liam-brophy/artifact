@@ -12,6 +12,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import apiService from '../services/apiService';
 import { useAuth } from '../context/AuthContext';
 import { ARTWORK_RARITIES, RARITY_VALUES } from '../constants/artwork';
+import './ArtworkDetailsPage.css';
 
 function ArtworkDetailsPage() {
   const { artworkId } = useParams();
@@ -97,10 +98,7 @@ function ArtworkDetailsPage() {
       // Clean up form data - convert year to number or null
       const formattedData = {
         ...editFormData,
-        year: editFormData.year ? parseInt(editFormData.year, 10) : null,
-        // Ensure these fields are included
-        artwork_id: artwork.artwork_id,
-        artist_id: artwork.artist_id
+        year: editFormData.year ? parseInt(editFormData.year, 10) : null
       };
       
       const response = await apiService.put(`/artworks/${artworkId}`, formattedData);
@@ -119,7 +117,7 @@ function ArtworkDetailsPage() {
       }
     } catch (err) {
       console.error('Error updating artwork:', err);
-      setEditError(err.response?.data?.message || err.message || 'Failed to update artwork');
+      setEditError(err.response?.data?.error?.message || err.message || 'Failed to update artwork');
     }
   };
 
@@ -171,228 +169,92 @@ function ArtworkDetailsPage() {
 
   if (loading) {
     return (
-      <Container maxWidth="lg" sx={{ mt: 4, textAlign: 'center' }}>
-        <CircularProgress />
-      </Container>
+      <div className="artwork-details-container">
+        <div className="loading-container">
+          <CircularProgress />
+        </div>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Container maxWidth="lg" sx={{ mt: 4 }}>
-        <Button startIcon={<ArrowBackIcon />} onClick={handleGoBack} sx={{ mb: 2 }}>
-          Back
-        </Button>
-        <Paper sx={{ p: 3, textAlign: 'center' }}>
+      <div className="artwork-details-container">
+        <button className="back-button" onClick={handleGoBack}>
+          <ArrowBackIcon /> Back
+        </button>
+        <div className="error-container">
           <Typography variant="h5" color="error">{error}</Typography>
-        </Paper>
-      </Container>
+        </div>
+      </div>
     );
   }
 
   if (!artwork) {
     return (
-      <Container maxWidth="lg" sx={{ mt: 4 }}>
-        <Button startIcon={<ArrowBackIcon />} onClick={handleGoBack} sx={{ mb: 2 }}>
-          Back
-        </Button>
-        <Paper sx={{ p: 3, textAlign: 'center' }}>
+      <div className="artwork-details-container">
+        <button className="back-button" onClick={handleGoBack}>
+          <ArrowBackIcon /> Back
+        </button>
+        <div className="error-container">
           <Typography variant="h5">Artwork not found</Typography>
-        </Paper>
-      </Container>
+        </div>
+      </div>
     );
   }
 
   // Determine the artist name to display
   const artistName = artwork.artist_name || artwork.artist?.username || 'Unknown Artist';
 
+  // Helper function to get rarity class name
+  const getRarityClassName = (rarity) => {
+    return `artwork-rarity artwork-rarity-${rarity || 'common'}`;
+  };
+
   return (
-    <Container maxWidth="xl" sx={{ mt: 4, mb: 6 }}>
-      <Button startIcon={<ArrowBackIcon />} onClick={handleGoBack} sx={{ mb: 2 }}>
+    <div className="artwork-details-container">
+      <Button 
+        startIcon={<ArrowBackIcon />} 
+        onClick={handleGoBack}
+        className="back-button"
+      >
         Back
       </Button>
       
-      <Grid container spacing={4}>
-        {/* Image Column - Takes up more space now */}
-        <Grid item xs={12} md={8} lg={9}>
-          <Paper
-            elevation={3}
-            sx={{
-              p: 0,
-              overflow: 'hidden',
-              height: 'calc(90vh - 100px)', // Much taller, almost full viewport height
-              display: 'flex',
-              flexDirection: 'column',
-              bgcolor: '#000' // Black background to make artwork pop
+      <div className="artwork-content-container">
+        {/* Artwork Image Container */}
+        <div className="artwork-image-container">
+          <img
+            src={artwork.image_url}
+            alt={artwork.title || 'Artwork'}
+            className="artwork-image"
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = 'https://via.placeholder.com/800x600.png?text=Artwork+Image+Not+Available';
             }}
-          >
-            {/* Full artwork display */}
-            <Box
-              sx={{
-                position: 'relative',
-                width: '100%',
-                height: '100%', // Use full height of container
-                overflow: 'hidden',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              <Box
-                component="img"
-                src={artwork.image_url}
-                alt={artwork.title || 'Artwork'}
-                sx={{
-                  maxWidth: '100%',
-                  maxHeight: '100%',
-                  objectFit: 'contain', // Maintain aspect ratio without cropping
-                  display: 'block'
-                }}
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = 'https://via.placeholder.com/800x600.png?text=Artwork+Image+Not+Available';
-                }}
-              />
-            </Box>
-          </Paper>
-        </Grid>
+          />
+        </div>
         
-        {/* Details Column - Takes less space now */}
-        <Grid item xs={12} md={4} lg={3}>
-          <Paper elevation={3} sx={{ p: 3, height: '100%' }}>
-            {/* Artwork title */}
-            <Typography variant="h4" component="h1" gutterBottom>
-              {artwork.title || 'Untitled'}
-            </Typography>
-            
-            {/* Artist name with clickable link */}
-            <Typography 
-              variant="h6" 
-              component="h2" 
-              onClick={handleArtistClick}
-              sx={{ 
-                mb: 2, 
-                cursor: 'pointer',
-                '&:hover': { textDecoration: 'underline' } 
-              }}
-            >
-              by {artistName}
-            </Typography>
-            
-            {/* Rarity badge */}
-            {artwork.rarity && (
-              <Chip 
-                label={artwork.rarity.charAt(0).toUpperCase() + artwork.rarity.slice(1)}
-                color={
-                  artwork.rarity === 'common' ? 'default' :
-                  artwork.rarity === 'uncommon' ? 'success' :
-                  artwork.rarity === 'rare' ? 'primary' :
-                  artwork.rarity === 'epic' ? 'secondary' :
-                  artwork.rarity === 'legendary' ? 'warning' : 'default'
-                }
-                sx={{ mb: 2 }}
-              />
-            )}
-            
-            {/* Creator Actions */}
-            {isCreator && !isEditing && (
-              <Box sx={{ display: 'flex', gap: 1, mt: 1, mb: 2 }}>
-                <Button 
-                  startIcon={<EditIcon />} 
-                  variant="outlined" 
-                  size="small" 
-                  onClick={handleStartEditing}
-                >
-                  Edit
-                </Button>
-                <Button 
-                  startIcon={<DeleteIcon />} 
-                  variant="outlined" 
-                  color="error" 
-                  size="small" 
-                  onClick={handleOpenDeleteDialog}
-                >
-                  Delete
-                </Button>
-              </Box>
-            )}
-            
-            <Divider sx={{ my: 2 }} />
-            
-            {/* Series */}
-            {artwork.series && (
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="subtitle1" fontWeight="bold">
-                  Series
-                </Typography>
-                <Typography variant="body1">
-                  {artwork.series}
-                </Typography>
-              </Box>
-            )}
-            
-            {/* Medium & Year */}
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="subtitle1" fontWeight="bold">
-                Details
-              </Typography>
-              <Typography variant="body1">
-                {[
-                  artwork.medium,
-                  artwork.year && `${artwork.year}`
-                ].filter(Boolean).join(', ')}
-              </Typography>
-            </Box>
-            
-            {/* Description */}
-            {artwork.description && (
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="subtitle1" fontWeight="bold">
-                  Description
-                </Typography>
-                <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
-                  {artwork.description}
-                </Typography>
-              </Box>
-            )}
-            
-            <Divider sx={{ my: 2 }} />
-            
-            {/* Metadata */}
-            <Box sx={{ mt: 'auto' }}>
-              <Typography variant="caption" component="p" color="text.secondary">
-                Artifact ID: {artwork.artwork_id}
-              </Typography>
-              <Typography variant="caption" component="p" color="text.secondary">
-                Created: {new Date(artwork.created_at).toLocaleDateString()}
-              </Typography>
-            </Box>
-          </Paper>
-        </Grid>
-      </Grid>
-
-      {/* Edit Form Dialog */}
-      {isEditing && (
-        <Paper elevation={3} sx={{ mt: 4, p: 3 }}>
-          <Typography variant="h5" component="h2" gutterBottom>
-            Edit Artwork
-          </Typography>
-          
-          {editError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {editError}
-            </Alert>
-          )}
-          
-          {editSuccess && (
-            <Alert severity="success" sx={{ mb: 2 }}>
-              Artwork updated successfully!
-            </Alert>
-          )}
-          
-          <form onSubmit={handleSubmitEdit}>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
+        {/* Details/Edit Panel */}
+        <div className="artwork-details-panel">
+          {isEditing ? (
+            // Edit Form
+            <>
+              <h2 className="artwork-title">Edit Artwork</h2>
+              
+              {editError && (
+                <div className="artwork-alert artwork-alert-error">
+                  {editError}
+                </div>
+              )}
+              
+              {editSuccess && (
+                <div className="artwork-alert artwork-alert-success">
+                  Artwork updated successfully!
+                </div>
+              )}
+              
+              <form className="artwork-edit-form" onSubmit={handleSubmitEdit}>
                 <TextField
                   name="title"
                   label="Title"
@@ -400,10 +262,11 @@ function ArtworkDetailsPage() {
                   onChange={handleEditFormChange}
                   fullWidth
                   required
-                  margin="normal"
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                  className="form-field compact-form-field"
                 />
-              </Grid>
-              <Grid item xs={12} sm={6}>
+                
                 <TextField
                   name="artist_name"
                   label="Artist Name"
@@ -411,89 +274,194 @@ function ArtworkDetailsPage() {
                   onChange={handleEditFormChange}
                   fullWidth
                   required
-                  margin="normal"
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                  className="form-field compact-form-field"
                 />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  name="medium"
-                  label="Medium"
-                  value={editFormData.medium}
-                  onChange={handleEditFormChange}
-                  fullWidth
-                  required
-                  margin="normal"
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  name="year"
-                  label="Year"
-                  type="number"
-                  value={editFormData.year}
-                  onChange={handleEditFormChange}
-                  fullWidth
-                  margin="normal"
-                  InputProps={{ inputProps: { min: 0 } }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  name="series"
-                  label="Series (Optional)"
-                  value={editFormData.series}
-                  onChange={handleEditFormChange}
-                  fullWidth
-                  margin="normal"
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth margin="normal">
-                  <InputLabel id="rarity-select-label">Rarity</InputLabel>
-                  <Select
-                    labelId="rarity-select-label"
-                    id="rarity"
-                    name="rarity"
-                    value={editFormData.rarity}
-                    label="Rarity"
+                
+                <div className="form-row">
+                  <TextField
+                    name="medium"
+                    label="Medium"
+                    value={editFormData.medium}
                     onChange={handleEditFormChange}
+                    fullWidth
                     required
-                  >
-                    {ARTWORK_RARITIES.map((rarityOpt) => (
-                      <MenuItem key={rarityOpt.value} value={rarityOpt.value}>
-                        {rarityOpt.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12}>
+                    size="small"
+                    InputLabelProps={{ shrink: true }}
+                    className="form-field compact-form-field"
+                  />
+                  
+                  <TextField
+                    name="year"
+                    label="Year"
+                    type="number"
+                    value={editFormData.year}
+                    onChange={handleEditFormChange}
+                    size="small"
+                    InputProps={{ inputProps: { min: 0 } }}
+                    InputLabelProps={{ shrink: true }}
+                    className="form-field-small compact-form-field"
+                  />
+                </div>
+                
+                <div className="form-row">
+                  <FormControl size="small" className="form-field compact-form-field">
+                    <InputLabel id="rarity-select-label" shrink>Rarity</InputLabel>
+                    <Select
+                      labelId="rarity-select-label"
+                      id="rarity"
+                      name="rarity"
+                      value={editFormData.rarity}
+                      label="Rarity"
+                      onChange={handleEditFormChange}
+                      required
+                    >
+                      {ARTWORK_RARITIES.map((rarityOpt) => (
+                        <MenuItem key={rarityOpt.value} value={rarityOpt.value}>
+                          {rarityOpt.label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  
+                  <TextField
+                    name="series"
+                    label="Series"
+                    value={editFormData.series}
+                    onChange={handleEditFormChange}
+                    size="small"
+                    InputLabelProps={{ shrink: true }}
+                    className="form-field compact-form-field"
+                  />
+                </div>
+                
                 <TextField
                   name="description"
-                  label="Description (Optional)"
+                  label="Description"
                   value={editFormData.description}
                   onChange={handleEditFormChange}
                   fullWidth
                   multiline
-                  rows={4}
-                  margin="normal"
+                  rows={2}
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                  className="form-field compact-form-field"
                 />
-              </Grid>
-              <Grid item xs={12}>
-                <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', mt: 2 }}>
-                  <Button type="button" onClick={handleCancelEdit}>
+                
+                <div className="form-actions">
+                  <Button 
+                    type="button" 
+                    onClick={handleCancelEdit} 
+                    size="small" 
+                  >
                     Cancel
                   </Button>
-                  <Button type="submit" variant="contained" color="primary">
-                    Save Changes
+                  <Button 
+                    type="submit" 
+                    variant="contained" 
+                    color="primary" 
+                    size="small"
+                  >
+                    Save
                   </Button>
-                </Box>
-              </Grid>
-            </Grid>
-          </form>
-        </Paper>
-      )}
-      
+                </div>
+              </form>
+            </>
+          ) : (
+            // Normal display mode
+            <>
+              <h1 className="artwork-title">
+                {artwork.title || 'Untitled'}
+              </h1>
+              
+              <h2 
+                className="artwork-artist" 
+                onClick={handleArtistClick}
+              >
+                by {artistName}
+              </h2>
+              
+              {artwork.rarity && (
+                <div className={getRarityClassName(artwork.rarity)}>
+                  {artwork.rarity.charAt(0).toUpperCase() + artwork.rarity.slice(1)}
+                </div>
+              )}
+              
+              {/* Creator Actions */}
+              {isCreator && (
+                <div className="artwork-creator-actions">
+                  <Button 
+                    startIcon={<EditIcon />} 
+                    variant="outlined" 
+                    size="small" 
+                    onClick={handleStartEditing}
+                  >
+                    Edit
+                  </Button>
+                  <Button 
+                    startIcon={<DeleteIcon />} 
+                    variant="outlined" 
+                    color="error" 
+                    size="small" 
+                    onClick={handleOpenDeleteDialog}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              )}
+              
+              <hr className="artwork-divider" />
+              
+              {/* Series */}
+              {artwork.series && (
+                <div className="artwork-section">
+                  <h3 className="artwork-section-title">
+                    Series
+                  </h3>
+                  <div className="artwork-section-content">
+                    {artwork.series}
+                  </div>
+                </div>
+              )}
+              
+              {/* Medium & Year */}
+              <div className="artwork-section">
+                <h3 className="artwork-section-title">
+                  Details
+                </h3>
+                <div className="artwork-section-content">
+                  {[
+                    artwork.medium,
+                    artwork.year && `${artwork.year}`
+                  ].filter(Boolean).join(', ')}
+                </div>
+              </div>
+              
+              {/* Description */}
+              {artwork.description && (
+                <div className="artwork-section">
+                  <h3 className="artwork-section-title">
+                    Description
+                  </h3>
+                  <div className="artwork-section-content">
+                    {artwork.description}
+                  </div>
+                </div>
+              )}
+              
+              <hr className="artwork-divider" />
+              
+              {/* Metadata */}
+              <div className="artwork-metadata">
+                <p>Artifact ID: {artwork.artwork_id}</p>
+                <p>Created: {new Date(artwork.created_at).toLocaleDateString()}</p>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
       {/* Delete Confirmation Dialog */}
       <Dialog
         open={deleteDialogOpen}
@@ -531,7 +499,7 @@ function ArtworkDetailsPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Container>
+    </div>
   );
 }
 

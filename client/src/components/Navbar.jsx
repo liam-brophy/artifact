@@ -1,86 +1,102 @@
 import React from 'react';
-import { Link as RouterLink } from 'react-router-dom'; // Import with alias
+import { Link as RouterLink } from 'react-router-dom';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
-// Optional: Add an icon for the upload link
-// import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import IconButton from '@mui/material/IconButton';
+import LightModeIcon from '@mui/icons-material/LightMode';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import Tooltip from '@mui/material/Tooltip';
 
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+
+// Import the CSS file
+import './NavBar.css';
 
 function Navbar() {
-  const { user, logout } = useAuth(); // Get user and logout function
+  const { user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const isDarkMode = theme === 'dark';
+  const themeClass = isDarkMode ? 'dark-theme' : 'light-theme';
+
+  // Logo paths based on theme
+  const logoSrc = isDarkMode 
+    ? '/assets/Artifact_Logo_White.png' 
+    : '/assets/Artifact_Logo_Black.png';
 
   return (
-    <AppBar position="static" sx={{ mb: 3, bgcolor: 'background.paper', color: 'text.primary' }}>
-        <Toolbar>
-            <Typography variant="h6" component="div" sx={{ flexGrow: 0, mr: 3 }}>
-                <RouterLink to="/" style={{ textDecoration: 'none', color: 'inherit' }}>
-                    Artifact
-                </RouterLink>
-            </Typography>
+    <>
+      <AppBar position="fixed" className={`navbar ${themeClass}`} elevation={0}>
+        <Toolbar className="navbar-toolbar" disableGutters>
+          {/* Left side - Logo only */}
+          <Box className="nav-links">
+            <RouterLink to="/" className="logo-container">
+              <img 
+                src={logoSrc} 
+                alt="Artifact Logo" 
+                className="navbar-logo"
+              />
+            </RouterLink>
+          </Box>
 
-            <Box sx={{ flexGrow: 1, display: 'flex', gap: 1 }}>
-                <Button color="inherit" component={RouterLink} to="/">
-                    Home
+          {/* Right side - User actions */}
+          <Box className="nav-actions">
+            {/* Artist upload icon */}
+            {user && user.role === 'artist' && (
+              <Tooltip title="Upload Artwork">
+                <IconButton
+                  component={RouterLink}
+                  to="/upload"
+                  className={`upload-icon ${themeClass}`}
+                >
+                  <CloudUploadIcon />
+                </IconButton>
+              </Tooltip>
+            )}
+            
+            {/* Theme Toggle Button */}
+            <IconButton 
+              onClick={toggleTheme} 
+              aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              className={`theme-toggle ${themeClass}`}
+            >
+              {isDarkMode ? <LightModeIcon /> : <DarkModeIcon />}
+            </IconButton>
+
+            {user ? (
+              /* Username with link to profile */
+              <RouterLink to={`/users/${user.username}`} className={`username-link ${themeClass}`}>
+                <Typography variant="body1" className="greeting-text">
+                  Hi, {user.username || user.email}!
+                </Typography>
+              </RouterLink>
+            ) : (
+              <>
+                <Button color="inherit" component={RouterLink} to="/login">
+                  Login
                 </Button>
-                {user && (
-                    <Button 
-                        color="inherit" 
-                        component={RouterLink} 
-                        to={`/users/${user.username}`}>
-                        My Profile
-                    </Button>
-                )}
-                {user && user.role === 'artist' && (
-                    <Button
-                        color="primary" // Use primary theme color for emphasis
-                        variant="outlined" // Make it stand out slightly
-                        component={RouterLink}
-                        to="/upload"
-                       // startIcon={<CloudUploadIcon />} // Optional icon
-                    >
-                        Upload Artwork
-                    </Button>
-                )}
-                {/* Additional general links can be added here */}
-            </Box>
-
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                {user ? (
-                    <>
-                        <Typography variant="body1" sx={{ display: { xs: 'none', sm: 'block' } }}>
-                            Hi, {user.username || user.email}!
-                        </Typography>
-                        <Button
-                            variant="outlined"
-                            color="inherit"
-                            onClick={logout}
-                        >
-                            Logout
-                        </Button>
-                    </>
-                ) : (
-                    <>
-                        <Button color="inherit" component={RouterLink} to="/login">
-                            Login
-                        </Button>
-                        <Button
-                            variant="contained"
-                            color="primary"
-                            component={RouterLink}
-                            to="/register"
-                            disableElevation
-                        >
-                            Register
-                        </Button>
-                    </>
-                )}
-            </Box>
+                
+                <Button
+                  variant="contained"
+                  component={RouterLink}
+                  to="/register"
+                  disableElevation
+                  className={`primary-button ${themeClass}`}
+                >
+                  Register
+                </Button>
+              </>
+            )}
+          </Box>
         </Toolbar>
-    </AppBar>
+      </AppBar>
+      {/* Add toolbar placeholder to prevent content from hiding under the fixed navbar */}
+      <Toolbar />
+    </>
   );
 }
 

@@ -1,105 +1,197 @@
 /* src/pages/ProfilePage.css */
 
+/* Profile Page Container */
 .profile-page-container {
-    max-width: 1200px;
-    margin: 2rem auto;
-    padding: 0 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  font-family: var(--body-font);
 }
 
-/* Header */
+/* Profile Header Section */
 .profile-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start; /* Align items to the top */
-    margin-bottom: 2rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid #eee;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.profile-info .profile-username {
-    margin: 0 0 0.25rem 0;
-    font-size: 2rem; /* Example size */
+.profile-info {
+  flex: 1;
 }
 
-.profile-info .profile-role {
-    color: #555;
-    margin-bottom: 0.5rem;
+.profile-username {
+  font-size: 2rem;
+  margin: 0 0 0.5rem 0;
+  font-family: var(--header-font);
+}
+
+.profile-role {
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0 0 1rem 0;
 }
 
 .profile-social-counts {
-    display: flex;
-    gap: 1rem; /* Space between follower/following */
-    font-size: 0.9rem;
-    color: #333;
+  display: flex;
+  gap: 1.5rem;
 }
 
 .profile-actions {
-    padding-top: 0.5rem; /* Align button roughly */
-}
-/* 
-.profile-follow-button {
-    /* Add styles */
-
-/* .profile-follow-button.following {
-    /* Styles for when following (e.g., border color) */
-
-/* .profile-edit-button {
-     /* Add styles */
- */
- */ */
-
-/* Artworks Section */
-.profile-artworks-section {
-    margin-top: 2rem;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
 
-.profile-artworks-title {
-    font-size: 1.5rem;
-    margin-bottom: 1.5rem;
-    text-align: center;
+/* Icon button styling */
+.profile-settings-button, 
+.profile-logout-button {
+  color: rgba(255, 255, 255, 0.8);
+  transition: color 0.2s, transform 0.2s;
 }
 
-.profile-artworks-loading,
-.profile-artworks-error,
-.profile-artworks-empty,
-.profile-artworks-private {
-    text-align: center;
-    padding: 2rem 0;
-    color: #666;
+.profile-settings-button:hover {
+  color: var(--accent-color);
+  transform: rotate(30deg);
 }
 
+.profile-logout-button:hover {
+  color: var(--accent-color);
+  transform: scale(1.1);
+}
+
+/* Follow button styling */
+.profile-follow-button.following {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+/* Artworks Container */
+.profile-artworks-container {
+  margin-top: 2rem;
+}
+
+/* Tabs custom styling */
+.MuiTabs-root {
+  margin-bottom: 2rem;
+}
+
+.MuiTab-root {
+  font-weight: 600;
+  text-transform: none; /* Prevent all-caps */
+  font-size: 1rem;
+}
+
+/* Artwork Grid */
 .profile-artworks-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); /* Responsive grid */
-    gap: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
 }
 
+.profile-artwork-item {
+  width: 100%;
+  aspect-ratio: 2/3;
+  display: flex;
+  justify-content: center;
+  transition: transform 0.3s ease;
+}
 
+.profile-artwork-item:hover {
+  transform: translateY(-5px);
+}
 
-/* Blur effect */
+/* Make artworks that are not owned appear blurred in artist profiles */
 .artwork-blurred {
-  filter: blur(4px);
-  transition: filter 0.3s ease-in-out;
-  opacity: 0.7;
-}
-.artwork-blurred:hover {
-    filter: blur(7px);
-    transition: filter 0.3s ease-in-out;
-    opacity: 0.7;
+  filter: blur(5px);
+  position: relative;
 }
 
-/* Pagination */
+.artwork-blurred::after {
+  content: "Purchase to view";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.7);
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  color: white;
+  font-size: 0.875rem;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Loading States */
+.profile-artworks-loading,
+.profile-loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  width: 100%;
+}
+
+/* Empty and Error States */
+.profile-artworks-empty,
+.profile-error-container,
+.profile-artworks-private {
+  text-align: center;
+  padding: 2rem;
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  margin: 1rem 0;
+}
+
+.profile-artworks-private {
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Pagination container */
 .profile-pagination-container {
-    display: flex;
-    justify-content: center;
-    margin-top: 2.5rem;
+  display: flex;
+  justify-content: center;
+  margin-top: 2rem;
 }
 
-/* Loading/Error Containers for whole page */
-.profile-loading-container,
-.profile-error-container {
-     display: flex;
-     justify-content: center;
-     align-items: center;
-     min-height: 60vh; /* Take up significant height */
+/* Section titles */
+.profile-artworks-title {
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-family: var(--header-font);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .profile-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .profile-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  
+  .profile-artworks-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-social-counts {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .profile-artworks-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
 }

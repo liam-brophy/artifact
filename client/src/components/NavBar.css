@@ -1,0 +1,190 @@
+/* NavBar.css - Styles for the navigation bar component */
+
+/* Base navbar styles */
+.navbar {
+  width: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1100;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  font-family: var(--body-font);
+}
+
+/* Apply header font to navbar brand/title if any */
+.navbar-brand, .navbar-title {
+  font-family: var(--header-font);
+}
+
+/* Theme-specific navbar styles */
+.navbar.light-theme {
+  background-color: rgba(255, 255, 255, 0.85);
+  color: #333333;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.navbar.dark-theme {
+  background-color: rgba(0, 0, 0, 0.85);
+  color: #FFFFFF;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+/* Backdrop filter for glass effect */
+.navbar {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px); /* For Safari */
+}
+
+/* Toolbar container */
+.navbar-toolbar {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1.5rem;
+}
+
+/* Logo container */
+.logo-container {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.navbar-logo {
+  height: 40px;
+  margin-right: 16px;
+}
+
+/* Nav links container */
+.nav-links {
+  display: flex;
+  gap: 8px;
+}
+
+/* Actions container (right side) */
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Theme toggle button */
+.theme-toggle {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.theme-toggle.light-theme {
+  color: #F50801;
+}
+
+.theme-toggle.dark-theme {
+  color: #3BDBB2;
+}
+
+/* Upload icon button */
+.upload-icon {
+  transition: transform 0.2s ease;
+}
+
+.upload-icon:hover {
+  transform: scale(1.1);
+}
+
+.upload-icon.light-theme {
+  color: #F50801;
+}
+
+.upload-icon.dark-theme {
+  color: #3BDBB2;
+}
+
+/* Username link styles */
+.username-link {
+  text-decoration: none;
+  position: relative;
+  padding-bottom: 2px;
+  transition: opacity 0.2s ease;
+}
+
+.username-link:hover {
+  opacity: 0.8;
+}
+
+.username-link::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  transition: width 0.3s ease;
+}
+
+.username-link:hover::after {
+  width: 100%;
+}
+
+.username-link.light-theme {
+  color: #333333;
+}
+
+.username-link.light-theme::after {
+  background-color: #F50801;
+}
+
+.username-link.dark-theme {
+  color: #FFFFFF;
+}
+
+.username-link.dark-theme::after {
+  background-color: #3BDBB2;
+}
+
+/* Logout button */
+.logout-button {
+  transition: opacity 0.2s ease;
+}
+
+.logout-button:hover {
+  opacity: 0.9;
+}
+
+/* Primary button styles */
+.primary-button.light-theme {
+  color: #FFFFFF;
+  background-color: #F50801;
+}
+
+.primary-button.light-theme:hover {
+  background-color: #D90701;
+}
+
+.primary-button.dark-theme {
+  color: #000000;
+  background-color: #3BDBB2;
+}
+
+.primary-button.dark-theme:hover {
+  background-color: #2FC69F;
+}
+
+/* Greeting text */
+.greeting-text {
+  display: inline-block;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .navbar-toolbar {
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .greeting-text {
+    display: none;
+  }
+}

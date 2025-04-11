@@ -1,5 +1,5 @@
 // src/pages/HomePage.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import Slider from 'react-slick'; // Import react-slick
 
@@ -8,28 +8,31 @@ import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 
 // Import MUI components (can be gradually replaced if moving fully away from MUI)
-import Container from '@mui/material/Container'; // Still used for overall structure maybe
-import Typography from '@mui/material/Typography'; // Useful for consistent text styles
+import Container from '@mui/material/Container';
+import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button'; // Keep for now
+import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 
 import { useAuth } from '../context/AuthContext';
 import apiService from '../services/apiService';
 import ArtworkCard from '../components/ArtworkCard';
-import UserPacks from '../components/UserPacks'; // Import UserPacks
+import UserPacks from '../components/UserPacks';
 
 // Import the CSS file
 import './HomePage.css';
 
 function HomePage() {
   const { user } = useAuth();
+  const sliderRef = useRef(null);
 
   // State for fetching artworks
   const [artworks, setArtworks] = useState([]);
   const [isLoadingArtworks, setIsLoadingArtworks] = useState(true);
   const [errorArtworks, setErrorArtworks] = useState(null);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [slidesToShow, setSlidesToShow] = useState(4);
 
   // Fetch artworks when component mounts
   useEffect(() => {
@@ -48,57 +51,116 @@ function HomePage() {
       }
     };
     fetchRecentArtworks();
+    
+    // Update slidesToShow based on window width
+    const updateSlidesToShow = () => {
+      if (window.innerWidth >= 1200) {
+        setSlidesToShow(4);
+      } else if (window.innerWidth >= 900) {
+        setSlidesToShow(3);
+      } else if (window.innerWidth >= 600) {
+        setSlidesToShow(2);
+      } else {
+        setSlidesToShow(1);
+      }
+    };
+    
+    // Initial calculation
+    updateSlidesToShow();
+    
+    // Listen for resize events
+    window.addEventListener('resize', updateSlidesToShow);
+    return () => window.removeEventListener('resize', updateSlidesToShow);
   }, []);
 
   const welcomeMessage = user
     ? `Welcome back, ${user.username || user.email}!`
     : 'Welcome to Artifact!';
 
-  // Carousel settings
+  // Handle slide change to update card positions
+  const handleBeforeChange = (oldIndex, newIndex) => {
+    setCurrentSlide(newIndex);
+  };
+
+  // Enhanced style function - making all cards fully visible
+  const getCardStyle = (index) => {
+    const relativeIndex = index - currentSlide;
+    
+    // More dramatic rotation based on position
+    const rotationFactor = Math.abs(relativeIndex) <= 1 ? 0 : 
+                           (index % 2 === 0 ? 1 : -1) * Math.min(Math.abs(relativeIndex), 3);
+                           
+    return {
+      // Set custom properties for CSS
+      '--index': index,
+      '--relative-index': relativeIndex,
+      animationDelay: `${index * 0.08}s`, // Quick stagger delay
+      zIndex: 10 - Math.abs(relativeIndex), // Z-index based on position from current slide
+      // Apply rotation but keep full opacity
+      transform: `rotate(${rotationFactor * 4}deg)`, // 4 degrees for more dramatic effect
+    };
+  };
+
+  // Carousel settings - remove arrows
   const carouselSettings = {
     dots: true,
-    infinite: artworks.length > 3, // Only loop if enough items
+    infinite: artworks.length > slidesToShow,
     speed: 500,
-    slidesToShow: 4, // Show 4 items on larger screens
+    slidesToShow: slidesToShow,
     slidesToScroll: 1,
     autoplay: true,
     autoplaySpeed: 3000,
     pauseOnHover: true,
+    centerMode: false,
+    arrows: false, // Remove the navigation arrows
+    beforeChange: handleBeforeChange,
     responsive: [
       {
-        breakpoint: 1200, // lg
+        breakpoint: 1200,
         settings: {
           slidesToShow: 3,
+          slidesToScroll: 1,
         }
       },
       {
-        breakpoint: 900, // md
+        breakpoint: 900,
         settings: {
           slidesToShow: 2,
+          slidesToScroll: 1,
         }
       },
       {
-        breakpoint: 600, // sm
+        breakpoint: 600,
         settings: {
           slidesToShow: 1,
+          slidesToScroll: 1,
+          centerMode: true,
+          centerPadding: '30px',
+        }
+      },
+      {
+        breakpoint: 480,
+        settings: {
+          slidesToShow: 1,
+          slidesToScroll: 1,
+          centerMode: true,
+          centerPadding: '20px',
+          dots: false,
         }
       }
     ]
   };
 
   return (
-    // Use className for overall container styling
     <div className="home-page-container">
-
       {/* --- Top Section (Welcome & Role Actions) --- */}
       <section className="welcome-section">
         <h1 className="welcome-title">{welcomeMessage}</h1>
         <p className="welcome-subtitle">Discover, collect, and support digital artists.</p>
         <div className="role-actions">
-          {/* Role specific buttons - Keep using MUI Button for now, or style regular buttons */}
+          {/* Role specific buttons */}
           {user && user.role === 'artist' && (
             <>
-              {/* Using Typography for heading style consistency */}
               <Typography variant="h5" component="h3" gutterBottom sx={{ mb: 2 }}>Artist Dashboard</Typography>
               <Button component={RouterLink} to="/upload" variant="contained" color="primary" size="large" sx={{ mr: 1, ml: 1 }}> Upload New Artwork </Button>
               <Button component={RouterLink} to={`/users/${user.username}`} variant="outlined" size="large" sx={{ mr: 1, ml: 1 }}> My Profile & Artworks </Button>
@@ -122,42 +184,38 @@ function HomePage() {
       {/* --- End Top Section --- */}
 
       {/* === User Packs Section === */}
-      {/* Only show this section if the user is logged in */}
       {user && (
         <section className="packs-section">
           <h2 className="packs-section-title">Your Unopened Packs</h2>
-          <UserPacks /> {/* Render the dedicated component here */}
+          <UserPacks />
         </section>
       )}
       {/* === End User Packs Section === */}
-
 
       {/* === Artwork Carousel Section === */}
       <section className="artworks-carousel-section">
         <h2 className="artworks-carousel-title">Featured Artworks</h2>
 
-        {/* Conditional Rendering based on fetch state */}
         {isLoadingArtworks ? (
           <div className="loading-container">
             <CircularProgress />
           </div>
         ) : errorArtworks ? (
           <div className="error-container">
-            {/* Using Alert for consistency, but could be a simple p tag */}
             <Alert severity="error" sx={{ width: '100%', justifyContent: 'center' }}>
               {errorArtworks}
             </Alert>
           </div>
         ) : artworks.length > 0 ? (
-          // Use the react-slick Slider component
-          <Slider {...carouselSettings}>
-            {artworks.map((artwork) => (
-              // Add a div wrapper for potential slide padding/styling
-              <div key={artwork.artwork_id} className="carousel-slide">
-                <ArtworkCard artwork={artwork} />
-              </div>
-            ))}
-          </Slider>
+          <div className="carousel-container">
+            <Slider {...carouselSettings} ref={sliderRef}>
+              {artworks.map((artwork, index) => (
+                <div key={artwork.artwork_id} className="carousel-slide" style={getCardStyle(index)}>
+                  <ArtworkCard artwork={artwork} />
+                </div>
+              ))}
+            </Slider>
+          </div>
         ) : (
           <div className="no-artworks-container">
             <p>No artworks found yet.</p>
@@ -166,7 +224,7 @@ function HomePage() {
       </section>
       {/* === End Artwork Carousel Section === */}
 
-    </div> // End home-page-container
+    </div>
   );
 }
 

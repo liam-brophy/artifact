@@ -11,6 +11,7 @@ from server.models.artwork import Artwork
 from server.models.collection import Collection
 from server.models.pack_type import PackType # Still needed for FK constraint
 from server.models.user_pack import UserPack
+from server.services.scheduler_service import generate_daily_packs, get_next_daily_pack_time
 
 packs_bp = Blueprint('packs', __name__) # Define blueprint
 
@@ -56,6 +57,62 @@ def get_unopened_user_packs():
         # current_app.logger.error(f"Error fetching user packs for user {current_user_id}: {e}")
         print(f"Error fetching user packs for user {current_user_id}: {e}") # Simple print for now
         return jsonify({"error": "An internal error occurred while fetching packs."}), 500
+
+
+# Route for next daily pack availability
+@packs_bp.route('/user-packs/next-availability', methods=['GET'])
+@jwt_required()
+def get_next_pack_availability():
+    """
+    Fetches information about when the user's next daily pack will be available.
+    """
+    current_user_id = get_jwt_identity()
+
+    try:
+        next_pack_time = get_next_daily_pack_time(current_user_id)
+        
+        # Check if user has any unopened packs
+        unopened_daily_packs_count = UserPack.query.join(PackType, UserPack.pack_type_id == PackType.pack_type_id)\
+            .filter(UserPack.user_id == current_user_id)\
+            .filter(PackType.name == "Daily Pack")\
+            .filter(UserPack.opened_at.is_(None))\
+            .count()
+        
+        return jsonify({
+            "next_available_at": next_pack_time.isoformat() if next_pack_time else None,
+            "has_unopened_daily_packs": unopened_daily_packs_count > 0
+        }), 200
+
+    except Exception as e:
+        print(f"Error fetching next pack availability for user {current_user_id}: {e}")
+        return jsonify({"error": "An internal error occurred while checking pack availability."}), 500
+
+
+# Admin route to manually trigger daily pack generation
+@packs_bp.route('/admin/generate-daily-packs', methods=['POST'])
+@jwt_required()
+def admin_generate_daily_packs():
+    """
+    Admin endpoint to manually trigger the daily pack generation.
+    """
+    current_user_id = get_jwt_identity()
+    
+    # Check if user is an admin (assuming you have a role field)
+    user = User.query.get(current_user_id)
+    if not user or user.role != 'admin':
+        return jsonify({"error": "Unauthorized: Admin access required"}), 403
+    
+    try:
+        # Call the generate_daily_packs function
+        success_count = generate_daily_packs()
+        
+        return jsonify({
+            "message": f"Pack generation complete. {success_count} new packs created."
+        }), 200
+        
+    except Exception as e:
+        print(f"Error in manual pack generation: {e}")
+        return jsonify({"error": "An error occurred during pack generation."}), 500
 
 
 # Route definition uses the prefix from app.py registration + '/user-packs/...'

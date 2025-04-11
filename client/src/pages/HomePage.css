@@ -6,6 +6,7 @@
     margin-right: auto;
     padding-left: 1rem; /* Some padding */
     padding-right: 1rem;
+    font-family: var(--body-font);
   }
   
   .welcome-section {
@@ -17,6 +18,7 @@
     margin-bottom: 0.5rem;
     font-weight: 500; /* medium */
     font-size: 2.5rem; /* Approximates h3 */
+    font-family: var(--header-font);
   }
   
   .welcome-subtitle {
@@ -51,17 +53,20 @@
     text-align: center;
     margin-bottom: 1.5rem;
     font-size: 1.5rem; /* Approximates h5 */
+    font-family: var(--header-font);
   }
   
   .artworks-carousel-section {
     margin-top: 2rem;
     margin-bottom: 2rem;
+    overflow: visible; /* Allow carousel content to overflow */
   }
   
   .artworks-carousel-title {
     text-align: center;
     margin-bottom: 2rem;
     font-size: 1.5rem; /* Approximates h5 */
+    font-family: var(--header-font);
   }
   
   .loading-container,
@@ -82,7 +87,101 @@
     color: black; /* Make arrows visible */
   }
   
-  /* Add padding around the slides if cards touch */
+  /* Simple carousel slide with enhanced animations - all fully visible */
   .carousel-slide {
-    padding: 0 10px; /* Adjust horizontal padding between slides */
+    padding: 0 15px;
+    display: flex;
+    justify-content: center;
+    box-sizing: border-box;
+    overflow: visible;
+    transform-origin: center bottom;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    opacity: 1; /* All cards fully visible */
+  }
+  
+  /* Enhanced hover effect */
+  .carousel-slide:hover {
+    transform: translateY(-15px) rotate(0deg) !important;
+    z-index: 10;
+  }
+  
+  /* Dramatic initial card angles */
+  .slick-slide:nth-child(odd) .carousel-slide {
+    transform: rotate(-4deg); /* More dramatic angle */
+  }
+  
+  .slick-slide:nth-child(even) .carousel-slide {
+    transform: rotate(4deg); /* More dramatic angle */
+  }
+  
+  /* Current active slide should appear on top */
+  .slick-active .carousel-slide {
+    z-index: 5;
+  }
+  
+  /* Current center slide should appear most prominent with FULL opacity */
+  .slick-current .carousel-slide {
+    transform: translateY(-5px) rotate(0deg) !important; /* No rotation for current slide */
+    z-index: 8;
+    transition: all 0.25s ease; /* Faster transition */
+  }
+  
+  /* Enhanced animation for dramatic dealing effect */
+  @keyframes dealCard {
+    0% {
+      opacity: 0;
+      transform: translateY(80px) translateX(-30px) rotate(-15deg); /* More dramatic start */
+    }
+    40% {
+      opacity: 1;
+      transform: translateY(10px) translateX(-8px) rotate(var(--rotate-value, 0deg));
+    }
+    70% {
+      transform: translateY(0) translateX(0) rotate(var(--rotate-value, 0deg));
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) translateX(0) rotate(0deg); /* End with no rotation */
+    }
+  }
+  
+  /* Apply animation to slides when they become active */
+  .slick-slide.slick-active .carousel-slide {
+    animation: dealCard 0.6s forwards; /* Faster animation */
+    --rotate-value: calc((var(--index, 0) - 2) * 3deg); /* Less rotation based on index */
+  }
+  
+  /* Add responsive container styles for slick carousel */
+  .slick-slider {
+    margin: 0 -15px; /* Compensate for slide padding */
+    overflow: visible; /* Allow carousel items to overflow */
+  }
+
+  .slick-list {
+    overflow: visible !important; /* Override slick's default overflow hidden */
+    padding: 30px 0; /* Add some vertical padding for the animation */
+  }
+  
+  /* Ensure consistent spacing between slides across screen sizes */
+  @media (max-width: 600px) {
+    .carousel-slide {
+      padding: 0 8px; /* Less padding on smaller screens */
+    }
+    
+    .slick-slider {
+      margin: 0 -8px; /* Match the slide padding */
+    }
+  }
+
+  .carousel-container {
+    position: relative;
+    padding: 20px 0;
+    margin-bottom: 30px;
+  }
+  
+  /* Make cards straighten out immediately when becoming current */
+  .slick-current .carousel-slide, 
+  .slick-current + .slick-slide .carousel-slide {
+    transform: translateY(0) rotate(0deg) !important;
+    transition: all 0.2s ease-out; /* Very fast transition */
   }
