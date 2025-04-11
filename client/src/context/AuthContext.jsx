@@ -76,6 +76,21 @@ export const AuthProvider = ({ children }) => {
   // --- Effect to Check Authentication Status on Load ---
   useEffect(() => {
     fetchUserDataAndCollection(true); // Pass true for initial load
+    
+    // Add event listener for token refresh failure
+    const handleTokenRefreshFailure = () => {
+      console.log("Token refresh failed, logging out user");
+      // Skip the API call when logging out due to token refresh failure
+      // since the token is already invalid
+      logout(true);
+    };
+    
+    window.addEventListener('auth:tokenRefreshFailed', handleTokenRefreshFailure);
+    
+    // Cleanup listener on unmount
+    return () => {
+      window.removeEventListener('auth:tokenRefreshFailed', handleTokenRefreshFailure);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchUserDataAndCollection]); // Depend on the stable useCallback function
 
@@ -94,14 +109,19 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // --- Logout Function ---
-  const logout = useCallback(async () => {
+  const logout = useCallback(async (skipApiCall = false) => {
     setUser(null);
     setIsAuthenticated(false);
     setOwnedArtworkIds(new Set());
 
-    try {
-      await apiService.post(LOGOUT_ENDPOINT);
-    } catch (error) {}
+    if (!skipApiCall) {
+      try {
+        await apiService.post(LOGOUT_ENDPOINT);
+      } catch (error) {
+        // Silent failure is okay here - we're logging out anyway
+        console.log("Logout API call failed, but continuing with client-side logout");
+      }
+    }
   }, []);
 
   // --- Memoized Context Value ---

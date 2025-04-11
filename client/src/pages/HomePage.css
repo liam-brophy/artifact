@@ -59,7 +59,10 @@
   .artworks-carousel-section {
     margin-top: 2rem;
     margin-bottom: 2rem;
-    overflow: visible; /* Allow carousel content to overflow */
+    position: relative; /* For positioning of elements */
+    max-width: 100%;
+    overflow: hidden; /* Prevent horizontal scroll */
+    padding-top: 20px; /* Add extra top padding to prevent cutoff during animations */
   }
   
   .artworks-carousel-title {
@@ -89,29 +92,29 @@
   
   /* Simple carousel slide with enhanced animations - all fully visible */
   .carousel-slide {
-    padding: 0 15px;
+    padding: 0 10px; /* Reduce padding to avoid overflow */
     display: flex;
     justify-content: center;
     box-sizing: border-box;
-    overflow: visible;
+    overflow: visible; /* Allow card effects to go outside bounds */
     transform-origin: center bottom;
     transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     opacity: 1; /* All cards fully visible */
   }
   
-  /* Enhanced hover effect */
+  /* Enhanced hover effect with more vertical space */
   .carousel-slide:hover {
-    transform: translateY(-15px) rotate(0deg) !important;
+    transform: translateY(-0px) rotate(0deg) !important;
     z-index: 10;
   }
   
   /* Dramatic initial card angles */
   .slick-slide:nth-child(odd) .carousel-slide {
-    transform: rotate(-4deg); /* More dramatic angle */
+    transform: rotate(-2deg); /* Less dramatic angle */
   }
   
   .slick-slide:nth-child(even) .carousel-slide {
-    transform: rotate(4deg); /* More dramatic angle */
+    transform: rotate(2deg); /* Less dramatic angle */
   }
   
   /* Current active slide should appear on top */
@@ -121,7 +124,7 @@
   
   /* Current center slide should appear most prominent with FULL opacity */
   .slick-current .carousel-slide {
-    transform: translateY(-5px) rotate(0deg) !important; /* No rotation for current slide */
+    transform: translateY(-1px) rotate(0deg) !important; /* No rotation for current slide */
     z-index: 8;
     transition: all 0.25s ease; /* Faster transition */
   }
@@ -130,7 +133,7 @@
   @keyframes dealCard {
     0% {
       opacity: 0;
-      transform: translateY(80px) translateX(-30px) rotate(-15deg); /* More dramatic start */
+      transform: translateY(60px) translateX(-30px) rotate(-15deg); /* More dramatic start */
     }
     40% {
       opacity: 1;
@@ -153,13 +156,17 @@
   
   /* Add responsive container styles for slick carousel */
   .slick-slider {
-    margin: 0 -15px; /* Compensate for slide padding */
-    overflow: visible; /* Allow carousel items to overflow */
+    margin: 0; /* Remove negative margins */
+    overflow: visible; /* Allow content outside slider */
+    width: 100%; /* Set explicit width */
+    /* Let slides overflow within the carousel container but not outside it */
   }
 
   .slick-list {
-    overflow: visible !important; /* Override slick's default overflow hidden */
-    padding: 30px 0; /* Add some vertical padding for the animation */
+    overflow: hidden !important; /* Override slick's default overflow behavior */
+    padding: 45px 30px; /* Increase vertical padding to prevent top cutoff during animations */
+    width: calc(100% + 60px); /* Compensate for the margins */
+    margin: 0 -30px; /* Create negative margin for animation buffer */
   }
   
   /* Ensure consistent spacing between slides across screen sizes */
@@ -177,6 +184,9 @@
     position: relative;
     padding: 20px 0;
     margin-bottom: 30px;
+    width: 100%;
+    /* Hide overflow at container level, not at animation level */
+    overflow: hidden;
   }
   
   /* Make cards straighten out immediately when becoming current */
@@ -185,3 +195,74 @@
     transform: translateY(0) rotate(0deg) !important;
     transition: all 0.2s ease-out; /* Very fast transition */
   }
+
+/* Responsive design for the HomePage */
+@media screen and (max-width: 768px) {
+  .home-page-container {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+  
+  .welcome-title {
+    font-size: 2rem;
+  }
+  
+  .welcome-subtitle {
+    font-size: 1rem;
+  }
+  
+  .packs-section {
+    padding: 1rem;
+  }
+  
+  .artworks-carousel-section {
+    padding-top: 15px;
+    margin-top: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .slick-list {
+    padding: 30px 20px;
+  }
+  
+  /* Adjust carousel for vertical stacking */
+  .slick-track {
+    margin-left: 0;
+  }
+}
+
+@media screen and (max-width: 576px) {
+  .home-page-container {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+  
+  .welcome-title {
+    font-size: 1.8rem;
+  }
+  
+  .welcome-section {
+    margin-bottom: 2rem;
+  }
+  
+  .role-actions button {
+    margin: 0.25rem;
+    width: 100%;
+    display: block;
+  }
+  
+  /* Force carousel to show one card at a time in a vertical stack */
+  .slick-slide {
+    margin-bottom: 20px;
+  }
+  
+  .carousel-slide {
+    padding: 0 5px;
+  }
+  
+  /* Reset transform for better mobile experience */
+  .slick-slide:nth-child(odd) .carousel-slide,
+  .slick-slide:nth-child(even) .carousel-slide {
+    transform: rotate(0deg);
+  }
+}

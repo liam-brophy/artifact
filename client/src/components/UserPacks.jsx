@@ -130,6 +130,47 @@ function UserPacks() {
     if (rarityLower.includes('uncommon')) return 'rarity-uncommon';
     return 'rarity-common';
   };
+  
+  // Group packs by name and count them
+  const groupPacksByType = (packsList) => {
+    const packGroups = {};
+    
+    packsList.forEach(pack => {
+      if (!packGroups[pack.name]) {
+        packGroups[pack.name] = {
+          name: pack.name,
+          description: pack.description,
+          count: 1,
+          packs: [pack],
+          firstPackId: pack.user_pack_id
+        };
+      } else {
+        packGroups[pack.name].count++;
+        packGroups[pack.name].packs.push(pack);
+      }
+    });
+    
+    return Object.values(packGroups);
+  };
+  
+  // Get an array of pack IDs for a specific pack type
+  const getPackIdsForType = (packName) => {
+    return packs
+      .filter(pack => pack.name === packName)
+      .map(pack => pack.user_pack_id);
+  };
+
+  // Handle opening the top pack from a stack
+  const handleOpenTopPack = (packName) => {
+    const packsOfType = packs.filter(pack => pack.name === packName);
+    if (packsOfType.length > 0) {
+      // Take the first pack ID from the array of packs with this name
+      handleOpenPack(packsOfType[0].user_pack_id, packName);
+    }
+  };
+  
+  // Group the packs by type for rendering
+  const groupedPacks = groupPacksByType(packs);
 
   return (
     <div className="packs-container">
@@ -211,20 +252,50 @@ function UserPacks() {
         </div>
       )}
 
-      {/* Pack list */}
-      {!isLoading && packs.length > 0 && (
+      {/* Pack list - Now with stacked packs */}
+      {!isLoading && groupedPacks.length > 0 && (
         <ul className="packs-list">
-          {packs.map((pack) => (
-            <li key={pack.user_pack_id} className={getPackCardClass(pack.name)}>
-              <h3 className="pack-title">{pack.name}</h3>
-              {pack.description && <p className="pack-description">{pack.description}</p>}
-              <button 
-                className="pack-button"
-                onClick={() => handleOpenPack(pack.user_pack_id, pack.name)}
-                disabled={isOpening}
-              >
-                {isOpening && packTypeBeingOpened === pack.name ? 'Opening...' : 'Open Pack'}
-              </button>
+          {groupedPacks.map((packGroup) => (
+            <li key={packGroup.name} className="pack-list-item">
+              {/* Count badge as independent element */}
+              {packGroup.count > 1 && (
+                <div className={`pack-count-badge ${getPackCardClass(packGroup.name).includes('premium') ? 'premium' : getPackCardClass(packGroup.name).includes('daily') ? 'daily' : ''}`} data-count={packGroup.count > 10 ? "10+" : packGroup.count}>
+                  <span>{packGroup.count}</span>
+                </div>
+              )}
+              
+              <div className={`${getPackCardClass(packGroup.name)} ${packGroup.count > 1 ? 'pack-stack' : ''}`}>
+                {/* Stack effect for multiple packs */}
+                {packGroup.count > 1 && (
+                  <>
+                    <div className="pack-stack-shadow pack-stack-shadow-3"></div>
+                    <div className="pack-stack-shadow pack-stack-shadow-2"></div>
+                    <div className="pack-stack-shadow pack-stack-shadow-1"></div>
+                  </>
+                )}
+                
+                <div className="pack-card-inner">
+                  <div className="pack-card-content">
+                    {/* Pack overlay effect */}
+                    <div className="pack-overlay"></div>
+                    
+                    {/* Design elements that make it feel like a pack/sleeve */}
+                    <div className="pack-design"></div>
+                    
+                    <div className="pack-content-wrapper">
+                      <h3 className="pack-title">{packGroup.name}</h3>
+                      {packGroup.description && <p className="pack-description">{packGroup.description}</p>}
+                      <button 
+                        className="pack-button"
+                        onClick={() => handleOpenTopPack(packGroup.name)}
+                        disabled={isOpening}
+                      >
+                        {isOpening && packTypeBeingOpened === packGroup.name ? 'Opening...' : 'Open Pack'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </li>
           ))}
         </ul>

@@ -33,85 +33,309 @@
   color: #4a5568;
 }
 
-/* Pack List Styling */
+/* Pack List Styling - Updated to match ArtworkCard */
 .packs-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 30px;
   list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Media queries for responsive layout */
+@media screen and (max-width: 768px) {
+  .packs-list {
+    grid-template-columns: repeat(2, 1fr); /* Two columns on medium screens */
+    gap: 20px;
+  }
+}
+
+@media screen and (max-width: 576px) {
+  .packs-list {
+    grid-template-columns: 1fr; /* Single column on small screens */
+    gap: 30px;
+  }
+  
+  .pack-card {
+    margin: 0 auto;
+    width: 100%;
+    max-width: 280px; /* Slightly smaller on small screens */
+  }
+  
+  /* Adjust pack stack shadows for smaller screens */
+  .pack-stack-shadow-1 {
+    top: -4px;
+    left: 2px;
+  }
+  
+  .pack-stack-shadow-2 {
+    top: -8px;
+    left: 4px;
+  }
+  
+  .pack-stack-shadow-3 {
+    top: -12px;
+    left: 6px;
+  }
+}
+
+/* Responsive adjustments for container, title and daily pack info */
+@media screen and (max-width: 576px) {
+  .packs-container {
+    padding: 15px 10px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  
+  .packs-title {
+    font-size: 22px;
+    margin-bottom: 15px;
+    text-align: center;
+    width: 100%;
+  }
+  
+  .daily-pack-info {
+    padding: 12px;
+    margin-bottom: 20px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  
+  .daily-pack-info h3 {
+    font-size: 18px;
+    margin-bottom: 8px;
+  }
+  
+  .daily-pack-info p {
+    font-size: 14px;
+    margin: 0;
+  }
+  
+  /* Adjust the packs list to have proper vertical spacing */
+  .packs-list {
+    grid-template-columns: 1fr; /* Single column on small screens */
+    gap: 30px;
+    width: 100%;
+  }
+  
+  /* Center pack cards within their container */
+  .pack-list-item {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin-bottom: 25px; /* More space between stacked items */
+  }
+  
+  .pack-card {
+    margin: 0 auto;
+    width: 100%;
+    max-width: 280px; /* Slightly smaller on small screens */
+  }
+}
+
+/* Pack list item container */
+.pack-list-item {
+  position: relative;
+  display: block;
+  margin-bottom: 15px;
+}
+
+/* Card styling matching ArtworkCard */
+.pack-card {
+  background-color: transparent;
+  width: 100%; /* Full width of parent container */
+  max-width: 300px; /* Exact match with ArtworkCard */
+  height: 400px; /* Exact match with ArtworkCard */
+  aspect-ratio: 2 / 3; /* Exact match with ArtworkCard aspect ratio */
+  perspective: 1000px;
+  cursor: pointer;
+  font-family: var(--body-font);
+  margin: 0 auto;
+  border: none;
+  box-sizing: border-box;
+  transform-origin: center bottom;
+  transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
+  position: relative;
+  will-change: transform;
+  transform: perspective(1000px) rotateX(5deg); /* Slight 3D rotation for depth */
+  border-radius: 2%;
+}
+
+.pack-card::after {
+  content: '';
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  bottom: -5px;
+  height: 10px;
+  background: rgba(0, 0, 0, 0.1);
+  filter: blur(4px);
+  border-radius: 0%;
+  z-index: -1;
+  opacity: 0.7;
+  transition: all 0.3s ease;
+}
+
+.pack-card:hover::after {
+  opacity: 0.9;
+  filter: blur(6px);
+  bottom: -10px;
+}
+
+/* Pack inner container for 3D flip effect */
+.pack-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.8s;
+  transform-style: preserve-3d;
+  box-sizing: border-box;
+}
+
+.pack-card-content {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  background-color: transparent;
+  color: #fff;
+  border: none;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 2%;
+  box-shadow: 
+    0 4px 8px rgba(0, 0, 0, 0.2),
+    0 1px 3px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
   padding: 0;
 }
 
-.pack-card {
-  border-radius: 10px;
-  padding: 20px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-}
-
 .pack-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 16px rgba(255, 255, 255, 0.15);
+  transform: translateY(-15px) scale(1.02) !important;
+  z-index: 100 !important;
 }
 
-.pack-card::before {
-  content: '';
+/* Pack backgrounds by type */
+.pack-card.daily .pack-card-content {
+  background: linear-gradient(135deg, #38a169 0%, #68d391 100%);
+  box-shadow: 0 4px 16px rgba(56, 161, 105, 0.4);
+  border: 1px solid rgba(56, 161, 105, 0.3);
+}
+
+.pack-card.premium .pack-card-content {
+  background: linear-gradient(135deg, #d69e2e 0%, #f6e05e 100%);
+  box-shadow: 0 4px 20px rgba(214, 158, 46, 0.5);
+  border: 1px solid rgba(214, 158, 46, 0.4);
+}
+
+/* Default pack style */
+.pack-card:not(.daily):not(.premium) .pack-card-content {
+  background: linear-gradient(135deg, #3182ce 0%, #63b3ed 100%);
+  box-shadow: 0 4px 12px rgba(49, 130, 206, 0.4);
+  border: 1px solid rgba(49, 130, 206, 0.3);
+}
+
+/* Pack content styling */
+.pack-content-wrapper {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 20px;
+  position: relative;
+}
+
+/* Pack overlay with glass effect */
+.pack-overlay {
   position: absolute;
   top: 0;
   left: 0;
-  right: 0;
-  height: 5px;
-  background: linear-gradient(90deg, #3182ce, #63b3ed);
-  border-top-left-radius: 10px;
-  border-top-right-radius: 10px;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  pointer-events: none;
+  z-index: 1;
 }
 
-.pack-card.premium::before {
-  background: linear-gradient(90deg, #d69e2e, #f6e05e);
+/* Design elements to make it look like a pack/sleeve */
+.pack-design {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 
-.pack-card.daily::before {
-  background: linear-gradient(90deg, #38a169, #68d391);
+.pack-design::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+  border-radius: 2%;
 }
 
 .pack-title {
-  font-size: 18px;
+  font-size: 22px;
   font-weight: bold;
-  margin-top: 5px;
-  color: #2d3748;
+  margin: 0;
+  text-align: center;
+  color: white;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
   font-family: var(--header-font);
+  position: relative;
+  z-index: 3;
 }
 
 .pack-description {
-  color: #718096;
+  color: rgba(255, 255, 255, 0.9);
   margin: 10px 0;
   font-size: 14px;
-  min-height: 40px;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  position: relative;
+  z-index: 3;
 }
 
 .pack-button {
   display: block;
   width: 100%;
-  padding: 10px;
-  background-color: #4299e1;
+  padding: 12px;
+  background-color: rgba(255, 255, 255, 0.25);
   color: white;
-  border: none;
+  border: 2px solid rgba(255, 255, 255, 0.5);
   border-radius: 5px;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 3;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 .pack-button:hover {
-  background-color: #3182ce;
+  background-color: rgba(255, 255, 255, 0.35);
+  border-color: rgba(255, 255, 255, 0.7);
+  transform: translateY(-3px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .pack-button:disabled {
-  background-color: #a0aec0;
+  background-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
   cursor: not-allowed;
+  opacity: 0.7;
 }
 
 /* Pack Opening Results Modal */
@@ -135,16 +359,17 @@
 }
 
 .pack-results-content {
-  background-color: white;
+  background-color: #1a1a1a;
   border-radius: 10px;
-  max-width: 600px;
+  max-width: 800px;
   width: 90%;
-  max-height: 80vh;
+  max-height: 85vh;
   overflow-y: auto;
   padding: 30px;
   position: relative;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
   animation: slideUp 0.4s ease;
+  color: white;
 }
 
 @keyframes slideUp {
@@ -154,57 +379,60 @@
 
 .pack-results-header {
   text-align: center;
-  margin-bottom: 20px;
+  margin-bottom: 30px;
 }
 
 .pack-results-title {
-  font-size: 24px;
-  color: #2d3748;
-  margin-bottom: 5px;
+  font-size: 28px;
+  color: white;
+  margin-bottom: 10px;
   font-family: var(--header-font);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .artwork-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 20px;
+  gap: 25px;
   margin: 20px 0;
 }
 
 .artwork-item {
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s;
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  background-color: #2a2a2a;
 }
 
 .artwork-item:hover {
-  transform: scale(1.03);
+  transform: translateY(-8px);
+  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.4);
 }
 
 .artwork-image {
   width: 100%;
-  height: 150px;
+  height: 200px;
   object-fit: cover;
   display: block;
 }
 
 .artwork-info {
-  padding: 10px;
+  padding: 15px;
 }
 
 .artwork-title {
   font-weight: bold;
   font-size: 16px;
-  margin: 0 0 5px;
-  color: #2d3748;
+  margin: 0 0 8px;
+  color: white;
   font-family: var(--header-font);
 }
 
 .artwork-artist {
   font-size: 14px;
-  color: #718096;
-  margin: 0 0 5px;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0 0 8px;
 }
 
 .rarity-badge {
@@ -216,56 +444,66 @@
   text-transform: uppercase;
 }
 
+/* Updated rarity classes to match ArtworkCard styling */
 .rarity-common {
-  background-color: #E2E8F0;
-  color: #4A5568;
+  color: #757575;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .rarity-uncommon {
-  background-color: #9AE6B4;
-  color: #22543D;
+  color: #D4DFAE;
+  text-shadow: 0 1px 3px rgba(212, 223, 174, 0.5);
 }
 
 .rarity-rare {
-  background-color: #90CDF4;
-  color: #2A4365;
+  color: #FFFB8A;
+  text-shadow: 0 1px 4px rgba(255, 251, 138, 0.5);
+  font-weight: 500;
 }
 
 .rarity-legendary {
-  background-color: #FBD38D;
-  color: #744210;
+  background: linear-gradient(to right, #ff0000, #ffa500, #ffff00, #008000, #0000ff, #4b0082, #ee82ee);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 2px 6px rgba(255, 215, 0, 0.7);
+  font-weight: bold;
+  letter-spacing: 0.5px;
 }
 
 .close-button {
   background-color: #4299e1;
   color: white;
   border: none;
-  padding: 10px 20px;
+  padding: 12px 20px;
   border-radius: 5px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   margin-top: 20px;
-  transition: background-color 0.3s;
+  transition: all 0.3s ease;
   width: 100%;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .close-button:hover {
   background-color: #3182ce;
+  transform: translateY(-3px);
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
 }
 
 /* Empty state */
 .empty-state {
   text-align: center;
-  padding: 40px 0;
+  padding: 60px 0;
   color: #718096;
 }
 
 /* Error message */
 .error-message {
-  background-color: #FED7D7;
+  background-color: rgba(254, 215, 215, 0.9);
   border: 1px solid #F56565;
-  padding: 10px 15px;
+  padding: 12px 15px;
   border-radius: 5px;
   color: #C53030;
   margin-bottom: 20px;
@@ -288,19 +526,160 @@
 .loader-container {
   display: flex;
   justify-content: center;
-  padding: 40px 0;
+  padding: 60px 0;
 }
 
 .loader {
-  border: 4px solid #e2e8f0;
+  border: 4px solid rgba(226, 232, 240, 0.3);
   border-top: 4px solid #3182ce;
   border-radius: 50%;
-  width: 30px;
-  height: 30px;
+  width: 40px;
+  height: 40px;
   animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+/* Pack stacking styles */
+.pack-stack {
+  position: relative;
+  margin-bottom: 15px;
+}
+
+/* Stack shadow elements to create the appearance of a card stack */
+.pack-stack-shadow {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 2%;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  z-index: -1;
+  transition: all 0.3s ease;
+}
+
+.pack-stack-shadow-1 {
+  top: -5px;
+  left: 3px;
+  transform: perspective(1000px) rotateX(4deg) rotateZ(-1deg);
+}
+
+.pack-stack-shadow-2 {
+  top: -10px;
+  left: 6px;
+  transform: perspective(1000px) rotateX(3deg) rotateZ(-2deg);
+}
+
+.pack-stack-shadow-3 {
+  top: -15px;
+  left: 9px;
+  transform: perspective(1000px) rotateX(2deg) rotateZ(-3deg);
+}
+
+/* Daily pack stack shadows - green tint */
+.pack-card.daily .pack-stack-shadow {
+  background: linear-gradient(135deg, rgba(56, 161, 105, 0.5) 0%, rgba(104, 211, 145, 0.5) 100%);
+  border: 1px solid rgba(56, 161, 105, 0.2);
+}
+
+/* Premium pack stack shadows - gold tint */
+.pack-card.premium .pack-stack-shadow {
+  background: linear-gradient(135deg, rgba(214, 158, 46, 0.5) 0%, rgba(246, 224, 94, 0.5) 100%);
+  border: 1px solid rgba(214, 158, 46, 0.2);
+}
+
+/* Standard pack stack shadows - blue tint */
+.pack-card:not(.daily):not(.premium) .pack-stack-shadow {
+  background: linear-gradient(135deg, rgba(49, 130, 206, 0.5) 0%, rgba(99, 179, 237, 0.5) 100%);
+  border: 1px solid rgba(49, 130, 206, 0.2);
+}
+
+/* Count badge styling - now as independent element */
+.pack-count-badge {
+  position: absolute;
+  top: -15px;
+  right: -15px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #e53e3e;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+  z-index: 200; /* Ensure it's always on top */
+  border: 2px solid white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  pointer-events: none; /* Allow clicks to pass through to the pack */
+}
+
+/* Make badges different colors based on pack type */
+.pack-count-badge.daily {
+  background-color: #38a169;
+}
+
+.pack-count-badge.premium {
+  background-color: #d69e2e;
+  background: linear-gradient(135deg, #f6ad55, #d69e2e);
+}
+
+/* Enhanced hover effect for stacked packs */
+.pack-stack:hover .pack-stack-shadow-1 {
+  top: -8px;
+  left: 4px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+.pack-stack:hover .pack-stack-shadow-2 {
+  top: -16px;
+  left: 8px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+.pack-stack:hover .pack-stack-shadow-3 {
+  top: -24px;
+  left: 12px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* Add a slight fanning effect on hover */
+.pack-stack:hover .pack-card-inner {
+  transform: translateY(-5px) rotateZ(2deg);
+}
+
+/* Animation for pack count badge on hover */
+.pack-list-item:hover .pack-count-badge {
+  transform: scale(1.1);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Count styling for different amounts of packs */
+.pack-count-badge[data-count="1"] {
+  display: none;
+}
+
+.pack-count-badge[data-count="2"],
+.pack-count-badge[data-count="3"] {
+  font-size: 18px;
+}
+
+.pack-count-badge[data-count="4"],
+.pack-count-badge[data-count="5"] {
+  font-size: 16px;
+}
+
+.pack-count-badge[data-count="6"],
+.pack-count-badge[data-count="7"],
+.pack-count-badge[data-count="8"],
+.pack-count-badge[data-count="9"] {
+  font-size: 14px;
+}
+
+.pack-count-badge[data-count="10+"] {
+  font-size: 12px;
 }

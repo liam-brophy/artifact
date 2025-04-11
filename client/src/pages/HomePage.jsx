@@ -82,13 +82,13 @@ function HomePage() {
     setCurrentSlide(newIndex);
   };
 
-  // Enhanced style function - making all cards fully visible
+  // Enhanced style function - making all cards fully visible but contained
   const getCardStyle = (index) => {
     const relativeIndex = index - currentSlide;
     
-    // More dramatic rotation based on position
+    // More subtle rotation to avoid overflow issues
     const rotationFactor = Math.abs(relativeIndex) <= 1 ? 0 : 
-                           (index % 2 === 0 ? 1 : -1) * Math.min(Math.abs(relativeIndex), 3);
+                           (index % 2 === 0 ? 1 : -1) * Math.min(Math.abs(relativeIndex), 2);
                            
     return {
       // Set custom properties for CSS
@@ -96,12 +96,12 @@ function HomePage() {
       '--relative-index': relativeIndex,
       animationDelay: `${index * 0.08}s`, // Quick stagger delay
       zIndex: 10 - Math.abs(relativeIndex), // Z-index based on position from current slide
-      // Apply rotation but keep full opacity
-      transform: `rotate(${rotationFactor * 4}deg)`, // 4 degrees for more dramatic effect
+      // Apply more subtle rotation
+      transform: `rotate(${rotationFactor * 2}deg)`, // Reduced to 2 degrees for less dramatic effect
     };
   };
 
-  // Carousel settings - remove arrows
+  // Carousel settings with fixed number of items per screen size
   const carouselSettings = {
     dots: true,
     infinite: artworks.length > slidesToShow,
@@ -112,7 +112,7 @@ function HomePage() {
     autoplaySpeed: 3000,
     pauseOnHover: true,
     centerMode: false,
-    arrows: false, // Remove the navigation arrows
+    arrows: true, // Enable arrows for easier navigation
     beforeChange: handleBeforeChange,
     responsive: [
       {
@@ -120,6 +120,7 @@ function HomePage() {
         settings: {
           slidesToShow: 3,
           slidesToScroll: 1,
+          infinite: artworks.length > 3,
         }
       },
       {
@@ -127,6 +128,7 @@ function HomePage() {
         settings: {
           slidesToShow: 2,
           slidesToScroll: 1,
+          infinite: artworks.length > 2,
         }
       },
       {

@@ -115,9 +115,20 @@ function Upload() {
 
         try {
             // Step 1: Upload Image
-            const uploadResponse = await apiService.post('/upload-image', imageFormData);
-            imageUrl = uploadResponse.data.imageUrl; // Adjust key if needed
-            thumbnailUrl = uploadResponse.data.thumbnailUrl || imageUrl; // Adjust key if needed
+            const imageFormData = new FormData();
+            imageFormData.append('image', selectedFile);  // Ensure the key is 'image' to match server expectations
+
+            const uploadResponse = await apiService.post('/upload-image', imageFormData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+            
+            console.log('Upload response:', uploadResponse.data); // Helpful for debugging
+            
+            imageUrl = uploadResponse.data.imageUrl;
+            thumbnailUrl = uploadResponse.data.thumbnailUrl || imageUrl;
+            
             if (!imageUrl) throw new Error("Server response missing 'imageUrl'.");
             setIsUploadingFile(false); // Image upload part done
 

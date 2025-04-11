@@ -46,7 +46,7 @@
     display: flex;
     flex-direction: column; /* Stack elements vertically */
     overflow: hidden; /* Prevent content spillover */
-    border-radius: 15px;
+    border-radius: 2%;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Slightly stronger shadow */
   }
   
@@ -223,26 +223,37 @@
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
   }
   
-  /* Rarity color coding */
+  /* Rarity color coding - using the new color scheme */
   .rarity-common {
-    color: #a0a0a0; /* Light gray */
+    color: #757575; /* Medium gray */
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   }
   
   .rarity-uncommon {
-    color: #4CAF50; /* Green */
+    color: #D4DFAE; /* Light green/yellow */
+    text-shadow: 0 1px 3px rgba(212, 223, 174, 0.5);
   }
   
   .rarity-rare {
-    color: #2196F3; /* Blue */
+    color: #FFFB8A; /* Bright yellow */
+    text-shadow: 0 1px 4px rgba(255, 251, 138, 0.5);
+    font-weight: 500;
   }
   
   .rarity-epic {
-    color: #9C27B0; /* Purple */
+    color: #FFD31A; /* Golden yellow */
+    text-shadow: 0 1px 5px rgba(255, 211, 26, 0.6);
+    font-weight: 500;
   }
   
   .rarity-legendary {
-    color: #FFC107; /* Gold/yellow */
+    background: linear-gradient(to right, #ff0000, #ffa500, #ffff00, #008000, #0000ff, #4b0082, #ee82ee);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: 0 2px 6px rgba(255, 215, 0, 0.7);
     font-weight: bold;
+    letter-spacing: 0.5px;
   }
   
   .artwork-card-back__description {
@@ -326,7 +337,7 @@
     height: 10px;
     background: rgba(0, 0, 0, 0.1);
     filter: blur(4px);
-    border-radius: 50%;
+    border-radius: 0%;
     z-index: -1;
     opacity: 0.7;
     transition: all 0.3s ease;
@@ -338,44 +349,50 @@
     bottom: -10px;
   }
   
-  /* Apply different border styles based on rarity */
-  /* Common rarity - subtle light gray border */
+  /* Apply different border styles based on rarity - updated to match new color scheme */
+  /* Common rarity - subtle gray border with minimal effects */
   .artwork-card-container[data-rarity="common"] .artwork-card-inner > div {
-    box-shadow: 0 4px 8px rgba(160, 160, 160, 0.4);
-    border: 1px solid rgba(160, 160, 160, 0.3);
+    box-shadow: 0 4px 8px rgba(117, 117, 117, 0.4);
+    border: 1px solid rgba(117, 117, 117, 0.3);
   }
   
-  /* Uncommon rarity - green border */
+  /* Uncommon rarity - light green/yellow border and glow */
   .artwork-card-container[data-rarity="uncommon"] .artwork-card-inner > div {
-    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
-    border: 1px solid rgba(76, 175, 80, 0.5);
+    box-shadow: 0 4px 12px rgba(212, 223, 174, 0.5);
+    border: 1px solid rgba(212, 223, 174, 0.5);
   }
   
-  /* Rare rarity - blue border and glow */
+  /* Rare rarity - bright yellow border and glow */
   .artwork-card-container[data-rarity="rare"] .artwork-card-inner > div {
-    box-shadow: 0 4px 16px rgba(33, 150, 243, 0.5);
-    border: 1px solid rgba(33, 150, 243, 0.6);
+    box-shadow: 0 4px 16px rgba(255, 251, 138, 0.5);
+    border: 1px solid rgba(255, 251, 138, 0.6);
   }
   
-  /* Epic rarity - purple/violet border and glow */
+  /* Epic rarity - golden yellow border and glow */
   .artwork-card-container[data-rarity="epic"] .artwork-card-inner > div {
-    box-shadow: 0 4px 20px rgba(156, 39, 176, 0.5);
-    border: 1px solid rgba(156, 39, 176, 0.7);
+    box-shadow: 0 4px 20px rgba(255, 211, 26, 0.6);
+    border: 1px solid rgba(255, 211, 26, 0.7);
   }
   
-  /* Legendary rarity - gold border and glow */
+  /* Legendary rarity - rainbow border with enhanced glow */
   .artwork-card-container[data-rarity="legendary"] .artwork-card-inner > div {
-    box-shadow: 0 4px 24px rgba(255, 193, 7, 0.6);
-    border: 1px solid rgba(255, 193, 7, 0.8);
+    box-shadow: 0 4px 24px rgba(255, 215, 0, 0.6);
+    border: 1px solid transparent;
+    background: linear-gradient(to right, #ff0000, #ffa500, #ffff00, #008000, #0000ff, #4b0082, #ee82ee);
+    background-clip: padding-box;
   }
   
-  /* Optional: Add a slight animation to legendary cards */
+  /* Adjust the legendary pulse animation to use rainbow colors */
   .artwork-card-container[data-rarity="legendary"] .artwork-card-inner {
-    animation: legendary-pulse 3s infinite;
+    animation: legendary-rainbow-pulse 5s infinite;
   }
   
-  @keyframes legendary-pulse {
-    0% { box-shadow: 0 0 5px rgba(255, 193, 7, 0.3); }
-    50% { box-shadow: 0 0 20px rgba(255, 193, 7, 0.6); }
-    100% { box-shadow: 0 0 5px rgba(255, 193, 7, 0.3); }
+  @keyframes legendary-rainbow-pulse {
+    0% { box-shadow: 0 0 5px rgba(255, 0, 0, 0.5); }
+    16.6% { box-shadow: 0 0 15px rgba(255, 165, 0, 0.5); }
+    33.3% { box-shadow: 0 0 20px rgba(255, 255, 0, 0.5); }
+    50% { box-shadow: 0 0 15px rgba(0, 128, 0, 0.5); }
+    66.6% { box-shadow: 0 0 20px rgba(0, 0, 255, 0.5); }
+    83.3% { box-shadow: 0 0 15px rgba(75, 0, 130, 0.5); }
+    100% { box-shadow: 0 0 5px rgba(238, 130, 238, 0.5); }
   }
