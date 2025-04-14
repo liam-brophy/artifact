@@ -524,3 +524,47 @@ def remove_artwork_from_collection(user_id, artwork_id):
         return jsonify({"error": {"code": "DB_ERROR", "message": "Could not remove artwork from collection."}}), 500
 
     return '', 204
+
+
+# === PATCH /api/users/:user_id/preferences === (Update User Preferences)
+@users_bp.route('/<int:user_id>/preferences', methods=['PATCH'])
+@jwt_required()
+def update_user_preferences(user_id):
+    """Updates user preferences including favorite color."""
+    current_user_id = get_jwt_identity()
+
+    # Only allow users to update their own preferences
+    if current_user_id != user_id:
+        return jsonify({"error": {"code": "AUTH_004", "message": "Cannot update another user's preferences."}}), 403
+
+    # Get the user
+    user = User.query.get_or_404(user_id)
+    
+    # Get the request data
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": {"code": "INVALID_INPUT", "message": "No data provided."}}), 400
+    
+    # Update favorite color if provided
+    if 'favorite_color' in data:
+        # Validate the color format (basic validation for hex color)
+        color = data['favorite_color']
+        if color and not (color.startswith('#') and len(color) in [4, 7, 9]):
+            return jsonify({"error": {"code": "INVALID_INPUT", "message": "Invalid color format. Expected hex color (e.g., #FF5500)."}}), 400
+        
+        user.favorite_color = color
+    
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"ERROR: Database error updating user preferences - {e}")
+        return jsonify({"error": {"code": "DB_ERROR", "message": "Could not update user preferences."}}), 500
+    
+    # Return the updated user preferences
+    return jsonify({
+        "message": "User preferences updated successfully",
+        "preferences": {
+            "favorite_color": user.favorite_color
+        }
+    }), 200

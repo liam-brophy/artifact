@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import Grid from '@mui/material/Grid';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import CardMedia from '@mui/material/CardMedia';
@@ -13,7 +12,7 @@ import SaveIcon from '@mui/icons-material/Save';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 import apiService from '../services/apiService';
-import './ArtStudio.css'; // We'll create this CSS file next
+import './ArtStudio.css';
 
 const AVAILABLE_BORDERS = [
   { id: 'Artifact_Decal-01', name: 'Decal 1' },
@@ -120,100 +119,114 @@ function ArtStudio() {
   }
   
   return (
-    <Box sx={{ p: 2, maxWidth: 1200, mx: 'auto' }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Customize Your Artwork
-      </Typography>
-      
-      {/* Main content area */}
-      <Grid container spacing={3}>
-        {/* Preview area */}
-        <Grid item xs={12} md={8}>
-          <Box 
-            sx={{ 
-              border: '1px solid #ddd', 
-              borderRadius: 1, 
-              p: 2, 
-              mb: 2, 
-              bgcolor: '#f9f9f9',
-              position: 'relative',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              minHeight: 400
-            }}
+    <Box sx={{ width: '100%', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {/* Header area */}
+      <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h5" component="h1">
+          Customize Your Artwork
+        </Typography>
+        
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button 
+            variant="outlined" 
+            startIcon={<ArrowBackIcon />} 
+            onClick={handleCancel}
+            disabled={saving}
           >
-            <div className="artwork-preview-container">
-              {/* Base image layer */}
-              <img 
-                src={artwork?.image_url} 
-                alt={artwork?.title} 
-                className="artwork-image"
-              />
-              
-              {/* SVG border overlay */}
-              {selectedBorder && (
-                <img 
-                  src={`/svg/borders/${selectedBorder}.svg`} 
-                  alt="Border" 
-                  className="artwork-border"
-                />
-              )}
-            </div>
-          </Box>
+            Cancel
+          </Button>
           
-          {/* Action buttons */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
-            <Button 
-              variant="outlined" 
-              startIcon={<ArrowBackIcon />} 
-              onClick={handleCancel}
-              disabled={saving}
-            >
-              Cancel
-            </Button>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            startIcon={<SaveIcon />} 
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {saving ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </Box>
+      </Box>
+      
+      {/* Main content area with sidebar on right */}
+      <Box sx={{ 
+        display: 'flex', 
+        flex: 1, 
+        overflow: 'hidden',
+        flexDirection: { xs: 'column', md: 'row' } // Column on mobile, row on desktop
+      }}>
+        {/* Large artwork preview area */}
+        <Box sx={{ 
+          flex: 1, 
+          bgcolor: '#000', 
+          position: 'relative',
+          overflow: 'hidden',
+          height: { xs: '70vh', md: 'auto' } // Fixed height on mobile, auto on desktop 
+        }}>
+          <div className="artwork-preview-container">
+            <img 
+              src={artwork?.image_url} 
+              alt={artwork?.title} 
+              className="artwork-image"
+            />
             
-            <Button 
-              variant="contained" 
-              color="primary" 
-              startIcon={<SaveIcon />} 
-              onClick={handleSave}
-              disabled={saving}
-            >
-              {saving ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </Box>
+            {selectedBorder && (
+              <img 
+                src={`/svg/borders/${selectedBorder}.svg`} 
+                alt="Border" 
+                className="artwork-border"
+              />
+            )}
+          </div>
+        </Box>
+        
+        {/* Sidebar for border selection - on right for desktop, below for mobile */}
+        <Box sx={{ 
+          width: { xs: '100%', md: '250px' }, 
+          bgcolor: '#f9f9f9', 
+          p: 2, 
+          boxShadow: { xs: '0 -4px 10px rgba(0,0,0,0.1)', md: '-4px 0 10px rgba(0,0,0,0.1)' },
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: { xs: 'row', md: 'column' }, // Row layout on mobile
+          flexWrap: { xs: 'wrap', md: 'nowrap' },
+          gap: 2
+        }}>
+          <Typography variant="h6" gutterBottom sx={{ width: '100%' }}>
+            Select Border Style
+          </Typography>
           
           {saveError && (
-            <Alert severity="error" sx={{ mt: 2 }}>
+            <Alert severity="error" sx={{ mb: 2, width: '100%' }}>
               {saveError}
             </Alert>
           )}
           
           {saveSuccess && (
-            <Alert severity="success" sx={{ mt: 2 }}>
+            <Alert severity="success" sx={{ mb: 2, width: '100%' }}>
               Changes saved successfully!
             </Alert>
           )}
-        </Grid>
-        
-        {/* Border selection sidebar */}
-        <Grid item xs={12} md={4}>
-          <Typography variant="h6" gutterBottom>
-            Select Border Style
-          </Typography>
           
-          <Box sx={{ mt: 2 }}>
+          <Box sx={{ 
+            mt: 2,
+            display: 'flex',
+            flexDirection: { xs: 'row', md: 'column' },
+            flexWrap: { xs: 'wrap', md: 'nowrap' },
+            gap: 2,
+            width: '100%'
+          }}>
             {AVAILABLE_BORDERS.map((border) => (
               <Card 
                 key={border.id || 'no-border'} 
                 sx={{ 
-                  mb: 2, 
+                  mb: { xs: 0, md: 2 }, 
                   cursor: 'pointer',
                   border: selectedBorder === border.id ? '2px solid #2196f3' : '1px solid #ddd',
                   '&:hover': {
                     boxShadow: 3
-                  }
+                  },
+                  flexBasis: { xs: 'calc(50% - 8px)', sm: 'calc(33% - 11px)', md: '100%' }
                 }}
                 onClick={() => handleBorderSelect(border.id)}
               >
@@ -241,8 +254,8 @@ function ArtStudio() {
               </Card>
             ))}
           </Box>
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
     </Box>
   );
 }

@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { ThemeProvider as MuiThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { useAuth } from './AuthContext';
 
 const ThemeContext = createContext(null);
 
@@ -9,71 +10,123 @@ const THEME_LIGHT = 'light';
 const THEME_DARK = 'dark';
 const STORAGE_KEY = 'preferred-theme';
 
+// Default accent colors for light and dark themes
+const DEFAULT_LIGHT_ACCENT = '#F50801'; // Red
+const DEFAULT_DARK_ACCENT = '#3BDBB2';  // Teal
+
 // Create Material UI themes with new color scheme
-const getMuiTheme = (mode) => createTheme({
-  palette: {
-    mode,
-    ...(mode === 'light' 
-      ? {
-          // Light mode colors - white with red accent
-          primary: {
-            main: '#F50801', // Red accent
+const getMuiTheme = (mode, userAccentColor) => {
+  // Use the user's color if available, otherwise use defaults
+  const accentColor = userAccentColor || (mode === 'light' ? DEFAULT_LIGHT_ACCENT : DEFAULT_DARK_ACCENT);
+  
+  return createTheme({
+    palette: {
+      mode,
+      ...(mode === 'light' 
+        ? {
+            // Light mode colors - white with user's accent or default red
+            primary: {
+              main: accentColor,
+            },
+            secondary: {
+              main: accentColor,
+              light: accentColor,
+            },
+            background: {
+              default: '#FFFFFF', // White background
+              paper: '#F8F8F8', // Slight off-white for cards
+            },
+            text: {
+              primary: '#333333',
+              secondary: '#666666',
+            },
+          }
+        : {
+            // Dark mode colors - black with user's accent or default teal
+            primary: {
+              main: accentColor,
+            },
+            secondary: {
+              main: accentColor,
+              light: accentColor,
+            },
+            background: {
+              default: '#000000', // Black background
+              paper: '#121212', // Slightly lighter black for cards
+            },
+            text: {
+              primary: '#FFFFFF',
+              secondary: '#AAAAAA',
+            },
+          }
+      ),
+    },
+    components: {
+      MuiAppBar: {
+        styleOverrides: {
+          root: {
+            boxShadow: mode === 'light' 
+              ? '0 2px 8px rgba(0, 0, 0, 0.1)'
+              : '0 2px 8px rgba(0, 0, 0, 0.5)',
+            backgroundColor: mode === 'light' ? '#FFFFFF' : '#000000',
           },
-          secondary: {
-            main: '#F50801', // Red accent
-            light: '#ff3b35',
+        },
+      },
+      MuiButton: {
+        styleOverrides: {
+          containedPrimary: {
+            color: '#FFFFFF',
           },
-          background: {
-            default: '#FFFFFF', // White background
-            paper: '#F8F8F8', // Slight off-white for cards
-          },
-          text: {
-            primary: '#333333',
-            secondary: '#666666',
-          },
-        }
-      : {
-          // Dark mode colors - black with teal accent
-          primary: {
-            main: '#3BDBB2', // Teal accent
-          },
-          secondary: {
-            main: '#3BDBB2', // Teal accent
-            light: '#60e2c0',
-          },
-          background: {
-            default: '#000000', // Black background
-            paper: '#121212', // Slightly lighter black for cards
-          },
-          text: {
-            primary: '#FFFFFF',
-            secondary: '#AAAAAA',
-          },
-        }
-    ),
-  },
-  components: {
-    MuiAppBar: {
-      styleOverrides: {
-        root: {
-          boxShadow: mode === 'light' 
-            ? '0 2px 8px rgba(0, 0, 0, 0.1)'
-            : '0 2px 8px rgba(0, 0, 0, 0.5)',
-          backgroundColor: mode === 'light' ? '#FFFFFF' : '#000000',
         },
       },
     },
-    MuiButton: {
-      styleOverrides: {
-        containedPrimary: {
-          color: '#FFFFFF',
-        },
-      },
-    },
-  },
-});
+  });
+};
+
+// Helper to apply CSS custom properties to the document root
+const applyCustomProperties = (theme, accentColor) => {
+  const root = document.documentElement;
+  
+  // Set the theme attribute
+  root.setAttribute('data-theme', theme);
+  
+  // Set the accent color and accent hover CSS variables
+  if (accentColor) {
+    // Set main accent color
+    root.style.setProperty('--accent-color', accentColor);
+    
+    // Calculate a slightly darker version for hover state (20% darker)
+    const darkenColor = (color) => {
+      // This is a simplified approach - for production you might want a more sophisticated color manipulation
+      const hex = color.replace('#', '');
+      const r = parseInt(hex.substr(0, 2), 16);
+      const g = parseInt(hex.substr(2, 2), 16);
+      const b = parseInt(hex.substr(4, 2), 16);
+      
+      const darkenFactor = 0.8; // 20% darker
+      const newR = Math.floor(r * darkenFactor);
+      const newG = Math.floor(g * darkenFactor);
+      const newB = Math.floor(b * darkenFactor);
+      
+      return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
+    };
+    
+    root.style.setProperty('--accent-hover', darkenColor(accentColor));
+  } else {
+    // Reset to theme defaults
+    if (theme === THEME_LIGHT) {
+      root.style.setProperty('--accent-color', DEFAULT_LIGHT_ACCENT);
+      root.style.setProperty('--accent-hover', '#D90701'); // Slightly darker red
+    } else {
+      root.style.setProperty('--accent-color', DEFAULT_DARK_ACCENT);
+      root.style.setProperty('--accent-hover', '#2FC69F'); // Slightly darker teal
+    }
+  }
+};
 
 export const ThemeProvider = ({ children }) => {
+  const { user } = useAuth(); // Get current user from AuthContext
+  
   // Initialize theme from localStorage or system preference
   const [theme, setTheme] = useState(() => {
     // Check if running in a browser environment
@@ -93,8 +146,11 @@ export const ThemeProvider = ({ children }) => {
     return THEME_LIGHT;
   });
 
-  // Create MUI theme based on the current theme
-  const muiTheme = getMuiTheme(theme);
+  // Get the user's favorite color if available
+  const userAccentColor = user?.favorite_color || null;
+
+  // Create MUI theme based on the current theme and user accent color
+  const muiTheme = getMuiTheme(theme, userAccentColor);
 
   // Toggle between light and dark themes
   const toggleTheme = () => {
@@ -113,10 +169,10 @@ export const ThemeProvider = ({ children }) => {
     }
   };
 
-  // Apply theme to document when it changes
+  // Apply theme and accent color to document when they change
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
+    applyCustomProperties(theme, userAccentColor);
+  }, [theme, userAccentColor]);
 
   // Listen for system theme changes
   useEffect(() => {
@@ -142,7 +198,8 @@ export const ThemeProvider = ({ children }) => {
         theme,
         isDarkMode: theme === THEME_DARK,
         toggleTheme,
-        setTheme: setSpecificTheme
+        setTheme: setSpecificTheme,
+        accentColor: userAccentColor || (theme === THEME_LIGHT ? DEFAULT_LIGHT_ACCENT : DEFAULT_DARK_ACCENT)
       }}
     >
       <MuiThemeProvider theme={muiTheme}>

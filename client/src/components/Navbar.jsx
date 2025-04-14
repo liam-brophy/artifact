@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
@@ -9,10 +9,12 @@ import IconButton from '@mui/material/IconButton';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import PaletteIcon from '@mui/icons-material/Palette';
 import Tooltip from '@mui/material/Tooltip';
 
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import ColorPickerDialog from './ColorPickerDialog';
 
 // Import the CSS file
 import './NavBar.css';
@@ -22,11 +24,20 @@ function Navbar() {
   const { theme, toggleTheme } = useTheme();
   const isDarkMode = theme === 'dark';
   const themeClass = isDarkMode ? 'dark-theme' : 'light-theme';
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
 
   // Logo paths based on theme
   const logoSrc = isDarkMode 
     ? '/assets/Artifact_Logo_White.png' 
     : '/assets/Artifact_Logo_Black.png';
+
+  const handleOpenColorPicker = () => {
+    setColorPickerOpen(true);
+  };
+
+  const handleCloseColorPicker = () => {
+    setColorPickerOpen(false);
+  };
 
   return (
     <>
@@ -54,6 +65,18 @@ function Navbar() {
                   className={`upload-icon ${themeClass}`}
                 >
                   <CloudUploadIcon />
+                </IconButton>
+              </Tooltip>
+            )}
+            
+            {/* Color Picker Button - Only show when logged in */}
+            {user && (
+              <Tooltip title="Choose Accent Color">
+                <IconButton
+                  onClick={handleOpenColorPicker}
+                  className={`color-picker-icon ${themeClass}`}
+                >
+                  <PaletteIcon />
                 </IconButton>
               </Tooltip>
             )}
@@ -94,6 +117,13 @@ function Navbar() {
           </Box>
         </Toolbar>
       </AppBar>
+      
+      {/* Color Picker Dialog */}
+      <ColorPickerDialog
+        open={colorPickerOpen}
+        onClose={handleCloseColorPicker}
+      />
+      
       {/* Add toolbar placeholder to prevent content from hiding under the fixed navbar */}
       <Toolbar />
     </>

@@ -1,20 +1,22 @@
 /* ArtworkDetailsPage.css - Styles for the artwork details page with responsive design */
 
-/* Main container */
+/* Main container with no horizontal padding to maximize width */
 .artwork-details-container {
   padding-top: 2rem;
   padding-bottom: 2rem;
-  max-width: 1600px; /* Wider than homepage to accommodate large artwork */
-  margin-left: auto;
-  margin-right: auto;
-  padding-left: 1rem;
-  padding-right: 1rem;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding-left: 0;
+  padding-right: 0;
   font-family: var(--body-font);
+  box-sizing: border-box;
 }
 
-/* Back button */
+/* Back button with margin to compensate for container's zero padding */
 .back-button {
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  margin-left: 1rem;
   transition: background-color 0.3s;
 }
 
@@ -22,51 +24,79 @@
   background-color: rgba(0, 0, 0, 0.08);
 }
 
-/* Main content layout */
+/* Content container with full width */
 .artwork-content-container {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 0; /* Remove gap to maximize image space */
+  width: 100%;
 }
 
-/* For medium screens and up - side by side layout */
+/* Side by side layout for medium+ screens */
 @media (min-width: 768px) {
   .artwork-content-container {
     flex-direction: row;
+    align-items: flex-start;
   }
-}
-
-/* Artwork image container */
-.artwork-image-container {
-  flex: 1 1 70%;
-  background-color: #000;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  height: 50vh; /* Default height for mobile */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative; /* Important for absolute positioning of the border */
-}
-
-@media (min-width: 768px) {
+  
+  /* Set the image container to take almost all available width */
   .artwork-image-container {
-    height: calc(100vh - 180px); /* Taller on larger screens */
+    width: calc(100% - 320px); /* Full width minus fixed sidebar width */
+    flex: 1 0 auto; /* Don't allow shrinking */
+    height: 100vh; /* Full viewport height to maintain aspect ratio */
+    max-height: calc(100vh - 120px); /* Account for header and some padding */
+  }
+  
+  .artwork-details-panel {
+    width: 320px; /* Fixed width for details panel */
+    flex: 0 0 320px; /* Fixed width, don't grow or shrink */
+  }
+  
+  /* Ensure image and border have the same styling at all widths */
+  .artwork-image,
+  .artwork-border {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Same as mobile */
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+  
+  /* Border should use contain to ensure it's fully visible */
+  .artwork-border {
+    object-fit: contain;
   }
 }
 
-/* Artwork image */
-.artwork-image {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  display: block;
+/* Artwork image container takes full width on mobile */
+.artwork-image-container {
+  background-color: #000;
+  border-radius: 0; /* Remove border radius to maximize space */
+  overflow: hidden;
+  box-shadow: none; /* Remove shadow to maximize space */
+  height: 70vh; /* Use viewport height for responsive sizing */
   position: relative;
-  z-index: 1;
+  width: 100%;
 }
 
-/* SVG Border overlay */
+/* Image fills the entire container */
+.artwork-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Cover ensures the image fills the entire container */
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  padding: 0;
+}
+
+/* Border overlay also fills the container */
 .artwork-border {
   position: absolute;
   top: 0;
@@ -80,49 +110,64 @@
 
 /* Details panel */
 .artwork-details-panel {
-  flex: 1 1 30%;
   padding: 1.5rem;
   border-radius: 8px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   background-color: #fff;
-  max-height: 50vh; /* Default height for mobile */
   overflow: auto;
+  margin: 1rem;
 }
 
 @media (min-width: 768px) {
   .artwork-details-panel {
-    max-height: calc(100vh - 180px); /* Taller on larger screens */
+    max-height: calc(100vh - 120px); /* Match height with image container */
+    position: sticky;
+    top: 2rem;
+    margin: 0 1rem 0 0; /* Remove left margin for desktop view */
   }
 }
 
-/* Artwork title */
+/* Larger screens - keep the same proportions */
+@media (min-width: 1200px) {
+  /* Make sure the image container maintains its proportions on large screens */
+  .artwork-image-container {
+    max-width: none; /* Remove any max-width constraint */
+  }
+}
+
+/* Rest of the styles remain unchanged */
 .artwork-title {
-  font-size: 1.5rem;
-  font-weight: 500;
-  margin-bottom: 0.5rem;
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-top: 0;
+  margin-bottom: 0.75rem;
   font-family: var(--header-font);
+  line-height: 1.2;
 }
 
 /* Artist name */
 .artwork-artist {
-  font-size: 1.1rem;
-  margin-bottom: 0.75rem;
+  font-size: 1.2rem;
+  margin-top: 0;
+  margin-bottom: 1rem;
   cursor: pointer;
   color: #555;
 }
 
 .artwork-artist:hover {
   text-decoration: underline;
+  color: #333;
 }
 
 /* Rarity badge */
 .artwork-rarity {
   display: inline-block;
-  padding: 0.25rem 0.75rem;
-  margin: 0.5rem 0;
-  border-radius: 12px;
-  font-size: 0.8rem;
+  padding: 0.35rem 0.85rem;
+  margin: 0.75rem 0 1rem;
+  border-radius: 16px;
+  font-size: 0.85rem;
   text-transform: capitalize;
+  font-weight: 500;
 }
 
 .artwork-rarity-common {
@@ -156,52 +201,60 @@
 /* Creator action buttons */
 .artwork-creator-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
-  margin: 0.75rem 0 1rem;
+  margin: 1rem 0 1.25rem;
 }
 
 /* Section divider */
 .artwork-divider {
-  margin: 1rem 0;
+  margin: 1.25rem 0;
   border: 0;
   border-top: 1px solid #e0e0e0;
 }
 
 /* Detail sections */
 .artwork-section {
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
 }
 
 .artwork-section-title {
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   font-weight: 600;
-  margin-bottom: 0.25rem;
-  color: #555;
+  margin-bottom: 0.35rem;
+  color: #444;
   font-family: var(--header-font);
 }
 
 .artwork-section-content {
-  font-size: 0.875rem;
-  line-height: 1.5;
+  font-size: 0.95rem;
+  line-height: 1.6;
   color: #333;
 }
 
 /* Metadata */
 .artwork-metadata {
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   color: #777;
+  margin-top: 1rem;
+  line-height: 1.5;
+}
+
+.artwork-metadata p {
+  margin: 0.35rem 0;
 }
 
 /* Edit form styles */
 .artwork-edit-form {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1rem;
+  margin-top: 1rem;
 }
 
 .form-row {
   display: flex;
-  gap: 0.75rem;
+  gap: 1rem;
   width: 100%;
 }
 
@@ -216,8 +269,8 @@
 .form-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.75rem;
-  margin-top: 0.75rem;
+  gap: 1rem;
+  margin-top: 1.5rem;
 }
 
 /* Form field custom styling */
@@ -236,20 +289,28 @@
 @media (max-width: 480px) {
   .form-row {
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 1rem;
   }
   
   .form-field-small {
+    width: 100%;
+  }
+  
+  .artwork-creator-actions {
+    flex-direction: column;
+  }
+  
+  .artwork-creator-actions button {
     width: 100%;
   }
 }
 
 /* Alert messages */
 .artwork-alert {
-  padding: 0.5rem 0.75rem;
-  margin-bottom: 0.75rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
   border-radius: 4px;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
 }
 
 .artwork-alert-error {
@@ -260,4 +321,15 @@
 .artwork-alert-success {
   background-color: #e8f5e9;
   color: #2e7d32;
+}
+
+/* Loading and error states */
+.loading-container,
+.error-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 50vh;
+  flex-direction: column;
+  gap: 1rem;
 }

@@ -104,9 +104,13 @@ export const AuthProvider = ({ children }) => {
     await fetchUserDataAndCollection(false);
   }, [fetchUserDataAndCollection]); // Depend on the fetch function
 
-  // --- Update User Data --- (remains the same)
+  // --- Update User Data ---
   const updateUser = useCallback((newUserData) => {
-    setUser(prevUser => ({ ...prevUser, ...newUserData }));
+    setUser(prevUser => {
+      // If prevUser is null, initialize with an empty object
+      const updatedUser = {...(prevUser || {}), ...newUserData};
+      return updatedUser;
+    });
   }, []);
 
   // --- Logout Function ---

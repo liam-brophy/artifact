@@ -18,6 +18,7 @@ class User(db.Model, SerializerMixin):
     role = db.Column(db.String(50), nullable=False, server_default='patron')
     profile_image_url = db.Column(db.String(500), nullable=True)
     bio = db.Column(db.Text, nullable=True)
+    favorite_color = db.Column(db.String(50), nullable=True)  # Store hex color or color name
     created_at = db.Column(db.TIMESTAMP, nullable=False, default=datetime.utcnow)
     last_login = db.Column(db.TIMESTAMP, nullable=True)
 

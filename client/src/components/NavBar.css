@@ -79,11 +79,32 @@
 }
 
 .theme-toggle.light-theme {
-  color: #F50801;
+  color: var(--accent-color);
 }
 
 .theme-toggle.dark-theme {
-  color: #3BDBB2;
+  color: var(--accent-color);
+}
+
+/* Color picker icon */
+.color-picker-icon {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+
+.color-picker-icon:hover {
+  transform: scale(1.1);
+}
+
+.color-picker-icon.light-theme {
+  color: var(--accent-color);
+}
+
+.color-picker-icon.dark-theme {
+  color: var(--accent-color);
 }
 
 /* Upload icon button */
@@ -96,11 +117,11 @@
 }
 
 .upload-icon.light-theme {
-  color: #F50801;
+  color: var(--accent-color);
 }
 
 .upload-icon.dark-theme {
-  color: #3BDBB2;
+  color: var(--accent-color);
 }
 
 /* Username link styles */
@@ -134,7 +155,7 @@
 }
 
 .username-link.light-theme::after {
-  background-color: #F50801;
+  background-color: var(--accent-color);
 }
 
 .username-link.dark-theme {
@@ -142,7 +163,7 @@
 }
 
 .username-link.dark-theme::after {
-  background-color: #3BDBB2;
+  background-color: var(--accent-color);
 }
 
 /* Logout button */
@@ -157,20 +178,20 @@
 /* Primary button styles */
 .primary-button.light-theme {
   color: #FFFFFF;
-  background-color: #F50801;
+  background-color: var(--accent-color);
 }
 
 .primary-button.light-theme:hover {
-  background-color: #D90701;
+  background-color: var(--accent-hover);
 }
 
 .primary-button.dark-theme {
   color: #000000;
-  background-color: #3BDBB2;
+  background-color: var(--accent-color);
 }
 
 .primary-button.dark-theme:hover {
-  background-color: #2FC69F;
+  background-color: var(--accent-hover);
 }
 
 /* Greeting text */
