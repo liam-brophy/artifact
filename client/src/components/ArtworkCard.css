@@ -90,6 +90,19 @@
     position: absolute; /* Position the image absolutely within the container */
     top: 0;
     left: 0;
+    z-index: 1; /* Ensure the image is behind the border */
+  }
+  
+  /* SVG border styling */
+  .artwork-card-front__border {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    z-index: 2; /* Position border on top of the image */
+    pointer-events: none; /* Allow clicks to pass through to the card */
   }
   
   .artwork-card-front__artist {

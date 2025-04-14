@@ -155,35 +155,30 @@ function HomePage() {
 
   return (
     <div className="home-page-container">
-      {/* --- Top Section (Welcome & Role Actions) --- */}
-      <section className="welcome-section">
-        <h1 className="welcome-title">{welcomeMessage}</h1>
-        <p className="welcome-subtitle">Discover, collect, and support digital artists.</p>
-        <div className="role-actions">
-          {/* Role specific buttons */}
-          {user && user.role === 'artist' && (
-            <>
-              <Typography variant="h5" component="h3" gutterBottom sx={{ mb: 2 }}>Artist Dashboard</Typography>
-              <Button component={RouterLink} to="/upload" variant="contained" color="primary" size="large" sx={{ mr: 1, ml: 1 }}> Upload New Artwork </Button>
-              <Button component={RouterLink} to={`/users/${user.username}`} variant="outlined" size="large" sx={{ mr: 1, ml: 1 }}> My Profile & Artworks </Button>
-            </>
-          )}
-          {user && user.role === 'patron' && (
-              <>
-                <Typography variant="h5" component="h3" gutterBottom sx={{ mb: 2 }}>Explore & Collect</Typography>
-                <Button component={RouterLink} to="/gallery" variant="contained" color="primary" size="large" sx={{ mr: 1, ml: 1 }} > Browse Gallery </Button>
-                <Button component={RouterLink} to={`/users/${user.username}`} variant="outlined" size="large" sx={{ mr: 1, ml: 1 }}> My Profile & Collections </Button>
-              </>
-          )}
+      {/* --- Hero Section --- */}
+      <section className="hero-section">
+        <div className="hero-image">
+          {/* Placeholder dark image background */}
+          <div className="hero-overlay"></div>
+        </div>
+        <div className="hero-content">
+          <h1 className="hero-title">{welcomeMessage}</h1>
+          <p className="hero-subtitle">
+            Discover, collect, and support digital artists on a platform designed for creative expression.
+          </p>
           {!user && (
-              <>
-                <Button component={RouterLink} to="/register" variant="contained" color="primary" size="large" sx={{ mr: 1, ml: 1 }}> Join as Artist or Patron </Button>
-                <Button component={RouterLink} to="/gallery" variant="outlined" size="large" sx={{ mr: 1, ml: 1 }}> Explore Artworks </Button>
-              </>
+            <div className="hero-cta">
+              <Button component={RouterLink} to="/register" variant="contained" color="primary" size="large" sx={{ mr: 1, mb: 1 }}> 
+                Join as Artist or Patron 
+              </Button>
+              <Button component={RouterLink} to="/gallery" variant="outlined" size="large" sx={{ mr: 1, mb: 1 }} className="hero-button-outlined"> 
+                Explore Artworks 
+              </Button>
+            </div>
           )}
         </div>
       </section>
-      {/* --- End Top Section --- */}
+      {/* --- End Hero Section --- */}
 
       {/* === User Packs Section === */}
       {user && (
@@ -205,7 +200,7 @@ function HomePage() {
         ) : errorArtworks ? (
           <div className="error-container">
             <Alert severity="error" sx={{ width: '100%', justifyContent: 'center' }}>
-              {errorArtworks}
+              {typeof errorArtworks === 'object' ? errorArtworks.message || JSON.stringify(errorArtworks) : errorArtworks}
             </Alert>
           </div>
         ) : artworks.length > 0 ? (

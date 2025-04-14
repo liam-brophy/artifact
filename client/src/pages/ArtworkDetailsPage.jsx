@@ -10,6 +10,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import BrushIcon from '@mui/icons-material/Brush';
 import apiService from '../services/apiService';
 import { useAuth } from '../context/AuthContext';
 import { ARTWORK_RARITIES, RARITY_VALUES } from '../constants/artwork';
@@ -246,6 +247,14 @@ function ArtworkDetailsPage() {
               e.target.src = 'https://via.placeholder.com/800x600.png?text=Artwork+Image+Not+Available';
             }}
           />
+          {/* Display SVG border if one is selected */}
+          {artwork.border_decal_id && (
+            <img
+              src={`/svg/borders/${artwork.border_decal_id}.svg`}
+              alt="Border"
+              className="artwork-border"
+            />
+          )}
         </div>
         
         {/* Details/Edit Panel */}
@@ -411,6 +420,15 @@ function ArtworkDetailsPage() {
                     onClick={handleStartEditing}
                   >
                     Edit
+                  </Button>
+                  <Button 
+                    startIcon={<BrushIcon />} 
+                    variant="outlined" 
+                    color="secondary" 
+                    size="small" 
+                    onClick={() => navigate(`/studio/${artwork.artwork_id}`)}
+                  >
+                    Customize
                   </Button>
                   <Button 
                     startIcon={<DeleteIcon />} 

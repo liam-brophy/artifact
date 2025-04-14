@@ -46,7 +46,8 @@ export const AuthProvider = ({ children }) => {
               .filter(Boolean) || [];
             setOwnedArtworkIds(new Set(ids));
           } catch (err) {
-            console.warn("Failed to fetch collection:", err);
+            console.error("Failed to fetch collection:", err);
+            // Don't stop the authentication flow due to collection fetch failure
             setOwnedArtworkIds(new Set());
           }
         }

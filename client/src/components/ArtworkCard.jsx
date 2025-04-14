@@ -76,12 +76,22 @@ function ArtworkCard({ artwork }) {
                 <div className="artwork-card-front">
                     <div className="artwork-card-front__image-container">
                         {displayImageUrl ? (
-                            <img
-                                src={displayImageUrl}
-                                alt={artwork.title || 'Artwork'}
-                                className="artwork-card-front__image"
-                                onError={handleImageError}
-                            />
+                            <>
+                                <img
+                                    src={displayImageUrl}
+                                    alt={artwork.title || 'Artwork'}
+                                    className="artwork-card-front__image"
+                                    onError={handleImageError}
+                                />
+                                {/* Show SVG border if one is selected */}
+                                {artwork.border_decal_id && (
+                                    <img
+                                        src={`/svg/borders/${artwork.border_decal_id}.svg`}
+                                        alt="Border"
+                                        className="artwork-card-front__border"
+                                    />
+                                )}
+                            </>
                         ) : (
                             <div className="artwork-card-front__image-placeholder">No Image</div>
                         )}

@@ -248,6 +248,7 @@ def get_artwork_details(artwork_id):
         "rarity",
         "image_url", 
         "thumbnail_url",
+        "border_decal_id",  # Include border_decal_id
         "year",
         "medium",
         "artist_name",
@@ -344,6 +345,8 @@ def update_artwork(artwork_id):
             artwork.medium = data['medium'].strip()
         if 'rarity' in data:
             artwork.rarity = data['rarity']
+        if 'border_decal_id' in data:
+            artwork.border_decal_id = data['border_decal_id']
         
         # Save changes
         db.session.commit()
@@ -357,6 +360,7 @@ def update_artwork(artwork_id):
             "rarity",
             "image_url", 
             "thumbnail_url",
+            "border_decal_id",  # Include border_decal_id
             "year",
             "medium",
             "artist_name",

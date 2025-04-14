@@ -9,6 +9,116 @@
     font-family: var(--body-font);
   }
   
+  /* Hero section - dark image with right-aligned white text */
+.hero-section {
+  position: relative;
+  margin-bottom: 4rem;
+  height: 400px;
+  overflow: hidden;
+  /* No border or colored background frame */
+}
+
+.hero-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #1a1a1a; /* Dark background for placeholder */
+  background-image: url('/assets/Artifact_Logo_White.png'); /* Optional: can use logo as a watermark */
+  background-position: center left;
+  background-repeat: no-repeat;
+  background-size: auto 70%;
+  opacity: 0.85;
+}
+
+.hero-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.5) 100%);
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  padding: 4rem 2rem;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-end; /* Align content to the right */
+  text-align: right;
+  max-width: 100%;
+}
+
+.hero-title {
+  font-size: 3rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  color: white; /* White text */
+  font-family: var(--header-font);
+  line-height: 1.2;
+  max-width: 60%;
+}
+
+.hero-subtitle {
+  font-size: 1.25rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.85); /* Slightly transparent white */
+  margin-bottom: 2rem;
+  max-width: 60%;
+}
+
+.hero-cta {
+  margin-top: 1rem;
+}
+
+.hero-button-outlined {
+  color: white !important;
+  border-color: white !important;
+}
+
+/* Responsive styles for the hero section */
+@media screen and (max-width: 768px) {
+  .hero-title {
+    font-size: 2.5rem;
+    max-width: 80%;
+  }
+  
+  .hero-subtitle {
+    font-size: 1.1rem;
+    max-width: 80%;
+  }
+
+  .hero-section {
+    height: 350px;
+  }
+}
+
+@media screen and (max-width: 576px) {
+  .hero-title {
+    font-size: 2rem;
+    max-width: 100%;
+  }
+  
+  .hero-subtitle {
+    font-size: 1rem;
+    max-width: 100%;
+  }
+
+  .hero-section {
+    height: 300px;
+  }
+  
+  .hero-content {
+    padding: 2rem 1rem;
+  }
+}
+
   .welcome-section {
     text-align: center;
     margin-bottom: 3rem; /* Spacing */
@@ -44,9 +154,7 @@
     margin-top: 2rem;
     margin-bottom: 3rem;
     padding: 1.5rem;
-    border: 1px solid #e0e0e0; /* Example border */
-    border-radius: 8px;
-    background-color: #f9f9f9; /* Slight background */
+    /* Removed border and background color */
   }
   
   .packs-section-title {
@@ -229,6 +337,14 @@
   .slick-track {
     margin-left: 0;
   }
+
+  .hero-title {
+    font-size: 2.5rem;
+  }
+  
+  .hero-subtitle {
+    font-size: 1.1rem;
+  }
 }
 
 @media screen and (max-width: 576px) {
@@ -264,5 +380,20 @@
   .slick-slide:nth-child(odd) .carousel-slide,
   .slick-slide:nth-child(even) .carousel-slide {
     transform: rotate(0deg);
+  }
+
+  .hero-title {
+    font-size: 2rem;
+  }
+  
+  .hero-section {
+    padding: 2rem 0;
+    margin-bottom: 3rem;
+  }
+  
+  .hero-cta Button {
+    margin: 0.25rem;
+    width: 100%;
+    display: block;
   }
 }

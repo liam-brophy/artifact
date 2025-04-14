@@ -22,6 +22,7 @@ class Artwork(db.Model, SerializerMixin):
     series = Column(String(100), nullable=True)  # Added field for artwork series
     image_url = Column(String(500), nullable=False) # Increased length based on User model example
     thumbnail_url = Column(String(500), nullable=True) # Increased length
+    border_decal_id = Column(String(100), nullable=True)  # Added field for SVG border identifier
     year = Column(Integer, nullable=True)
     medium = Column(String(100), nullable=True)
     rarity = db.Column(rarity_enum, nullable=False)

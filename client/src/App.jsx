@@ -21,6 +21,7 @@ import NotFoundPage from './pages/NotFoundPage';
 import UploadPage from './pages/UploadPage';
 import SettingsPage from './pages/SettingsPage';
 import ArtworkDetailsPage from './pages/ArtworkDetailsPage'; // Import the new ArtworkDetailsPage
+import ArtStudio from './components/ArtStudio'; // Import the new ArtStudio component
 
 // --- Layout Component for Authenticated Users ---
 // This component will render the NavBar and the nested route content (Outlet)
@@ -107,7 +108,14 @@ function App() {
                         }
                     />
                     <Route path="/artworks/:artworkId" element={<ProtectedRoute><ArtworkDetailsPage /></ProtectedRoute>} /> {/* Fixed route path */}
-                     {/* */}
+                    <Route
+                        path="/studio/:artworkId"
+                        element={
+                            <ArtistOnlyRoute> {/* Only artists can customize artwork */}
+                                <ArtStudio />
+                            </ArtistOnlyRoute>
+                        }
+                    />
                 </Route>
 
                 {/* Catch-all or Not Found - Render outside AuthenticatedLayout if NavBar shouldn't show */}
