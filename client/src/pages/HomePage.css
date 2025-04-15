@@ -1,21 +1,19 @@
 .home-page-container {
-    padding-top: 2rem; /* Equivalent to py: 4 in MUI */
-    padding-bottom: 2rem;
-    max-width: 1200px; /* Equivalent to maxWidth="lg" */
-    margin-left: auto;
-    margin-right: auto;
-    padding-left: 1rem; /* Some padding */
-    padding-right: 1rem;
+    padding: 0; /* Remove all padding */
+    max-width: 100%; /* Allow full width */
+    margin: 0; /* Remove all margins */
+    width: 100%;
     font-family: var(--body-font);
+    overflow-x: hidden; /* Prevent horizontal scrolling */
   }
   
-  /* Hero section - dark image with right-aligned white text */
+  /* Hero section - full width with left-aligned text */
 .hero-section {
   position: relative;
-  margin-bottom: 4rem;
-  height: 400px;
+  margin: 0 0 4rem 0; /* Keep bottom margin, remove others */
+  height: 600px; /* Fixed height */
+  width: 100%; /* Use 100% width to fill container */
   overflow: hidden;
-  /* No border or colored background frame */
 }
 
 .hero-image {
@@ -24,53 +22,48 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: #1a1a1a; /* Dark background for placeholder */
-  background-image: url('/assets/Artifact_Logo_White.png'); /* Optional: can use logo as a watermark */
-  background-position: center left;
+  background-color: #1a1a1a; /* Fallback */
+  background-size: cover;
+  background-position: center;
   background-repeat: no-repeat;
-  background-size: auto 70%;
-  opacity: 0.85;
 }
 
 .hero-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(to right, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.5) 100%);
+  display: none; /* Remove overlay as requested */
 }
 
 .hero-content {
   position: relative;
   z-index: 1;
-  padding: 4rem 2rem;
+  padding: 2rem 4rem; /* Reduced top padding to position higher */
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: flex-end; /* Align content to the right */
-  text-align: right;
-  max-width: 100%;
+  justify-content: flex-start; /* Changed from center to start for higher position */
+  align-items: flex-end; /* Right align content instead of left */
+  text-align: right; /* Right align text instead of left */
+  box-sizing: border-box;
 }
 
 .hero-title {
-  font-size: 3rem;
+  font-size: 2.5rem; /* Reduced from 3.5rem */
   font-weight: 700;
-  margin-bottom: 1.5rem;
-  color: white; /* White text */
+  margin-bottom: 1rem; /* Reduced spacing */
+  color: white;
   font-family: var(--header-font);
   line-height: 1.2;
-  max-width: 60%;
+  max-width: 50%; /* Limit width for better readability */
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7); /* Keep shadow for readability */
 }
 
 .hero-subtitle {
-  font-size: 1.25rem;
+  font-size: 1.2rem; /* Reduced from 1.5rem */
   line-height: 1.6;
-  color: rgba(255, 255, 255, 0.85); /* Slightly transparent white */
-  margin-bottom: 2rem;
-  max-width: 60%;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 1.5rem; /* Reduced spacing */
+  max-width: 50%; /* Limit width for better readability */
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7); /* Keep shadow for readability */
 }
 
 .hero-cta {
@@ -85,28 +78,38 @@
 /* Responsive styles for the hero section */
 @media screen and (max-width: 768px) {
   .hero-title {
-    font-size: 2.5rem;
+    font-size: 2rem; /* Reduced from 2.5rem */
     max-width: 80%;
   }
   
   .hero-subtitle {
-    font-size: 1.1rem;
+    font-size: 1rem; /* Reduced from 1.1rem */
     max-width: 80%;
   }
 
   .hero-section {
     height: 350px;
   }
+
+  .home-page-container {
+    /* Remove these padding overrides since we want edge-to-edge hero */
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .hero-content {
+    padding: 1.5rem 2rem; /* Reduced padding to position higher */
+  }
 }
 
 @media screen and (max-width: 576px) {
   .hero-title {
-    font-size: 2rem;
+    font-size: 1.8rem; /* Reduced from 2rem */
     max-width: 100%;
   }
   
   .hero-subtitle {
-    font-size: 1rem;
+    font-size: 0.9rem; /* Reduced from 1rem */
     max-width: 100%;
   }
 
@@ -115,7 +118,13 @@
   }
   
   .hero-content {
-    padding: 2rem 1rem;
+    padding: 1rem 1.5rem; /* Reduced padding to position higher */
+  }
+
+  .home-page-container {
+    /* Remove these padding overrides since we want edge-to-edge hero */
+    padding-left: 0;
+    padding-right: 0;
   }
 }
 
@@ -208,6 +217,7 @@
     transform-origin: center bottom;
     transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     opacity: 1; /* All cards fully visible */
+    transform: rotate(var(--rotation-angle, 0deg)); /* Use CSS variable for rotation */
   }
   
   /* Enhanced hover effect with more vertical space */
@@ -216,14 +226,14 @@
     z-index: 10;
   }
   
-  /* Dramatic initial card angles */
+  /* Dramatic initial card angles - these are now redundant with our CSS variable approach
   .slick-slide:nth-child(odd) .carousel-slide {
-    transform: rotate(-2deg); /* Less dramatic angle */
-  }
+    /* transform applied through CSS variable now */
+  /* } */
   
-  .slick-slide:nth-child(even) .carousel-slide {
-    transform: rotate(2deg); /* Less dramatic angle */
-  }
+  /* .slick-slide:nth-child(even) .carousel-slide {
+    /* transform applied through CSS variable now */
+  /* } */ */ */
   
   /* Current active slide should appear on top */
   .slick-active .carousel-slide {
@@ -245,14 +255,14 @@
     }
     40% {
       opacity: 1;
-      transform: translateY(10px) translateX(-8px) rotate(var(--rotate-value, 0deg));
+      transform: translateY(10px) translateX(-8px) rotate(var(--rotation-angle, 0deg));
     }
     70% {
-      transform: translateY(0) translateX(0) rotate(var(--rotate-value, 0deg));
+      transform: translateY(0) translateX(0) rotate(var(--rotation-angle, 0deg));
     }
     100% {
       opacity: 1;
-      transform: translateY(0) translateX(0) rotate(0deg); /* End with no rotation */
+      transform: translateY(0) translateX(0) rotate(var(--rotation-angle, 0deg)); /* Use CSS variable for final state */
     }
   }
   
@@ -329,6 +339,14 @@
 /* Fixed 2:3 aspect ratio for cards in carousel */
 .carousel-slide .artwork-card-container {
   aspect-ratio: 2/3;
+  /* Ensure the container itself isn't rotated */
+  transform: rotate(0deg);
+}
+
+/* Apply rotation to card inner content instead of SVG border */
+.carousel-slide .artwork-card-inner {
+  /* Transfer the parent's rotation to the inner content */
+  transform: rotate(var(--rotation-angle, 0deg));
 }
 
 /* Responsive design for the HomePage */
@@ -423,4 +441,22 @@
     width: 100%;
     display: block;
   }
+}
+
+/* Add container for content after the hero section */
+.content-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+/* Update artworks section to be inside the content container */
+.artworks-carousel-section {
+  margin-top: 2rem;
+  margin-bottom: 2rem;
+  position: relative;
+  max-width: 100%;
+  overflow: hidden;
+  padding-top: 20px;
 }

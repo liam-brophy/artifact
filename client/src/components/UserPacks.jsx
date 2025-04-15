@@ -10,6 +10,9 @@ function UserPacks() {
   const [isOpening, setIsOpening] = useState(false); // Tracks if a pack open request is in progress
   const [nextPackInfo, setNextPackInfo] = useState(null); // Tracks next daily pack availability
   const [packTypeBeingOpened, setPackTypeBeingOpened] = useState(null); // Track which pack type is being opened
+  const [isClaimingPack, setIsClaimingPack] = useState(false); // Tracks if a claim daily pack request is in progress
+  const [showDailyPackTimer, setShowDailyPackTimer] = useState(false); // Controls visibility of daily pack timer
+  const [timeRemaining, setTimeRemaining] = useState(null); // Tracks countdown for next daily pack
 
   // useEffect to fetch packs and next pack availability
   useEffect(() => {
@@ -40,6 +43,11 @@ function UserPacks() {
       try {
         const response = await apiService.get('/user-packs/next-availability');
         setNextPackInfo(response.data);
+        
+        // Only show the timer if user has claimed a pack before (has next_available_at)
+        if (response.data && response.data.next_available_at) {
+          setShowDailyPackTimer(true);
+        }
       } catch (err) {
         console.error("Error fetching next pack info:", err);
         // Don't set main error - this is secondary information
@@ -49,6 +57,39 @@ function UserPacks() {
     fetchPacks();
     fetchNextPackInfo();
   }, []);
+  
+  // useEffect for the real-time timer countdown
+  useEffect(() => {
+    // Only set up the timer if we're showing the daily pack timer and have next pack time
+    if (showDailyPackTimer && nextPackInfo?.next_available_at) {
+      const timer = setInterval(() => {
+        const nextTime = new Date(nextPackInfo.next_available_at);
+        const now = new Date();
+        const diffMs = nextTime - now;
+        
+        if (diffMs <= 0) {
+          // Time is up, clear interval and refresh pack info
+          clearInterval(timer);
+          apiService.get('/user-packs/next-availability')
+            .then(response => {
+              setNextPackInfo(response.data);
+            })
+            .catch(err => {
+              console.error("Error refreshing next pack info:", err);
+            });
+        } else {
+          // Update remaining time
+          const hours = Math.floor(diffMs / (1000 * 60 * 60));
+          const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+          const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+          
+          setTimeRemaining({ hours, minutes, seconds });
+        }
+      }, 1000);
+      
+      return () => clearInterval(timer);
+    }
+  }, [showDailyPackTimer, nextPackInfo]);
 
   const handleOpenPack = async (packId, packName) => {
     console.log(`Attempting to open pack with ID: ${packId}`);
@@ -84,6 +125,39 @@ function UserPacks() {
     }
   };
 
+  // Handle claiming a daily pack
+  const handleClaimDailyPack = async () => {
+    setIsClaimingPack(true);
+    setError(null);
+    
+    try {
+      const response = await apiService.post('/user-packs/claim-daily');
+      console.log("Daily pack claimed:", response.data);
+      
+      // If successful, add the new pack to the packs list
+      if (response.data.user_pack_id) {
+        // Fetch the pack details to get the name and description
+        const packsResponse = await apiService.get('/user-packs');
+        if (packsResponse.data && Array.isArray(packsResponse.data)) {
+          setPacks(packsResponse.data);
+        }
+        
+        // Also refresh next pack availability info
+        const nextPackResponse = await apiService.get('/user-packs/next-availability');
+        setNextPackInfo(nextPackResponse.data);
+        
+        // Show the daily pack timer after claiming a pack
+        setShowDailyPackTimer(true);
+      }
+    } catch (err) {
+      console.error("Error claiming daily pack:", err);
+      const message = err.response?.data?.error || err.message || "Failed to claim daily pack.";
+      setError(message);
+    } finally {
+      setIsClaimingPack(false);
+    }
+  };
+
   // Function to format the next pack time in a user-friendly way
   const formatNextPackTime = (isoTimeString) => {
     if (!isoTimeString) return null;
@@ -107,9 +181,36 @@ function UserPacks() {
     }
   };
 
+  // Function to format the countdown timer
+  const formatCountdown = () => {
+    if (!timeRemaining) return 'Calculating...';
+    
+    const { hours, minutes, seconds } = timeRemaining;
+    
+    if (hours > 24) {
+      return `${Math.floor(hours / 24)} days ${hours % 24}h ${minutes}m`;
+    } else {
+      return `${hours}h ${minutes}m ${seconds}s`;
+    }
+  };
+
   // Function to close the results display (modal or section)
   const handleCloseResults = () => {
     setOpenedPackResult(null);
+    
+    // Refresh the packs list after adding to collection
+    const fetchPacks = async () => {
+      try {
+        const response = await apiService.get('/user-packs');
+        if (response.data && Array.isArray(response.data)) {
+          setPacks(response.data);
+        }
+      } catch (err) {
+        console.error("Error refreshing packs:", err);
+      }
+    };
+    
+    fetchPacks();
   };
 
   // Helper to determine pack card CSS class based on pack name
@@ -184,13 +285,13 @@ function UserPacks() {
       )}
 
       {/* Daily Pack Availability Information */}
-      {nextPackInfo && (
+      {showDailyPackTimer && nextPackInfo && (
         <div className="daily-pack-info">
           <h3>Daily Pack</h3>
           {nextPackInfo.has_unopened_daily_packs ? (
             <p>You have an unopened daily pack! Open it below.</p>
           ) : nextPackInfo.next_available_at ? (
-            <p>Next daily pack: <span className="countdown">{formatNextPackTime(nextPackInfo.next_available_at)}</span></p>
+            <p>Next daily pack: <span className="countdown">{formatCountdown()}</span></p>
           ) : (
             <p>Your first daily pack will arrive tomorrow!</p>
           )}
@@ -210,13 +311,19 @@ function UserPacks() {
               <div className="artwork-grid">
                 {openedPackResult.artworks_received.map(art => (
                   <div className="artwork-item" key={art.artwork_id}>
-                    <img 
-                      src={art.image_url} 
-                      alt={art.title} 
-                      className="artwork-image" 
-                    />
+                    <div className="artwork-image-container">
+                      <img 
+                        src={art.image_url} 
+                        alt={art.title} 
+                        className="artwork-image" 
+                        onError={(e) => {
+                          console.error("Failed to load artwork image:", art.image_url);
+                          e.target.src = "https://via.placeholder.com/200x200?text=Image+Not+Available";
+                        }}
+                      />
+                    </div>
                     <div className="artwork-info">
-                      <h4 className="artwork-title">{art.title}</h4>
+                      <h4 className="artwork-title">{art.title || "Untitled Artwork"}</h4>
                       <p className="artwork-artist">by {art.artist?.username || 'Unknown Artist'}</p>
                       {art.rarity && (
                         <span className={`rarity-badge ${getRarityClass(art.rarity)}`}>
@@ -228,12 +335,14 @@ function UserPacks() {
                 ))}
               </div>
             ) : (
-              <p>No artworks were found in this pack.</p>
+              <p className="no-artworks-message">No artworks were found in this pack.</p>
             )}
             
-            <button className="close-button" onClick={handleCloseResults}>
-              Add to Collection
-            </button>
+            <div className="modal-actions">
+              <button className="close-button" onClick={handleCloseResults}>
+                Add to Collection
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -249,56 +358,82 @@ function UserPacks() {
       {!isLoading && packs.length === 0 && !error && !openedPackResult && (
         <div className="empty-state">
           <p>You have no unopened packs.</p>
+          
+          {/* Add a button to claim daily pack if available */}
+          {nextPackInfo && nextPackInfo.can_claim_daily_pack && (
+            <button 
+              className="claim-daily-pack-btn"
+              onClick={handleClaimDailyPack}
+              disabled={isClaimingPack}
+            >
+              {isClaimingPack ? 'Claiming...' : 'Claim Daily Pack'}
+            </button>
+          )}
         </div>
       )}
 
       {/* Pack list - Now with stacked packs */}
       {!isLoading && groupedPacks.length > 0 && (
-        <ul className="packs-list">
-          {groupedPacks.map((packGroup) => (
-            <li key={packGroup.name} className="pack-list-item">
-              {/* Count badge as independent element */}
-              {packGroup.count > 1 && (
-                <div className={`pack-count-badge ${getPackCardClass(packGroup.name).includes('premium') ? 'premium' : getPackCardClass(packGroup.name).includes('daily') ? 'daily' : ''}`} data-count={packGroup.count > 10 ? "10+" : packGroup.count}>
-                  <span>{packGroup.count}</span>
-                </div>
-              )}
-              
-              <div className={`${getPackCardClass(packGroup.name)} ${packGroup.count > 1 ? 'pack-stack' : ''}`}>
-                {/* Stack effect for multiple packs */}
+        <div>
+          {/* Daily pack claim button for users with other packs */}
+          {nextPackInfo && nextPackInfo.can_claim_daily_pack && (
+            <div className="daily-pack-claim-container">
+              <button 
+                className="claim-daily-pack-btn"
+                onClick={handleClaimDailyPack}
+                disabled={isClaimingPack}
+              >
+                {isClaimingPack ? 'Claiming...' : 'Claim Daily Pack'}
+              </button>
+            </div>
+          )}
+          
+          <ul className="packs-list">
+            {groupedPacks.map((packGroup) => (
+              <li key={packGroup.name} className="pack-list-item">
+                {/* Count badge as independent element */}
                 {packGroup.count > 1 && (
-                  <>
-                    <div className="pack-stack-shadow pack-stack-shadow-3"></div>
-                    <div className="pack-stack-shadow pack-stack-shadow-2"></div>
-                    <div className="pack-stack-shadow pack-stack-shadow-1"></div>
-                  </>
+                  <div className={`pack-count-badge ${getPackCardClass(packGroup.name).includes('premium') ? 'premium' : getPackCardClass(packGroup.name).includes('daily') ? 'daily' : ''}`} data-count={packGroup.count > 10 ? "10+" : packGroup.count}>
+                    <span>{packGroup.count}</span>
+                  </div>
                 )}
                 
-                <div className="pack-card-inner">
-                  <div className="pack-card-content">
-                    {/* Pack overlay effect */}
-                    <div className="pack-overlay"></div>
-                    
-                    {/* Design elements that make it feel like a pack/sleeve */}
-                    <div className="pack-design"></div>
-                    
-                    <div className="pack-content-wrapper">
-                      <h3 className="pack-title">{packGroup.name}</h3>
-                      {packGroup.description && <p className="pack-description">{packGroup.description}</p>}
-                      <button 
-                        className="pack-button"
-                        onClick={() => handleOpenTopPack(packGroup.name)}
-                        disabled={isOpening}
-                      >
-                        {isOpening && packTypeBeingOpened === packGroup.name ? 'Opening...' : 'Open Pack'}
-                      </button>
+                <div className={`${getPackCardClass(packGroup.name)} ${packGroup.count > 1 ? 'pack-stack' : ''}`}>
+                  {/* Stack effect for multiple packs */}
+                  {packGroup.count > 1 && (
+                    <>
+                      <div className="pack-stack-shadow pack-stack-shadow-3"></div>
+                      <div className="pack-stack-shadow pack-stack-shadow-2"></div>
+                      <div className="pack-stack-shadow pack-stack-shadow-1"></div>
+                    </>
+                  )}
+                  
+                  <div className="pack-card-inner">
+                    <div className="pack-card-content">
+                      {/* Pack overlay effect */}
+                      <div className="pack-overlay"></div>
+                      
+                      {/* Design elements that make it feel like a pack/sleeve */}
+                      <div className="pack-design"></div>
+                      
+                      <div className="pack-content-wrapper">
+                        <h3 className="pack-title">{packGroup.name}</h3>
+                        {packGroup.description && <p className="pack-description">{packGroup.description}</p>}
+                        <button 
+                          className="pack-button"
+                          onClick={() => handleOpenTopPack(packGroup.name)}
+                          disabled={isOpening}
+                        >
+                          {isOpening && packTypeBeingOpened === packGroup.name ? 'Opening...' : 'Open Pack'}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </li>
-          ))}
-        </ul>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );

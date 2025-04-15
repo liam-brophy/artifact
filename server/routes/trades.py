@@ -126,64 +126,16 @@ def accept_trade(trade_id):
     if trade.recipient_id != current_user.user_id:
         return jsonify({'error': 'Only the recipient can accept this trade'}), 403
     
-    # Check if trade is in pending status
-    if trade.status != 'pending':
-        return jsonify({'error': f'Cannot accept a trade with status: {trade.status}'}), 400
+    # Use the new execute_trade method for safer transaction handling
+    success, message = Trade.execute_trade(trade_id)
     
-    # Verify the offered and requested artworks are still owned by the respective users
-    initiator_still_owns = Collection.query.filter_by(
-        patron_id=trade.initiator_id,
-        artwork_id=trade.offered_artwork_id
-    ).first()
-    
-    recipient_still_owns = Collection.query.filter_by(
-        patron_id=trade.recipient_id,
-        artwork_id=trade.requested_artwork_id
-    ).first()
-    
-    if not initiator_still_owns or not recipient_still_owns:
-        trade.status = 'rejected'  # Automatically reject if conditions changed
-        db.session.commit()
-        return jsonify({'error': 'Trade cannot be completed because one or both artworks are no longer available'}), 400
-    
-    try:
-        # Begin transaction for the trade
-        # 1. Update trade status to accepted
-        trade.status = 'accepted'
-        
-        # 2. Update collection ownership records
-        # Remove artwork from initiator's collection
-        db.session.delete(initiator_still_owns)
-        # Remove artwork from recipient's collection
-        db.session.delete(recipient_still_owns)
-        
-        # Add recipient's requested artwork to initiator's collection
-        initiator_gets_artwork = Collection(
-            patron_id=trade.initiator_id,
-            artwork_id=trade.requested_artwork_id
-        )
-        
-        # Add initiator's offered artwork to recipient's collection
-        recipient_gets_artwork = Collection(
-            patron_id=trade.recipient_id,
-            artwork_id=trade.offered_artwork_id
-        )
-        
-        # Add new collection records
-        db.session.add(initiator_gets_artwork)
-        db.session.add(recipient_gets_artwork)
-        
-        # Commit all changes as a single transaction
-        db.session.commit()
-        
+    if success:
         return jsonify({
-            'message': 'Trade successfully completed',
+            'message': message,
             'trade': trade.to_dict()
         }), 200
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Error accepting trade: {str(e)}")
-        return jsonify({'error': 'Failed to complete the trade'}), 500
+    else:
+        return jsonify({'error': message}), 400
 
 @trades_bp.route('/trades/<int:trade_id>/reject', methods=['POST'])
 @jwt_required()

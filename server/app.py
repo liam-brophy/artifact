@@ -1,8 +1,10 @@
 import os
 from flask import Flask, jsonify
 from dotenv import load_dotenv
-from datetime import timedelta
+from datetime import timedelta, datetime
 from flask_cors import CORS
+from flask_apscheduler import APScheduler
+import logging
 
 # from flask_seeder import Seeder # Not currently used, can be commented out or removed if not needed
 
@@ -21,6 +23,9 @@ from .models.user_pack import UserPack   # Import UserPack model
 from .models.trade import Trade          # Import Trade model
 # ---------------------------------------------------
 # Import any other models you have (e.g., UserFollow)
+
+# Create scheduler instance
+scheduler = APScheduler()
 
 load_dotenv()
 
@@ -49,8 +54,11 @@ def create_app(config_object=None):
         JWT_REFRESH_CSRF_HEADER_NAME="X-CSRF-Token",
         JWT_BLOCKLIST_ENABLED=True, # Enable blocklisting
         JWT_BLOCKLIST_TOKEN_CHECKS=["access", "refresh"],
-        GOOGLE_CLIENT_ID=os.environ.get('GOOGLE_CLIENT_ID') # Add Google Client ID config
-        # Add other configurations
+        GOOGLE_CLIENT_ID=os.environ.get('GOOGLE_CLIENT_ID'), # Add Google Client ID config
+        
+        # Scheduler configuration
+        SCHEDULER_API_ENABLED=True,
+        SCHEDULER_TIMEZONE="UTC"
     )
 
     # Override with config_object if provided (useful for testing)
@@ -132,6 +140,40 @@ def create_app(config_object=None):
         # Log the error in production
         app.logger.error(f"Server Error: {error}", exc_info=True)
         return jsonify({"error": {"code": "INTERNAL_SERVER_ERROR", "message": "An internal server error occurred"}}), 500
+
+    # --- Initialize Flask-APScheduler ---
+    scheduler.init_app(app)
+    
+    # Only add jobs if scheduler not already running (prevents duplicate jobs during reloads)
+    if not scheduler.running:
+        from server.services.scheduler_service import generate_daily_packs, check_missing_daily_packs
+        
+        # Job 1: Daily pack generation at 00:01 UTC every day
+        @scheduler.task('cron', id='daily_pack_generation', hour=0, minute=1)
+        def scheduled_daily_pack_generation():
+            with app.app_context():
+                app.logger.info("Running scheduled daily pack generation")
+                try:
+                    success_count = generate_daily_packs()
+                    app.logger.info(f"Daily pack generation completed. Created {success_count} packs.")
+                except Exception as e:
+                    app.logger.error(f"Error in scheduled daily pack generation: {str(e)}")
+        
+        # Job 2: Check for missing packs at 12:00 UTC every day
+        # This job acts as a safety net in case the main job fails
+        @scheduler.task('cron', id='check_missing_packs', hour=12, minute=0)
+        def scheduled_check_missing_packs():
+            with app.app_context():
+                app.logger.info("Running scheduled check for missing daily packs")
+                try:
+                    recovered_count = check_missing_daily_packs()
+                    app.logger.info(f"Missing pack check completed. Recovered {recovered_count} packs.")
+                except Exception as e:
+                    app.logger.error(f"Error in scheduled missing pack check: {str(e)}")
+        
+        # Start the scheduler
+        scheduler.start()
+        app.logger.info("Pack scheduler started successfully")
 
     # --- Simple Root Route (Optional) ---
     @app.route('/')

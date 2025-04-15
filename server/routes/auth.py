@@ -39,7 +39,7 @@ def _generate_unique_username(base_username):
         counter += 1
     return username
 
-def _create_google_user(idinfo, role):
+def _create_google_user(idinfo, role, favorite_color=None):
     """Creates a new User record from Google idinfo and a validated role."""
     user_email = idinfo['email']
     base_username = user_email.split('@')[0]
@@ -54,7 +54,8 @@ def _create_google_user(idinfo, role):
         password_hash='!OAUTH_GOOGLE!',
         role=role,
         profile_image_url=idinfo.get('picture'),
-        bio=f"Signed up via Google. Name: {idinfo.get('name', 'N/A')}"
+        bio=f"Signed up via Google. Name: {idinfo.get('name', 'N/A')}",
+        favorite_color=favorite_color
     )
     try:
         db.session.add(new_user)
@@ -116,7 +117,12 @@ def register_user():
         return jsonify({"error": {"code": "USER_003", "message": "Email address is already registered"}}), 409
 
     # Create and save user
-    new_user = User(username=username, email=email, role=role)
+    new_user = User(
+        username=username, 
+        email=email, 
+        role=role,
+        favorite_color=data.get('favorite_color')  # Add favorite_color from request
+    )
     new_user.set_password(password)
 
     try:
@@ -167,7 +173,7 @@ def login_user():
 
         # --- Prepare User Data for Response (Choose ONE way) ---
         # Option 1: Using your existing specific dict (seems fine)
-        login_user_response_data = user.to_dict(only=["user_id", "username", "role", "email", "profile_image_url"])
+        login_user_response_data = user.to_dict(only=["user_id", "username", "role", "email", "profile_image_url", "favorite_color"])
         # Option 2: Using the rules-based dict (if you prefer)
         # login_user_response_data = user.to_dict(rules=('-password_hash', '-collections', '-created_artworks', '-packs'))
 
@@ -210,7 +216,8 @@ def auth_status():
                     "username": user.username,
                     "role": user.role,
                     "email": user.email,
-                    "profile_image_url": user.profile_image_url
+                    "profile_image_url": user.profile_image_url,
+                    "favorite_color": user.favorite_color
                 }
             }), 200
         
@@ -427,7 +434,10 @@ def google_auth():
                 current_app.logger.error(f"Role validation unexpectedly resulted in an empty role for {user_email}.")
                 return jsonify({"error": {"code": "INTERNAL_SERVER_ERROR", "message": "Role processing failed."}}), 500
 
-            user, error_payload, error_code = _create_google_user(idinfo, validated_role)
+            # Get favorite_color from request if provided
+            favorite_color = data.get('favorite_color')
+            
+            user, error_payload, error_code = _create_google_user(idinfo, validated_role, favorite_color)
             if error_payload:
                 return jsonify(error_payload), error_code
             if not user:

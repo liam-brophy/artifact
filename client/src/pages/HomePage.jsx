@@ -82,7 +82,7 @@ function HomePage() {
     setCurrentSlide(newIndex);
   };
 
-  // Enhanced style function - making all cards fully visible but contained
+  // Enhanced style function that uses CSS variables instead of direct transforms
   const getCardStyle = (index) => {
     const relativeIndex = index - currentSlide;
     
@@ -94,10 +94,10 @@ function HomePage() {
       // Set custom properties for CSS
       '--index': index,
       '--relative-index': relativeIndex,
-      animationDelay: `${index * 0.08}s`, // Quick stagger delay
-      zIndex: 10 - Math.abs(relativeIndex), // Z-index based on position from current slide
-      // Apply more subtle rotation
-      transform: `rotate(${rotationFactor * 2}deg)`, // Reduced to 2 degrees for less dramatic effect
+      '--rotation-angle': `${rotationFactor * 2}deg`, // Store rotation as CSS variable
+      animationDelay: `${index * 0.08}s`,
+      zIndex: 10 - Math.abs(relativeIndex),
+      // Remove direct transform property
     };
   };
 
@@ -157,70 +157,69 @@ function HomePage() {
     <div className="home-page-container">
       {/* --- Hero Section --- */}
       <section className="hero-section">
-        <div className="hero-image">
-          {/* Placeholder dark image background */}
-          <div className="hero-overlay"></div>
-        </div>
-        <div className="hero-content">
-          <h1 className="hero-title">{welcomeMessage}</h1>
-          <p className="hero-subtitle">
-            Discover, collect, and support digital artists on a platform designed for creative expression.
-          </p>
-          {!user && (
-            <div className="hero-cta">
-              <Button component={RouterLink} to="/register" variant="contained" color="primary" size="large" sx={{ mr: 1, mb: 1 }}> 
-                Join as Artist or Patron 
-              </Button>
-              <Button component={RouterLink} to="/gallery" variant="outlined" size="large" sx={{ mr: 1, mb: 1 }} className="hero-button-outlined"> 
-                Explore Artworks 
-              </Button>
-            </div>
-          )}
+        <div className="hero-image" style={{ backgroundImage: 'url("/assets/Artifact_Hero.jpg")' }}>
+          <div className="hero-content">
+            <h1 className="hero-title">{welcomeMessage}</h1>
+            <p className="hero-subtitle">
+              Discover, collect, and support digital artists on a platform designed for creative expression.
+            </p>
+            {!user && (
+              <div className="hero-cta">
+                <Button component={RouterLink} to="/register" variant="contained" color="primary" size="large" sx={{ mr: 1, mb: 1 }}> 
+                  Join as Artist or Patron 
+                </Button>
+                <Button component={RouterLink} to="/gallery" variant="outlined" size="large" sx={{ mr: 1, mb: 1 }} className="hero-button-outlined"> 
+                  Explore Artworks 
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </section>
       {/* --- End Hero Section --- */}
 
-      {/* === User Packs Section === */}
-      {user && (
-        <section className="packs-section">
-          <h2 className="packs-section-title">Your Unopened Packs</h2>
-          <UserPacks />
-        </section>
-      )}
-      {/* === End User Packs Section === */}
-
-      {/* === Artwork Carousel Section === */}
-      <section className="artworks-carousel-section">
-        <h2 className="artworks-carousel-title">Featured Artworks</h2>
-
-        {isLoadingArtworks ? (
-          <div className="loading-container">
-            <CircularProgress />
-          </div>
-        ) : errorArtworks ? (
-          <div className="error-container">
-            <Alert severity="error" sx={{ width: '100%', justifyContent: 'center' }}>
-              {typeof errorArtworks === 'object' ? errorArtworks.message || JSON.stringify(errorArtworks) : errorArtworks}
-            </Alert>
-          </div>
-        ) : artworks.length > 0 ? (
-          <div className="carousel-container">
-            <Slider {...carouselSettings} ref={sliderRef}>
-              {artworks.map((artwork, index) => (
-                <div key={artwork.artwork_id} className="carousel-slide" style={getCardStyle(index)}>
-                  <ArtworkCard artwork={artwork} />
-                </div>
-              ))}
-            </Slider>
-          </div>
-        ) : (
-          <div className="no-artworks-container">
-            <p>No artworks found yet.</p>
-          </div>
+      {/* Content Container for the rest of the page */}
+      <div className="content-container">
+        {/* === User Packs Section === */}
+        {user && (
+          <section className="packs-section">
+            <UserPacks />
+          </section>
         )}
-      </section>
-      {/* === End Artwork Carousel Section === */}
+        {/* === End User Packs Section === */}
 
+        {/* === Artwork Carousel Section === */}
+        <section className="artworks-carousel-section">
+          <h2 className="artworks-carousel-title">Featured Artworks</h2>
+
+          {isLoadingArtworks ? (
+            <div className="loading-container">
+              <CircularProgress />
+            </div>
+          ) : errorArtworks ? (
+            <div className="error-container">
+              <Alert severity="error" sx={{ width: '100%', justifyContent: 'center' }}>
+                {typeof errorArtworks === 'object' ? errorArtworks.message || JSON.stringify(errorArtworks) : errorArtworks}
+              </Alert>
+            </div>
+          ) : artworks.length > 0 ? (
+            <div className="carousel-container">
+              <Slider {...carouselSettings} ref={sliderRef}>
+                {artworks.map((artwork, index) => (
+                  <div key={artwork.artwork_id} className="carousel-slide" style={getCardStyle(index)}>
+                    <ArtworkCard artwork={artwork} />
+                  </div>
+                ))}
+              </Slider>
+            </div>
+          ) : (
+            <div className="no-artworks-container">
+              <p>No artworks found yet.</p>
+            </div>
+          )}
+        </section>
+        {/* === End Artwork Carousel Section === */}
+      </div>
     </div>
   );
 }

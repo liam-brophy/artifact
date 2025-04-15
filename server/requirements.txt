@@ -11,3 +11,4 @@ Flask-Cors
 boto3
 redis
 requests
+Flask-APScheduler

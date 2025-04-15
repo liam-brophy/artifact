@@ -140,11 +140,17 @@ button:focus-visible {
 /* Main content area */
 main {
   flex: 1;
-  padding: 20px;
+  padding: 0; /* Remove padding to allow edge-to-edge content */
   width: 100%;
-  max-width: 1200px;
   margin: 0 auto;
   box-sizing: border-box;
+}
+
+/* Content container for regular content */
+main .content-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
 }
 
 /* Card styling for consistency */

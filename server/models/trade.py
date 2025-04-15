@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy_serializer import SerializerMixin
 from sqlalchemy.sql import func
-from sqlalchemy import ForeignKey, Integer, String, Text, DateTime, Column, Index, CheckConstraint
+from sqlalchemy import ForeignKey, Integer, String, Text, DateTime, Column, Index, CheckConstraint, and_, or_
 
 # Import db instance from the main app file
 from server.app import db
@@ -75,6 +75,71 @@ class Trade(db.Model, SerializerMixin):
         # - Check that the recipient owns the requested artwork
             
         return True, ""
+    
+    @classmethod
+    def execute_trade(cls, trade_id):
+        """
+        Execute a trade with proper transaction isolation
+        Returns (success, message) tuple
+        """
+        from server.models.collection import Collection
+        
+        # Get the trade by ID and lock it for update
+        trade = cls.query.with_for_update().get(trade_id)
+        
+        if not trade:
+            return False, "Trade not found"
+        
+        if trade.status != 'pending':
+            return False, f"Cannot accept a trade with status: {trade.status}"
+        
+        # Verify the artworks are still owned by the respective users
+        initiator_ownership = Collection.query.with_for_update().filter_by(
+            patron_id=trade.initiator_id,
+            artwork_id=trade.offered_artwork_id
+        ).first()
+        
+        recipient_ownership = Collection.query.with_for_update().filter_by(
+            patron_id=trade.recipient_id,
+            artwork_id=trade.requested_artwork_id
+        ).first()
+        
+        if not initiator_ownership or not recipient_ownership:
+            trade.status = 'rejected'  # Automatically reject if conditions changed
+            db.session.commit()
+            return False, "Trade cannot be completed because one or both artworks are no longer available"
+        
+        try:
+            # 1. Update trade status to accepted
+            trade.status = 'accepted'
+            
+            # 2. Exchange artwork ownership
+            # Update ownership records
+            initiator_ownership.patron_id = trade.recipient_id
+            recipient_ownership.patron_id = trade.initiator_id
+            
+            # 3. Check for and cancel conflicting trades
+            # Find other pending trades involving either of these artworks
+            conflicting_trades = cls.query.filter(
+                and_(
+                    cls.status == 'pending',
+                    cls.trade_id != trade.trade_id,
+                    or_(
+                        cls.offered_artwork_id.in_([trade.offered_artwork_id, trade.requested_artwork_id]),
+                        cls.requested_artwork_id.in_([trade.offered_artwork_id, trade.requested_artwork_id])
+                    )
+                )
+            ).all()
+            
+            # Cancel all conflicting trades
+            for conflict in conflicting_trades:
+                conflict.status = 'canceled'
+            
+            db.session.commit()
+            return True, "Trade successfully completed"
+        except Exception as e:
+            db.session.rollback()
+            return False, f"Error completing trade: {str(e)}"
     
     # --- Database Constraints/Indexes ---
     __table_args__ = (
