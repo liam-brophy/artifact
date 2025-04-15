@@ -304,6 +304,33 @@
     transition: all 0.2s ease-out; /* Very fast transition */
   }
 
+/* Ensure SVG borders display properly in carousel slides */
+.carousel-slide .artwork-card-front__border,
+.carousel-slide object.artwork-card-front__border {
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* Use contain for consistent display */
+  transform: scale(1.01); /* Slightly scale up to ensure it covers edges */
+  overflow: visible; /* Allow SVG to extend slightly beyond container if needed */
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2; /* Same z-index as in ArtworkCard.css */
+  pointer-events: none;
+}
+
+/* Fix SVG border image path issues by ensuring it uses absolute paths */
+.carousel-slide object {
+  display: block; /* Ensure proper display */
+  width: 100%;
+  height: 100%;
+}
+
+/* Fixed 2:3 aspect ratio for cards in carousel */
+.carousel-slide .artwork-card-container {
+  aspect-ratio: 2/3;
+}
+
 /* Responsive design for the HomePage */
 @media screen and (max-width: 768px) {
   .home-page-container {

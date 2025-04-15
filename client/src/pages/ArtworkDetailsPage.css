@@ -65,9 +65,9 @@
     bottom: 0;
   }
   
-  /* Border should use contain to ensure it's fully visible */
+  /* Border should use fill to ensure it covers the full card boundary */
   .artwork-border {
-    object-fit: contain;
+    object-fit: fill;
   }
 }
 
@@ -80,6 +80,29 @@
   height: 70vh; /* Use viewport height for responsive sizing */
   position: relative;
   width: 100%;
+  /* Set a maximum aspect ratio to prevent excessive tallness on desktop */
+  max-width: min(100%, calc(70vh * 1.2)); /* Max width based on height with wider aspect ratio for desktop */
+  margin: 0 auto; /* Center the container */
+}
+
+/* Improve aspect ratio for desktop views */
+@media (min-width: 768px) {
+  .artwork-image-container {
+    max-width: min(calc(100% - 340px), calc(70vh * 1.2)); /* Max width based on remaining space or aspect ratio */
+    height: calc(100vh - 120px);
+  }
+}
+
+@media (min-width: 1024px) {
+  .artwork-image-container {
+    max-width: min(calc(100% - 340px), calc(70vh * 1.4)); /* Wider aspect ratio for larger screens */
+  }
+}
+
+@media (min-width: 1440px) {
+  .artwork-image-container {
+    max-width: min(calc(100% - 340px), calc(70vh * 1.6)); /* Even wider for very large screens */
+  }
 }
 
 /* Image fills the entire container */
@@ -103,9 +126,16 @@
   left: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: contain; /* Changed from fill to contain for more consistent display */
   z-index: 2;
   pointer-events: none;
+}
+
+/* Add specific styles for the details page SVG border */
+object.artwork-border {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
 }
 
 /* Details panel */

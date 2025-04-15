@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Card from '@mui/material/Card';
@@ -22,44 +22,77 @@ const AVAILABLE_BORDERS = [
   { id: null, name: 'No Border' } // Option to remove border
 ];
 
-function ArtStudio() {
+/**
+ * ArtStudio component for customizing artwork borders
+ * Can be used in two modes:
+ * 1. "customize" mode: For existing artwork (accessed via /artworks/:artworkId/customize)
+ * 2. "upload" mode: As part of the upload flow, with artwork data passed as props
+ */
+function ArtStudio({ mode = 'customize', artworkData = null, onSave = null, onCancel = null }) {
   const { artworkId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   
-  const [artwork, setArtwork] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [artwork, setArtwork] = useState(artworkData);
+  const [loading, setLoading] = useState(!artworkData);
   const [error, setError] = useState(null);
-  const [selectedBorder, setSelectedBorder] = useState(null);
+  // Initialize with either artworkData border or null (for "No Border")
+  const [selectedBorder, setSelectedBorder] = useState(artworkData?.border_decal_id || null);
+  // Track the currently selected border separately from the artwork object
+  const [currentBorderId, setCurrentBorderId] = useState(artworkData?.border_decal_id || null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   
-  // Fetch artwork data when component mounts
+  // Fetch artwork data when component mounts (only in customize mode)
   useEffect(() => {
-    const fetchArtwork = async () => {
-      try {
-        setLoading(true);
-        const response = await apiService.get(`/artworks/${artworkId}`);
-        setArtwork(response.data);
-        // If artwork already has a border, select it
-        setSelectedBorder(response.data.border_decal_id);
-      } catch (err) {
-        console.error('Failed to fetch artwork:', err);
-        setError('Failed to load artwork. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    if (artworkId) {
+    // Only fetch artwork data if we're in customize mode and don't have data already
+    if (mode === 'customize' && artworkId && !artwork) {
+      const fetchArtwork = async () => {
+        try {
+          setLoading(true);
+          const response = await apiService.get(`/artworks/${artworkId}`);
+          setArtwork(response.data);
+          // If artwork already has a border, select it
+          setSelectedBorder(response.data.border_decal_id);
+        } catch (err) {
+          console.error('Failed to fetch artwork:', err);
+          setError('Failed to load artwork. Please try again later.');
+        } finally {
+          setLoading(false);
+        }
+      };
+      
       fetchArtwork();
     }
-  }, [artworkId]);
+  }, [artworkId, artwork, mode]);
+
+  // Update local state if artworkData changes (for upload mode)
+  useEffect(() => {
+    if (artworkData && mode === 'upload') {
+      setArtwork(artworkData);
+      if (artworkData.border_decal_id !== undefined && artworkData.border_decal_id !== selectedBorder) {
+        setSelectedBorder(artworkData.border_decal_id);
+      }
+    }
+  }, [artworkData, mode, selectedBorder]);
   
   // Handle border selection
   const handleBorderSelect = (borderId) => {
+    console.log('Border selected:', borderId);
+    
+    // Update both state variables to maintain UI consistency
     setSelectedBorder(borderId);
+    setCurrentBorderId(borderId);
     setSaveSuccess(false);
+    
+    // Directly update the artwork state with the new border for immediate visual feedback
+    if (artwork) {
+      setArtwork({
+        ...artwork,
+        border_decal_id: borderId
+      });
+    }
   };
   
   // Handle save action
@@ -69,19 +102,27 @@ function ArtStudio() {
       setSaveError(null);
       setSaveSuccess(false);
       
-      const response = await apiService.put(`/artworks/${artworkId}`, {
-        border_decal_id: selectedBorder
-      });
-      
-      // Update local state with the response
-      setArtwork(response.data);
-      setSaveSuccess(true);
-      
-      // Navigate back to artwork detail after short delay
-      setTimeout(() => {
-        navigate(`/artworks/${artworkId}`);
-      }, 1500);
-      
+      if (mode === 'upload') {
+        // In upload mode, we call the onSave callback with the selected border
+        if (typeof onSave === 'function') {
+          await onSave(selectedBorder);
+          setSaveSuccess(true);
+        }
+      } else {
+        // In customize mode, we update the existing artwork via API
+        const response = await apiService.put(`/artworks/${artworkId}`, {
+          border_decal_id: selectedBorder
+        });
+        
+        // Update local state with the response
+        setArtwork(response.data);
+        setSaveSuccess(true);
+        
+        // Navigate back to artwork detail after short delay
+        setTimeout(() => {
+          navigate(`/artworks/${artworkId}`);
+        }, 1500);
+      }
     } catch (err) {
       console.error('Failed to save border:', err);
       setSaveError('Failed to save changes. Please try again.');
@@ -90,9 +131,13 @@ function ArtStudio() {
     }
   };
   
-  // Return to artwork detail without saving
+  // Return to artwork detail without saving or call onCancel
   const handleCancel = () => {
-    navigate(`/artworks/${artworkId}`);
+    if (mode === 'upload' && typeof onCancel === 'function') {
+      onCancel();
+    } else {
+      navigate(`/artworks/${artworkId}`);
+    }
   };
   
   if (loading) {
@@ -119,11 +164,11 @@ function ArtStudio() {
   }
   
   return (
-    <Box sx={{ width: '100%', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Header area */}
       <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="h5" component="h1">
-          Customize Your Artwork
+          {mode === 'customize' ? 'Customize Your Artwork' : 'Select Border Style'}
         </Typography>
         
         <Box sx={{ display: 'flex', gap: 2 }}>
@@ -143,7 +188,7 @@ function ArtStudio() {
             onClick={handleSave}
             disabled={saving}
           >
-            {saving ? 'Saving...' : 'Save Changes'}
+            {saving ? 'Saving...' : mode === 'customize' ? 'Save Changes' : 'Apply Border'}
           </Button>
         </Box>
       </Box>
@@ -170,9 +215,10 @@ function ArtStudio() {
               className="artwork-image"
             />
             
-            {selectedBorder && (
+            {/* Show border based on currentBorderId instead */}
+            {currentBorderId && (
               <img 
-                src={`/svg/borders/${selectedBorder}.svg`} 
+                src={`${import.meta.env.BASE_URL}svg/borders/${currentBorderId}.svg`} 
                 alt="Border" 
                 className="artwork-border"
               />
@@ -204,7 +250,7 @@ function ArtStudio() {
           
           {saveSuccess && (
             <Alert severity="success" sx={{ mb: 2, width: '100%' }}>
-              Changes saved successfully!
+              {mode === 'customize' ? 'Changes saved successfully!' : 'Border applied successfully!'}
             </Alert>
           )}
           
@@ -222,7 +268,7 @@ function ArtStudio() {
                 sx={{ 
                   mb: { xs: 0, md: 2 }, 
                   cursor: 'pointer',
-                  border: selectedBorder === border.id ? '2px solid #2196f3' : '1px solid #ddd',
+                  border: currentBorderId === border.id ? '2px solid #2196f3' : '1px solid #ddd',
                   '&:hover': {
                     boxShadow: 3
                   },
@@ -239,7 +285,7 @@ function ArtStudio() {
                   <CardMedia
                     component="img"
                     height="100"
-                    image={`/svg/borders/${border.id}.svg`}
+                    image={`${import.meta.env.BASE_URL}svg/borders/${border.id}.svg`}
                     alt={border.name}
                     sx={{ objectFit: 'contain', p: 1 }}
                   />

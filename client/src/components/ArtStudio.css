@@ -25,7 +25,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: fill; /* Changed from contain to fill to ensure complete coverage */
   z-index: 2;
   pointer-events: none;
 }

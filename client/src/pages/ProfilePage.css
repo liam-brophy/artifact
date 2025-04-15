@@ -84,7 +84,7 @@
   font-size: 1rem;
 }
 
-/* Artwork Grid */
+/* Artwork Grid - fixed to maintain proper 2:3 aspect ratio */
 .profile-artworks-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -94,10 +94,12 @@
 
 .profile-artwork-item {
   width: 100%;
-  aspect-ratio: 2/3;
+  aspect-ratio: 2/3; /* Maintain fixed 2:3 aspect ratio */
   display: flex;
   justify-content: center;
   transition: transform 0.3s ease;
+  max-width: 300px; /* Set maximum width to match ArtworkCard max-width */
+  margin: 0 auto; /* Center the card in its grid cell */
 }
 
 .profile-artwork-item:hover {

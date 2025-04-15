@@ -85,11 +85,19 @@ function ArtworkCard({ artwork }) {
                                 />
                                 {/* Show SVG border if one is selected */}
                                 {artwork.border_decal_id && (
-                                    <img
-                                        src={`/svg/borders/${artwork.border_decal_id}.svg`}
-                                        alt="Border"
+                                    <object
+                                        data={`${import.meta.env.BASE_URL}svg/borders/${artwork.border_decal_id}.svg`}
+                                        type="image/svg+xml"
                                         className="artwork-card-front__border"
-                                    />
+                                        aria-label="Border"
+                                    >
+                                        {/* Fallback to img if object fails */}
+                                        <img
+                                            src={`${import.meta.env.BASE_URL}svg/borders/${artwork.border_decal_id}.svg`}
+                                            alt="Border"
+                                            className="artwork-card-front__border"
+                                        />
+                                    </object>
                                 )}
                             </>
                         ) : (
