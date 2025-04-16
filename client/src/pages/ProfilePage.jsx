@@ -33,6 +33,7 @@ import CancelIcon from '@mui/icons-material/Cancel'; // For reject/cancel action
 
 // Import Components
 import ArtworkCard from '../components/ArtworkCard';
+import TradeOfferDialog from '../components/TradeOfferDialog';
 
 // Import the CSS file
 import './ProfilePage.css'; // Ensure you have this file
@@ -75,6 +76,7 @@ function ProfilePage() {
     const [activeTradeSubTab, setActiveTradeSubTab] = useState(0); // 0 for received, 1 for sent
     const [sentTradesFilter, setSentTradesFilter] = useState('all');
     const [receivedTradesFilter, setReceivedTradesFilter] = useState('all');
+    const [tradeDialogOpen, setTradeDialogOpen] = useState(false);
     
     // Delete Dialog State
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -462,9 +464,29 @@ function ProfilePage() {
                 </div>
                 <div className="profile-actions">
                     {isAuthenticated && !isOwnProfile && (
-                        <Button variant={isFollowing ? "outlined" : "contained"} onClick={handleFollowToggle} size="small" className={`profile-follow-button ${isFollowing ? 'following' : ''}`}>
-                            {isFollowing ? 'Unfollow' : 'Follow'}
-                        </Button>
+                        <>
+                            <Button 
+                                variant={isFollowing ? "outlined" : "contained"} 
+                                onClick={handleFollowToggle} 
+                                size="small" 
+                                className={`profile-follow-button ${isFollowing ? 'following' : ''}`}
+                            >
+                                {isFollowing ? 'Unfollow' : 'Follow'}
+                            </Button>
+                            
+                            {isFollowing && (
+                                <Button
+                                    variant="outlined"
+                                    color="primary"
+                                    startIcon={<SwapHorizIcon />}
+                                    onClick={() => setTradeDialogOpen(true)}
+                                    size="small"
+                                    sx={{ ml: 1 }}
+                                >
+                                    Propose Trade
+                                </Button>
+                            )}
+                        </>
                     )}
                     {isOwnProfile && (
                          <Box sx={{ display: 'flex', gap: 1 }}> {/* Using Box for simple inline flex layout */}
@@ -555,7 +577,18 @@ function ProfilePage() {
                                         {createdArtworks.map((artwork) => {
                                             const isOwnedByViewer = ownedArtworkIds.has(artwork?.artwork_id);
                                             const shouldBlur = !isOwnProfile && !isOwnedByViewer;
-                                            return artwork ? (<div key={artwork.artwork_id} className={`profile-artwork-item ${shouldBlur ? 'artwork-blurred' : ''}`}><ArtworkCard artwork={artwork} /></div>) : null;
+                                            return artwork ? (
+                                                <div 
+                                                    key={artwork.artwork_id} 
+                                                    className={`profile-artwork-item ${shouldBlur ? 'artwork-blurred' : ''}`}
+                                                >
+                                                    <ArtworkCard 
+                                                        artwork={artwork} 
+                                                        isBlurred={shouldBlur}
+                                                        blurContext="created" 
+                                                    />
+                                                </div>
+                                            ) : null;
                                         })}
                                     </div>
                                     {createdArtworksPagination.totalPages > 1 && (
@@ -586,7 +619,26 @@ function ProfilePage() {
                                 <>
                                     <div className="profile-artworks-grid">
                                         {collectedArtworks.map((artwork) => {
-                                            return artwork ? (<div key={artwork.artwork_id} className="profile-artwork-item"><ArtworkCard artwork={artwork} /></div>) : null;
+                                            // For collected artworks:
+                                            // - No blur if viewing own profile
+                                            // - No blur if the viewer follows this user
+                                            // - Apply blur otherwise (for privacy)
+                                            const shouldBlur = !isOwnProfile && !isFollowing;
+                                            return artwork ? (
+                                                <div 
+                                                    key={artwork.artwork_id} 
+                                                    className={`profile-artwork-item ${shouldBlur ? 'artwork-blurred' : ''}`}
+                                                >
+                                                    <ArtworkCard 
+                                                        artwork={artwork} 
+                                                        isBlurred={shouldBlur}
+                                                        blurContext="collection"
+                                                        isOwnArtwork={isOwnProfile}
+                                                        ownerId={profileUser?.user_id}
+                                                        ownerUsername={profileUser?.username}
+                                                    />
+                                                </div>
+                                            ) : null;
                                         })}
                                     </div>
                                     {collectedArtworksPagination.totalPages > 1 && (
@@ -1013,6 +1065,13 @@ function ProfilePage() {
                 </section>
             )}
 
+            {/* Trade Offer Dialog */}
+            <TradeOfferDialog
+                open={tradeDialogOpen}
+                onClose={() => setTradeDialogOpen(false)}
+                recipientId={profileUser?.user_id}
+                recipientUsername={profileUser?.username}
+            />
         </div> // End profile-page-container
     );
 }

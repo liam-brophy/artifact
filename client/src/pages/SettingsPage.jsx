@@ -6,6 +6,7 @@ import { useTheme } from '../context/ThemeContext';
 import toast from 'react-hot-toast';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
+import ColorPickerField from '../components/ColorPickerField';
 
 // MUI Components
 import Container from '@mui/material/Container';
@@ -30,6 +31,7 @@ import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import SettingsBrightnessIcon from '@mui/icons-material/SettingsBrightness';
 import Paper from '@mui/material/Paper';
+import ColorLensIcon from '@mui/icons-material/ColorLens';
 
 // Define Validation Schema for editable fields
 const SettingsSchema = Yup.object().shape({
@@ -57,6 +59,38 @@ function SettingsPage() {
     // Delete Dialog State
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    
+    // Color Picker Dialog State
+    const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
+
+    // State for color picker
+    const [colorPickerValue, setColorPickerValue] = useState(user?.favorite_color || '#F50801');
+    const [isSavingColor, setIsSavingColor] = useState(false);
+
+    // Function to update the user's accent color
+    const handleUpdateAccentColor = async () => {
+        if (!user) return;
+        
+        setIsSavingColor(true);
+        
+        try {
+            await apiService.patch(`/users/${user.user_id}/preferences`, {
+                favorite_color: colorPickerValue
+            });
+            
+            // Update the user in context
+            updateUser({ favorite_color: colorPickerValue });
+            
+            // Close dialog and show success message
+            setIsColorPickerOpen(false);
+            toast.success('Accent color updated successfully!');
+        } catch (err) {
+            console.error('Failed to update color preference:', err);
+            toast.error('Failed to save your color preference. Please try again.');
+        } finally {
+            setIsSavingColor(false);
+        }
+    };
 
     // Theme styles
     const themeStyles = {
@@ -167,7 +201,7 @@ function SettingsPage() {
     const closeDeleteDialog = () => { if (!isDeleting) setIsDeleteDialogOpen(false); };
 
     const handleConfirmDelete = async () => {
-        if (!isOwnProfile) return; // isOwnProfile check is technically redundant if /auth/me is used, but safe to keep
+        // Remove the isOwnProfile check as it's unnecessary
         setIsDeleting(true);
 
         // --- Corrected Endpoint ---
@@ -210,7 +244,9 @@ function SettingsPage() {
                 <Typography variant="h6" component="h2" gutterBottom>
                     Theme Preferences
                 </Typography>
-                <FormControl component="fieldset">
+                
+                {/* Theme Selection */}
+                <FormControl component="fieldset" sx={{ mb: 3 }}>
                     <FormLabel component="legend">Choose your preferred theme</FormLabel>
                     <RadioGroup
                         aria-label="theme"
@@ -270,7 +306,88 @@ function SettingsPage() {
                         />
                     </RadioGroup>
                 </FormControl>
+                
+                {/* Accent Color Selection */}
+                <Divider sx={{ my: 2 }} />
+                
+                <FormControl component="fieldset" sx={{ width: '100%' }}>
+                    <FormLabel component="legend">Accent Color</FormLabel>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mt: 2, gap: 2 }}>
+                        <Box sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            p: 1, 
+                            border: '1px solid', 
+                            borderColor: 'divider', 
+                            borderRadius: 1,
+                            flexGrow: 1
+                        }}>
+                            {user?.favorite_color ? (
+                                <>
+                                    <Box 
+                                        sx={{ 
+                                            ...themeStyles.colorSwatch, 
+                                            bgcolor: user.favorite_color,
+                                            width: 30,
+                                            height: 30,
+                                            mr: 2
+                                        }} 
+                                    />
+                                    <Typography>
+                                        Current color: {user.favorite_color}
+                                    </Typography>
+                                </>
+                            ) : (
+                                <Typography color="text.secondary">
+                                    No custom color selected
+                                </Typography>
+                            )}
+                        </Box>
+                        <Button 
+                            variant="outlined" 
+                            color="primary"
+                            startIcon={<ColorLensIcon />}
+                            onClick={() => setIsColorPickerOpen(true)}
+                        >
+                            Change Color
+                        </Button>
+                    </Box>
+                </FormControl>
             </Paper>
+
+            {/* Color Picker Dialog */}
+            <Dialog open={isColorPickerOpen} onClose={() => !isSavingColor && setIsColorPickerOpen(false)}>
+                <DialogTitle>Choose Your Accent Color</DialogTitle>
+                <DialogContent>
+                    <Typography variant="body1" sx={{ mb: 2 }}>
+                        Select any color to personalize your experience.
+                    </Typography>
+                    
+                    {/* Direct color picker without predefined values */}
+                    <Box sx={{ mt: 2, mb: 2 }}>
+                        <ColorPickerField
+                            name="accent_color"
+                            label="Select Color"
+                            value={colorPickerValue}
+                            onChange={(e) => setColorPickerValue(e.target.value)}
+                            disabled={isSavingColor}
+                        />
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setIsColorPickerOpen(false)} disabled={isSavingColor}>
+                        Cancel
+                    </Button>
+                    <Button 
+                        onClick={handleUpdateAccentColor} 
+                        disabled={isSavingColor}
+                        variant="contained" 
+                        color="primary"
+                    >
+                        {isSavingColor ? <CircularProgress size={24} /> : 'Save'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             {/* --- Profile Update Form --- */}
             <Typography variant="h6" component="h2" gutterBottom sx={{ mt: 3 }}>

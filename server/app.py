@@ -89,7 +89,7 @@ def create_app(config_object=None):
                 "http://127.0.0.1:5173"
             ],
             "supports_credentials": True, # IMPORTANT for sending/receiving cookies
-            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization", "X-CSRF-Token"]
         }
     })

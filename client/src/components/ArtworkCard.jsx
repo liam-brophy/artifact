@@ -1,6 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './ArtworkCard.css'; // Import the CSS
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast'; // Import toast for feedback
+import { useAuth } from '../context/AuthContext';
+import TradeOfferDialog from './TradeOfferDialog';
+
+// MUI Components
+import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
+
+// Icons
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 
 // Placeholder image if artwork image is missing or fails to load
 const PLACEHOLDER_IMAGE_URL = 'https://via.placeholder.com/300x200.png?text=Artwork';
@@ -25,8 +35,17 @@ const formatEdition = (artwork) => {
     return `${initials}: ${artwork.edition_number}/${artwork.edition_total}`;
 };
 
-function ArtworkCard({ artwork }) {
+function ArtworkCard({ 
+    artwork, 
+    isBlurred = false, 
+    blurContext = 'collection', 
+    isOwnArtwork = false,
+    ownerId,
+    ownerUsername
+}) {
     const navigate = useNavigate();
+    const { isAuthenticated } = useAuth();
+    const [tradeDialogOpen, setTradeDialogOpen] = useState(false);
 
     // Basic check if artwork data exists
     if (!artwork) {
@@ -48,6 +67,23 @@ function ArtworkCard({ artwork }) {
     
     // Handle click on the card (navigate to artwork detail)
     const handleCardClick = () => {
+        // If the card is blurred, show a toast message instead of navigating
+        if (isBlurred) {
+            if (blurContext === 'collection') {
+                toast.error("Follow this user to view their collection", {
+                    duration: 3000,
+                    position: "bottom-center"
+                });
+            } else {
+                toast.error("You have not collected this work yet", {
+                    duration: 3000,
+                    position: "bottom-center"
+                });
+            }
+            return;
+        }
+        
+        // Only navigate if the card is not blurred
         navigate(`/artworks/${artwork.artwork_id}`);
     };
     
@@ -67,10 +103,36 @@ function ArtworkCard({ artwork }) {
 
     return (
         <div 
-            className="artwork-card-container" 
+            className={`artwork-card-container ${isBlurred ? 'artwork-card-blurred' : ''}`} 
             onClick={handleCardClick}
             data-rarity={artwork.rarity || "common"}
         >
+            {/* Trade button (only shown when viewing someone else's artwork) */}
+            {isAuthenticated && !isOwnArtwork && !isBlurred && ownerId && ownerUsername && (
+                <Tooltip title="Propose Trade" placement="top">
+                    <IconButton 
+                        className="artwork-card-trade-button"
+                        onClick={(e) => {
+                            e.stopPropagation(); // Prevent card click
+                            setTradeDialogOpen(true);
+                        }}
+                        size="small"
+                        sx={{ 
+                            position: 'absolute', 
+                            top: '8px', 
+                            right: '8px', 
+                            zIndex: 10,
+                            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                            '&:hover': {
+                                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                            }
+                        }}
+                    >
+                        <SwapHorizIcon />
+                    </IconButton>
+                </Tooltip>
+            )}
+
             <div className="artwork-card-inner">
                 {/* --- Front Face --- */}
                 <div className="artwork-card-front">
@@ -169,6 +231,16 @@ function ArtworkCard({ artwork }) {
                     </div>
                 </div>
             </div>
+        
+            {/* Trade Offer Dialog */}
+            {!isOwnArtwork && ownerId && ownerUsername && (
+                <TradeOfferDialog
+                    open={tradeDialogOpen}
+                    onClose={() => setTradeDialogOpen(false)}
+                    recipientId={ownerId}
+                    recipientUsername={ownerUsername}
+                />
+            )}
         </div>
     );
 }

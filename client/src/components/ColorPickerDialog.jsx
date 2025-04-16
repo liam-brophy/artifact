@@ -5,29 +5,17 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
-import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import apiService from '../services/apiService';
-
-// Predefined color options with names
-const colorOptions = [
-  { name: 'Red', value: '#F50801', light: true },
-  { name: 'Blue', value: '#0066FF', light: true },
-  { name: 'Green', value: '#1DB954', light: true },
-  { name: 'Purple', value: '#9747FF', light: true },
-  { name: 'Orange', value: '#FF9500', light: true },
-  { name: 'Teal', value: '#3BDBB2', dark: true },
-  { name: 'Pink', value: '#FF2D76', light: true },
-  { name: 'Yellow', value: '#FFCC00', light: true }
-];
+import ColorPickerField from './ColorPickerField';
 
 const ColorPickerDialog = ({ open, onClose }) => {
   const { user, updateUser } = useAuth();
   const { isDarkMode } = useTheme();
-  const [selectedColor, setSelectedColor] = useState(user?.favorite_color || null);
+  const [selectedColor, setSelectedColor] = useState(user?.favorite_color || '#F50801');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
@@ -38,8 +26,8 @@ const ColorPickerDialog = ({ open, onClose }) => {
     }
   }, [user]);
 
-  const handleColorSelect = (color) => {
-    setSelectedColor(color);
+  const handleColorChange = (e) => {
+    setSelectedColor(e.target.value);
   };
 
   const handleSave = async () => {
@@ -66,11 +54,6 @@ const ColorPickerDialog = ({ open, onClose }) => {
     }
   };
 
-  // Only show appropriate colors for the current theme
-  const filteredColors = colorOptions.filter(color => 
-    isDarkMode ? (color.dark !== false) : (color.light !== false)
-  );
-
   return (
     <Dialog open={open} onClose={() => !isSubmitting && onClose()} maxWidth="sm" fullWidth>
       <DialogTitle>Choose Your Accent Color</DialogTitle>
@@ -79,42 +62,14 @@ const ColorPickerDialog = ({ open, onClose }) => {
           Select your favorite color to personalize your experience.
         </Typography>
         
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-          {filteredColors.map((color) => (
-            <Grid item xs={3} sm={3} key={color.value}>
-              <Box
-                onClick={() => handleColorSelect(color.value)}
-                sx={{
-                  cursor: 'pointer',
-                  width: '100%',
-                  height: 70,
-                  backgroundColor: color.value,
-                  borderRadius: 1,
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  border: selectedColor === color.value ? '3px solid white' : 'none',
-                  boxShadow: selectedColor === color.value 
-                    ? '0 0 0 3px rgba(0, 0, 0, 0.3)' 
-                    : '0 2px 4px rgba(0, 0, 0, 0.1)',
-                  transition: 'all 0.2s ease-in-out',
-                  '&:hover': {
-                    transform: 'scale(1.05)',
-                    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)'
-                  }
-                }}
-              >
-                <Typography variant="body2" sx={{ 
-                  color: 'white', 
-                  fontWeight: 'bold',
-                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.5)'
-                }}>
-                  {color.name}
-                </Typography>
-              </Box>
-            </Grid>
-          ))}
-        </Grid>
+        <Box sx={{ mb: 3 }}>
+          <ColorPickerField
+            name="favorite_color"
+            label="Select Color"
+            value={selectedColor}
+            onChange={handleColorChange}
+          />
+        </Box>
         
         {error && (
           <Typography variant="body2" color="error" sx={{ mt: 1 }}>

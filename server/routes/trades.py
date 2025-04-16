@@ -36,17 +36,19 @@ def create_trade():
     
     # Check if users follow each other (mutual follow required)
     initiator_follows_recipient = UserFollow.query.filter_by(
-        follower_id=initiator_id, 
-        followed_id=recipient_id
+        patron_id=initiator_id, 
+        artist_id=recipient_id
     ).first()
     
     recipient_follows_initiator = UserFollow.query.filter_by(
-        follower_id=recipient_id,
-        followed_id=initiator_id
+        patron_id=recipient_id,
+        artist_id=initiator_id
     ).first()
     
     if not (initiator_follows_recipient and recipient_follows_initiator):
-        return jsonify({'error': 'Users must follow each other to trade'}), 403
+        return jsonify({
+            'error': 'Users must follow each other to trade. Make sure you both follow each other first.'
+        }), 403
     
     # Check if initiator owns the offered artwork
     initiator_owns_artwork = Collection.query.filter_by(

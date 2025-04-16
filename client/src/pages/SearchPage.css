@@ -1,0 +1,79 @@
+.search-page-container {
+  padding-top: 2rem;
+  padding-bottom: 4rem;
+  min-height: calc(100vh - 64px);
+}
+
+.search-page-container.dark-theme {
+  background-color: #121212;
+  color: #fff;
+}
+
+.search-page-container.light-theme {
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+.search-section {
+  margin-bottom: 2rem;
+}
+
+/* Tabs styling */
+.dark-theme .MuiTabs-indicator {
+  background-color: #90caf9;
+}
+
+.dark-theme .MuiTab-root {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.dark-theme .MuiTab-root.Mui-selected {
+  color: #90caf9;
+}
+
+/* Loading indicator */
+.dark-theme .MuiCircularProgress-root {
+  color: #90caf9;
+}
+
+.light-theme .MuiCircularProgress-root {
+  color: #1976d2;
+}
+
+/* Empty results styling */
+.no-results {
+  text-align: center;
+  padding: 2rem;
+  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  margin: 2rem 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .search-page-container {
+    padding-top: 1rem;
+  }
+}
+
+/* Styling for search result items with blur effect for unauthorized content */
+.blurred-content {
+  filter: blur(5px);
+  pointer-events: none;
+  position: relative;
+}
+
+.blurred-content::after {
+  content: 'Requires permission';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  z-index: 1;
+  filter: blur(0); /* Make sure the text is not blurred */
+}

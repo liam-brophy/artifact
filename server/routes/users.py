@@ -2,7 +2,8 @@ from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity, current_user as jwt_current_user
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload # For eager loading if needed
-import traceback 
+import traceback
+import math # Added for pagination calculations
 
 # Import necessary models
 from server.models.user import User
@@ -59,10 +60,10 @@ def get_user_profile(username):
     public_fields = ("user_id", "username", "role", "profile_image_url", "bio", "created_at")
     profile_data = user.to_dict(only=public_fields)
 
-    # Add calculated counts and follow status
-    profile_data['follower_count'] = follower_count
+    # Add calculated counts and follow status - Use key names expected by frontend
+    profile_data['followers_count'] = follower_count
     profile_data['following_count'] = following_count
-    profile_data['isFollowing'] = is_following # Will be false if not logged in or viewing self
+    profile_data['is_followed_by_viewer'] = is_following  # Match the name expected by frontend
 
     return jsonify(profile_data), 200
 
@@ -321,16 +322,32 @@ def get_user_created_artworks(user_id):
 
 # === GET /api/users/:user_id/collected-artworks ===
 @users_bp.route('/<int:user_id>/collected-artworks', methods=['GET'])
-@jwt_required() # Keep this if only the owner can see their own full collection list
+@jwt_required()
 def get_user_collected_artworks(user_id):
-    """Gets artworks collected by a specific user (checks ownership)."""
+    """Gets artworks collected by a specific user (checks follow relationship)."""
     print(f"--- Request received for collected artworks: user_id={user_id} ---") # DEBUG
     current_user_id = get_jwt_identity()
 
-    # Authorization check: Ensure the logged-in user matches the requested user ID
+    # Users can always view their own collections
     if current_user_id != user_id:
-        print(f"Authorization failed: current_user={current_user_id}, requested_user={user_id}") # DEBUG
-        return jsonify({"error": {"code": "AUTH_004", "message": "Cannot view collection for another user."}}), 403
+        print(f"Different user checking collection: current_user={current_user_id}, requested_user={user_id}") # DEBUG
+        
+        # Check if current user follows the target user
+        follow_relationship = UserFollow.query.filter_by(
+            patron_id=current_user_id,  # Current user is the follower
+            artist_id=user_id           # Target user is being followed
+        ).first()
+        
+        if not follow_relationship:
+            print(f"Authorization failed: user {current_user_id} doesn't follow user {user_id}") # DEBUG
+            return jsonify({
+                "error": {
+                    "code": "AUTH_004", 
+                    "message": "You must follow this user to view their collection."
+                }
+            }), 403
+        
+        print(f"Access granted: user {current_user_id} follows user {user_id}") # DEBUG
 
     # Fetch the user or return 404
     user = User.query.get(user_id) # Use get for primary key lookup
@@ -338,11 +355,6 @@ def get_user_collected_artworks(user_id):
          print(f"User not found for user_id={user_id}") # DEBUG
          # Use standard 404 error handler if configured, or return JSON
          return jsonify({"error": {"code": "NOT_FOUND", "message": "User not found"}}), 404
-
-    # Optional: Check if the user role allows having a collection (if needed)
-    # if user.role != 'patron':
-    #     print(f"Role check failed: user_id={user_id}, role={user.role}") # DEBUG
-    #     return jsonify({"error": {"code": "AUTH_006", "message": "User must be a patron to have a collection."}}), 403
 
     # --- Pagination ---
     try:
@@ -567,4 +579,54 @@ def update_user_preferences(user_id):
         "preferences": {
             "favorite_color": user.favorite_color
         }
+    }), 200
+
+
+@users_bp.route('/me/collected-artworks', methods=['GET'])
+@jwt_required()
+def get_my_collected_artworks():
+    """Gets collected artworks for the currently authenticated user."""
+    current_user_id = get_jwt_identity()
+    
+    # Get pagination arguments
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 12, type=int)
+    
+    # Query collected artworks with pagination
+    query = Collection.query.filter_by(patron_id=current_user_id)
+    
+    # Get total count for pagination
+    total_items = query.count()
+    
+    # Apply pagination
+    collected_items = query.order_by(Collection.acquired_at.desc()) \
+        .limit(per_page).offset((page - 1) * per_page).all()
+    
+    # Create pagination info
+    pagination = {
+        'total_items': total_items,
+        'total_pages': math.ceil(total_items / per_page) if per_page > 0 else 0,
+        'current_page': page,
+        'per_page': per_page,
+        'has_next': page * per_page < total_items,
+        'has_prev': page > 1
+    }
+    
+    # Add artwork details to each collection item
+    collected_with_details = []
+    for item in collected_items:
+        # Get full artwork details
+        artwork = Artwork.query.get(item.artwork_id)
+        if artwork:
+            collected_with_details.append({
+                # Fixed: Collection uses a composite key (patron_id, artwork_id), not collection_id
+                'patron_id': item.patron_id,
+                'artwork_id': item.artwork_id,
+                'added_at': item.acquired_at,
+                'artwork': artwork.to_dict()
+            })
+    
+    return jsonify({
+        'collectedArtworks': collected_with_details,
+        'pagination': pagination
     }), 200

@@ -76,12 +76,8 @@ const ColorPickerField = ({
           }}
         />
         
-        <span style={{ marginRight: '10px' }}>
+        <span>
           {color.toUpperCase()}
-        </span>
-
-        <span style={{ fontWeight: 'bold' }}>
-          Favorite color?
         </span>
       </div>
       

@@ -111,6 +111,19 @@ function UserPacks() {
 
       // Update the packs list in the state to remove the opened pack
       setPacks(prevPacks => prevPacks.filter(pack => pack.user_pack_id !== packId));
+      
+      // If we opened a daily pack, refresh the next pack availability info
+      if (packName.toLowerCase().includes('daily')) {
+        try {
+          const nextPackResponse = await apiService.get('/user-packs/next-availability');
+          setNextPackInfo(nextPackResponse.data);
+          
+          // Make sure the timer is showing
+          setShowDailyPackTimer(true);
+        } catch (err) {
+          console.error("Error refreshing next pack info:", err);
+        }
+      }
 
     } catch (err) {
       // Handle errors from the API call
