@@ -12,6 +12,8 @@ class UserPack(db.Model, SerializerMixin):
     user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
     # Foreign Key to the PackType defining what kind of pack this is
     pack_type_id = db.Column(db.Integer, db.ForeignKey('pack_types.pack_type_id'), nullable=False)
+    # JSON metadata for pack-specific data (like artist_id for artist packs)
+    pack_metadata = db.Column(db.JSON, nullable=True)
 
     acquired_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
     # Timestamp when the pack was opened. NULL means it's unopened.

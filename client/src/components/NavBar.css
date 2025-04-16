@@ -124,6 +124,23 @@
   color: var(--accent-color);
 }
 
+/* Search icon button */
+.search-icon {
+  transition: transform 0.2s ease;
+}
+
+.search-icon:hover {
+  transform: scale(1.1);
+}
+
+.search-icon.light-theme {
+  color: var(--accent-color);
+}
+
+.search-icon.dark-theme {
+  color: var(--accent-color);
+}
+
 /* Username link styles */
 .username-link {
   text-decoration: none;
@@ -199,13 +216,121 @@
   display: inline-block;
 }
 
+/* Search bar styles */
+.search-bar {
+  transition: all 0.3s ease;
+}
+
+.search-bar:hover {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.search-bar.dark-theme {
+  color: #fff;
+}
+
+.search-bar.dark-theme:hover {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.search-bar.light-theme {
+  color: #333;
+}
+
+.search-bar.light-theme:hover {
+  background-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+.search-bar .MuiInputBase-root {
+  color: inherit;
+}
+
+.search-bar .MuiIconButton-root {
+  color: inherit;
+}
+
+/* Search input styles */
+.search-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.search-input.dark-theme {
+  color: #fff;
+  border-bottom-color: rgba(255, 255, 255, 0.3);
+}
+
+.search-input.dark-theme:focus-within {
+  border-bottom-color: rgba(255, 255, 255, 0.5);
+}
+
+.search-input.light-theme {
+  color: #333;
+  border-bottom-color: rgba(0, 0, 0, 0.2);
+}
+
+.search-input.light-theme:focus-within {
+  border-bottom-color: rgba(0, 0, 0, 0.4);
+}
+
+/* Search form styles for inline positioning */
+.search-form {
+  z-index: 1200;
+}
+
 /* Responsive adjustments */
+@media (max-width: 768px) {
+  .search-bar {
+    width: 90% !important;
+  }
+
+  .search-form {
+    width: 180px !important;
+    right: 40px !important;
+  }
+}
+
 @media (max-width: 600px) {
   .navbar-toolbar {
     padding: 0.5rem 0.75rem;
   }
   
   .greeting-text {
+    display: none;
+  }
+  
+  .navbar-toolbar {
+    flex-direction: column;
+    padding: 8px 0;
+    height: auto;
+  }
+  
+  .nav-links, .nav-actions {
+    margin: 5px 0;
+  }
+  
+  .nav-links {
+    justify-content: center;
+  }
+  
+  .search-bar {
+    margin: 8px 0;
+  }
+
+  .search-input {
+    width: 100%;
+  }
+
+  .search-form {
+    width: 160px !important;
+    right: 40px !important;
+  }
+  
+  /* When search is open on mobile, hide less important icons */
+  .search-open-mobile .theme-toggle,
+  .search-open-mobile .upload-icon {
     display: none;
   }
 }

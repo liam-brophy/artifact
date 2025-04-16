@@ -406,10 +406,6 @@ def admin_scheduler_status():
 def open_user_pack(user_pack_id):
     current_user_id = get_jwt_identity() # Get user ID from JWT token
 
-    # --- SIMPLIFIED LOGIC ---
-    NUM_ARTWORKS_TO_GIVE = 3 # Hardcode how many artworks to give for now
-    # ------------------------
-
     selected_artworks_for_pack = []
     try:
         # Use a transaction for atomicity
@@ -424,31 +420,100 @@ def open_user_pack(user_pack_id):
                 return jsonify({"error": "Forbidden: You do not own this pack"}), 403
             if pack_instance.opened_at is not None:
                 return jsonify({"error": "Conflict: Pack already opened"}), 409
+                
+            # Get pack type to determine contents
+            pack_type = pack_instance.pack_type
+            if not pack_type:
+                return jsonify({"error": "Pack type not found"}), 500
+                
+            # Check if it's an artist pack (has metadata with artist_id)
+            is_artist_pack = False
+            artist_id = None
+            if pack_instance.metadata and 'artist_id' in pack_instance.metadata:
+                is_artist_pack = True
+                artist_id = pack_instance.metadata['artist_id']
+                current_app.logger.info(f"Opening artist pack for artist_id={artist_id}")
 
             # 2. Get IDs of artworks the user *already* owns
             owned_artwork_ids_query = db.session.query(Collection.artwork_id)\
                                               .filter(Collection.patron_id == current_user_id)
             # Assuming Collection model uses 'patron_id' based on your earlier snippet
             owned_artwork_ids = {artwork_id for (artwork_id,) in owned_artwork_ids_query.all()}
+            
+            # 3. Determine how many artworks of each rarity to include based on pack recipe
+            artworks_to_give = {}
+            if pack_type.recipe:
+                for rarity, count in pack_type.recipe.items():
+                    # Handle fractional probabilities (e.g., 0.5 = 50% chance)
+                    if count < 1:
+                        import random
+                        if random.random() < count:
+                            artworks_to_give[rarity] = 1
+                    else:
+                        artworks_to_give[rarity] = int(count)
+            else:
+                # Fallback if no recipe exists
+                artworks_to_give = {"common": 3}
+            
+            total_artworks_to_give = sum(artworks_to_give.values())
+            current_app.logger.info(f"Pack recipe: {artworks_to_give}, total: {total_artworks_to_give}")
 
-            # 3. Select random artworks the user does NOT own (ignore rarity for now)
-            # Using Artwork.artwork_id from your Artwork model
-            selected_artworks_for_pack = Artwork.query.filter(
+            # 4. Select random artworks the user does NOT own, filtered by type and rarity
+            selected_artworks_for_pack = []
+            
+            # Base query: artworks user doesn't own
+            base_query = Artwork.query.filter(
                 not_(Artwork.artwork_id.in_(owned_artwork_ids)) # Exclude owned IDs
-            ).order_by(func.random()).limit(NUM_ARTWORKS_TO_GIVE).all()
+            )
+            
+            # If it's an artist pack, filter by artist_id
+            if is_artist_pack and artist_id:
+                base_query = base_query.filter(Artwork.artist_id == artist_id)
+                
+            # Get artworks for each rarity in the recipe
+            for rarity, count in artworks_to_give.items():
+                if count <= 0:
+                    continue
+                    
+                # Get 'count' artworks of this rarity
+                rarity_artworks = base_query.filter(
+                    Artwork.rarity == rarity
+                ).order_by(func.random()).limit(count).all()
+                
+                # Add them to the selected artworks
+                selected_artworks_for_pack.extend(rarity_artworks)
+                
+                # If we couldn't get enough of this rarity (especially for artist packs),
+                # make up the difference with common artworks
+                if len(rarity_artworks) < count:
+                    current_app.logger.warning(
+                        f"Could only find {len(rarity_artworks)} {rarity} artworks " +
+                        f"(requested {count}). Will try to make up the difference."
+                    )
+                    
+                    # Try to get the remaining artworks from common rarity
+                    if rarity != "common":
+                        remaining = count - len(rarity_artworks)
+                        extra_common = base_query.filter(
+                            Artwork.rarity == "common"
+                        ).order_by(func.random()).limit(remaining).all()
+                        
+                        selected_artworks_for_pack.extend(extra_common)
 
             # Handle case where not enough *new* artworks are available
             if not selected_artworks_for_pack:
                 # If absolutely NO new artworks could be found
                 print(f"Warning: No unowned artworks found for user {current_user_id} to open pack {user_pack_id}.")
-                # Decide: Error out? Or return success with empty list? Let's error for now.
-                raise ValueError("No new artworks available to award for this pack.")
-            elif len(selected_artworks_for_pack) < NUM_ARTWORKS_TO_GIVE:
+                if is_artist_pack:
+                    err_msg = f"No artworks available from this artist. The artist may need to create more artworks."
+                else:
+                    err_msg = "No new artworks available to award for this pack."
+                raise ValueError(err_msg)
+            elif len(selected_artworks_for_pack) < total_artworks_to_give:
                 # If fewer than requested were found, just proceed with what we got
-                print(f"Warning: Could only find {len(selected_artworks_for_pack)} unowned artworks (requested {NUM_ARTWORKS_TO_GIVE}) for user {current_user_id}.")
+                print(f"Warning: Could only find {len(selected_artworks_for_pack)} unowned artworks (requested {total_artworks_to_give}) for user {current_user_id}.")
 
-
-            # 4. Add selected artworks to user's collection
+            # 5. Add selected artworks to user's collection
             for art in selected_artworks_for_pack:
                 new_collection_item = Collection(
                     patron_id=current_user_id, # Use 'patron_id'
@@ -456,20 +521,20 @@ def open_user_pack(user_pack_id):
                 )
                 db.session.add(new_collection_item)
 
-            # 5. Mark the pack instance as opened
+            # 6. Mark the pack instance as opened
             pack_instance.opened_at = datetime.utcnow()
             db.session.add(pack_instance)
 
         # Commit transaction if 'with' block succeeded
         db.session.commit()
 
-        # 6. Prepare response data
+        # 7. Prepare response data
         artwork_details = [
             {
                 "artwork_id": art.artwork_id,
                 "title": art.title,
                 "image_url": art.image_url,
-                "rarity": art.rarity, # Still include rarity if available
+                "rarity": art.rarity,
                 "artist": {"user_id": art.artist.user_id, "username": art.artist.username}
             }
             for art in selected_artworks_for_pack
@@ -477,7 +542,8 @@ def open_user_pack(user_pack_id):
 
         return jsonify({
             "message": "Pack opened successfully!",
-            "artworks_received": artwork_details
+            "artworks_received": artwork_details,
+            "pack_type": pack_type.name
         }), 200
 
     except ValueError as ve: # Catch specific errors like no artworks available

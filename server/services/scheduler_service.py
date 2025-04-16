@@ -22,7 +22,7 @@ def ensure_daily_pack_type_exists():
         logging.info("Creating Daily Pack type...")
         daily_pack = PackType(
             name="Daily Pack",
-            description="A free pack given daily to active users",
+            description="",
             recipe={
                 "common": 3,    # 3 common artworks
                 "uncommon": 1,  # 1 uncommon artwork
@@ -34,6 +34,33 @@ def ensure_daily_pack_type_exists():
         logging.info(f"Daily Pack type created with ID: {daily_pack.pack_type_id}")
     
     return daily_pack
+
+
+def ensure_artist_pack_type_exists():
+    """
+    Ensures that an "Artist Pack" type exists in the database.
+    Returns the pack_type object.
+    """
+    # Try to find an existing Artist Pack type
+    artist_pack = PackType.query.filter_by(name="Artist Pack").first()
+    
+    # If it doesn't exist, create it
+    if artist_pack is None:
+        logging.info("Creating Artist Pack type...")
+        artist_pack = PackType(
+            name="Artist Pack",
+            description="A special pack containing artworks from an artist you follow",
+            recipe={
+                "common": 2,    # 2 common artworks
+                "uncommon": 1,  # 1 uncommon artwork
+                "rare": 0.5     # 50% chance of a rare artwork
+            }
+        )
+        db.session.add(artist_pack)
+        db.session.commit()
+        logging.info(f"Artist Pack type created with ID: {artist_pack.pack_type_id}")
+    
+    return artist_pack
 
 
 def generate_daily_packs():
@@ -276,3 +303,57 @@ def check_missing_daily_packs():
         logging.error(f"Error in check_missing_daily_packs: {str(e)}")
         logging.error(traceback.format_exc())
         return 0
+
+
+def generate_artist_pack_for_follow(follower_id, artist_id):
+    """
+    Generate an artist-specific pack when a user follows an artist.
+    This pack will exclusively contain artworks from the followed artist.
+    
+    Args:
+        follower_id (int): The ID of the user who is following the artist
+        artist_id (int): The ID of the artist being followed
+        
+    Returns:
+        UserPack or None: The newly created user pack or None if failed
+    """
+    logging.info(f"Generating artist pack for follower {follower_id} who followed artist {artist_id}")
+    
+    try:
+        # Ensure we have an artist pack type
+        artist_pack_type = ensure_artist_pack_type_exists()
+        
+        # Verify both users exist
+        follower = User.query.get(follower_id)
+        artist = User.query.get(artist_id)
+        
+        if not follower:
+            logging.error(f"Follower with ID {follower_id} not found")
+            return None
+            
+        if not artist:
+            logging.error(f"Artist with ID {artist_id} not found")
+            return None
+            
+        if artist.role != 'artist':
+            logging.warning(f"User {artist_id} is not an artist but is being followed as one")
+        
+        # Create a new pack for the follower
+        new_pack = UserPack(
+            user_id=follower_id,
+            pack_type_id=artist_pack_type.pack_type_id,
+            # Store artist_id in a metadata field to use when opening the pack
+            metadata={"artist_id": artist_id}
+        )
+        
+        db.session.add(new_pack)
+        db.session.commit()
+        
+        logging.info(f"Successfully created artist pack for follower {follower_id}")
+        return new_pack
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Failed to generate artist pack: {str(e)}")
+        logging.error(traceback.format_exc())
+        return None

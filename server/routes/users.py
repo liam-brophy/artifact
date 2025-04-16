@@ -97,6 +97,15 @@ def follow_user(target_user_id):
     try:
         db.session.add(new_follow)
         db.session.commit()
+        
+        # After successfully creating the follow relationship, generate an artist pack
+        # but only if the target user is an artist
+        if target_user.role == 'artist':
+            # Import the function here to avoid circular imports
+            from server.services.scheduler_service import generate_artist_pack_for_follow
+            artist_pack = generate_artist_pack_for_follow(current_user_id, target_user_id)
+            # We don't need to check the result, as it's optional and shouldn't affect the follow action
+        
     except IntegrityError: # Should be caught by the check above, but belt-and-suspenders
         db.session.rollback()
         return jsonify({"error": {"code": "FOLLOW_001", "message": "You are already following this user (database constraint)."}}), 409
