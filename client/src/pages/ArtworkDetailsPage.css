@@ -30,6 +30,10 @@
   flex-direction: column;
   gap: 0; /* Remove gap to maximize image space */
   width: 100%;
+  background: rgba(255, 255, 255, 0.8); /* Semi-transparent white */
+  backdrop-filter: blur(10px); /* Blur effect for glass-like appearance */
+  border: 1px solid rgba(255, 255, 255, 0.3); /* Subtle border */
+  border-radius: 8px; /* Rounded corners for a polished look */
 }
 
 /* Side by side layout for medium+ screens */

@@ -3,6 +3,10 @@
   margin: 0 auto;
   padding: 20px;
   font-family: var(--body-font);
+  background: rgba(255, 255, 255, 0.8); /* Semi-transparent white */
+  backdrop-filter: blur(10px); /* Blur effect for glass-like appearance */
+  border: 1px solid rgba(255, 255, 255, 0.3); /* Subtle border */
+  border-radius: 8px; /* Rounded corners for a polished look */
 }
 
 .packs-title {
@@ -14,8 +18,9 @@
 
 /* Daily Pack Info Styling */
 .daily-pack-info {
-  background: linear-gradient(135deg, #f0f5ff 0%, #e6f0ff 100%);
-  border: 1px solid #c2d9ff;
+  background: rgba(255, 255, 255, 0.8); /* Semi-transparent white */
+  backdrop-filter: blur(10px); /* Blur effect for glass-like appearance */
+  border: 1px solid rgba(255, 255, 255, 0.3); /* Subtle border */
   border-radius: 8px;
   padding: 15px;
   margin-bottom: 30px;

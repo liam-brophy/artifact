@@ -1,9 +1,34 @@
+/* Ensure the background spans the entire viewport */
+body, html {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Ensure the root div and app container do not obscure the background */
 #root {
   max-width: 1280px;
   margin: 0 auto;
   padding: 2rem;
   text-align: center;
   font-family: var(--body-font);
+  position: relative;
+  z-index: 0; /* Lower z-index to ensure background is visible */
+}
+
+.app-container {
+  position: relative;
+  z-index: 1; /* Ensure content is above the background */
+}
+
+/* Apply a glass-like transparency effect to all components */
+.app-container > * {
+  background: rgba(255, 255, 255, 0.8); /* Semi-transparent white */
+  backdrop-filter: blur(10px); /* Blur effect for glass-like appearance */
+  border: 1px solid rgba(255, 255, 255, 0.3); /* Subtle border */
+  border-radius: 8px; /* Rounded corners for a polished look */
 }
 
 /* Apply header font to all heading elements */
@@ -45,4 +70,13 @@ h1, h2, h3, h4, h5, h6 {
 
 .read-the-docs {
   color: #888;
+}
+
+.lava-lamp-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1; /* Ensure it stays behind all content */
 }

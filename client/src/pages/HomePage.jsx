@@ -157,23 +157,21 @@ function HomePage() {
     <div className="home-page-container">
       {/* --- Hero Section --- */}
       <section className="hero-section">
-        <div className="hero-image" style={{ backgroundImage: 'url("/assets/Artifact_Hero.jpg")' }}>
-          <div className="hero-content">
-            <h1 className="hero-title">{welcomeMessage}</h1>
-            <p className="hero-subtitle">
-              Discover, collect, and support digital artists on a platform designed for creative expression.
-            </p>
-            {!user && (
-              <div className="hero-cta">
-                <Button component={RouterLink} to="/register" variant="contained" color="primary" size="large" sx={{ mr: 1, mb: 1 }}> 
-                  Join as Artist or Patron 
-                </Button>
-                <Button component={RouterLink} to="/gallery" variant="outlined" size="large" sx={{ mr: 1, mb: 1 }} className="hero-button-outlined"> 
-                  Explore Artworks 
-                </Button>
-              </div>
-            )}
-          </div>
+        <div className="hero-content">
+          <h1 className="hero-title">{welcomeMessage}</h1>
+          <p className="hero-subtitle">
+            Discover, collect, and support digital artists on a platform designed for creative expression.
+          </p>
+          {!user && (
+            <div className="hero-cta">
+              <Button component={RouterLink} to="/register" variant="contained" color="primary" size="large" sx={{ mr: 1, mb: 1 }}> 
+                Join as Artist or Patron 
+              </Button>
+              <Button component={RouterLink} to="/gallery" variant="outlined" size="large" sx={{ mr: 1, mb: 1 }} className="hero-button-outlined"> 
+                Explore Artworks 
+              </Button>
+            </div>
+          )}
         </div>
       </section>
       {/* --- End Hero Section --- */}

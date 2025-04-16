@@ -17,31 +17,39 @@
   
   /* Default light theme variables */
   --text-color: #333333;
-  --background-color: #FFFFFF;
+  --background-color: #ffffff00;
   --card-background: #F8F8F8;
-  --border-color: #E0E0E0;
+  /* --border-color: #E0E0E0; */
   --accent-color: #F50801;
   --accent-hover: #D90701;
   --button-background: #F8F8F8;
   --button-text: #333333;
   --nav-background: rgba(255, 255, 255, 0.95);
-  --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  /* --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); */
   --secondary-text: #666666;
+  --hero-title-color: black; /* Default to black for light mode */
 }
 
 /* Dark theme variables */
 [data-theme='dark'] {
   --text-color: #FFFFFF;
-  --background-color: #000000;
+  --background-color: #00000000;
   --card-background: #121212;
-  --border-color: #333333;
+  /* --border-color: #333333; */
   --accent-color: #3BDBB2;
   --accent-hover: #2FC69F;
   --button-background: #121212;
   --button-text: #FFFFFF;
   --nav-background: rgba(0, 0, 0, 0.95);
-  --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  /* --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5); */
   --secondary-text: #AAAAAA;
+}
+
+/* Define hero title color variables for light and dark modes */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --hero-title-color: white; /* White for dark mode */
+  }
 }
 
 /* Apply theme variables */
@@ -151,6 +159,10 @@ main .content-container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
+  background: rgba(255, 255, 255, 0); /* Semi-transparent white */
+  backdrop-filter: blur(10px); /* Blur effect for glass-like appearance */
+  border: 1px solid rgba(255, 255, 255, 0.3); /* Subtle border */
+  border-radius: 8px; /* Rounded corners for a polished look */
 }
 
 /* Card styling for consistency */

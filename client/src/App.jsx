@@ -10,7 +10,7 @@ import { AuthProvider, useAuth } from './context/AuthContext'; // useAuth still 
 import { ThemeProvider, useTheme } from './context/ThemeContext'; // Import ThemeProvider and useTheme
 import { Toaster } from 'react-hot-toast';
 
-import NavBar from './components/NavBar'; // Assuming this exists
+import NavBar from './components/Navbar'; // Correct casing to match the file name
 
 // Import Page Components
 import LoginPage from './pages/LoginPage';
@@ -23,6 +23,7 @@ import SettingsPage from './pages/SettingsPage';
 import ArtworkDetailsPage from './pages/ArtworkDetailsPage'; // Import the new ArtworkDetailsPage
 import ArtStudio from './components/ArtStudio'; // Import the new ArtStudio component
 import SearchPage from './pages/SearchPage'; // Import the SearchPage component
+import LavaLampBackground from './components/LavaLampBackground'; // Import the new LavaLampBackground component
 
 // --- Layout Component for Authenticated Users ---
 // This component will render the NavBar and the nested route content (Outlet)
@@ -90,6 +91,7 @@ function App() {
 
     return (
         <Router>
+            <LavaLampBackground /> {/* Add the LavaLampBackground component */}
             <Routes>
                 {/* Public Routes */}
                 <Route path="/login" element={<LoginPage />} />
