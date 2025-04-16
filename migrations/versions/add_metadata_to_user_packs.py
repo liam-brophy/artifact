@@ -1,4 +1,4 @@
-"""add metadata to user_packs
+"""add pack_metadata to user_packs
 
 Revision ID: add_metadata_to_user_packs
 Revises: b0aac08ce9c2
@@ -17,10 +17,10 @@ depends_on = None
 
 
 def upgrade():
-    # Add metadata JSON column to user_packs table
-    op.add_column('user_packs', sa.Column('metadata', postgresql.JSONB(astext_type=sa.Text()), nullable=True))
+    # Add pack_metadata JSON column to user_packs table
+    op.add_column('user_packs', sa.Column('pack_metadata', postgresql.JSONB(astext_type=sa.Text()), nullable=True))
 
 
 def downgrade():
-    # Remove metadata column from user_packs table
-    op.drop_column('user_packs', 'metadata')
+    # Remove pack_metadata column from user_packs table
+    op.drop_column('user_packs', 'pack_metadata')

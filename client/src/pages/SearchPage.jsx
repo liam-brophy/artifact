@@ -80,13 +80,7 @@ function SearchPage() {
   };
 
   // Helper to determine if a user should be blurred
-  const shouldBlurUser = (userData) => {
-    // Don't blur if it's the current user
-    if (userData.user_id === user?.user_id) return false;
-    
-    // Blur if the user is not following this user
-    return !userData.is_following;
-  };
+  const shouldBlurUser = (userData) => false; // Users should never be blurred
 
   // Count total results
   const totalResults = results.artworks.length + results.users.length;

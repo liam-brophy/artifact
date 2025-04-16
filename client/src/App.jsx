@@ -22,6 +22,7 @@ import UploadPage from './pages/UploadPage';
 import SettingsPage from './pages/SettingsPage';
 import ArtworkDetailsPage from './pages/ArtworkDetailsPage'; // Import the new ArtworkDetailsPage
 import ArtStudio from './components/ArtStudio'; // Import the new ArtStudio component
+import SearchPage from './pages/SearchPage'; // Import the SearchPage component
 
 // --- Layout Component for Authenticated Users ---
 // This component will render the NavBar and the nested route content (Outlet)
@@ -116,6 +117,7 @@ function App() {
                             </ArtistOnlyRoute>
                         }
                     />
+                    <Route path="/search" element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
                 </Route>
 
                 {/* Catch-all or Not Found - Render outside AuthenticatedLayout if NavBar shouldn't show */}

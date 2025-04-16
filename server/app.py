@@ -117,6 +117,7 @@ def create_app(config_object=None):
     from server.routes.packs import packs_bp # Assuming you created pack_routes.py
     # --- ADD Blueprint import for trades ---
     from server.routes.trades import trades_bp
+    from server.routes import search_blueprint  # Import the search blueprint
     # --------------------------------------
 
     # Register blueprints with appropriate URL prefixes
@@ -128,6 +129,7 @@ def create_app(config_object=None):
     app.register_blueprint(packs_bp, url_prefix='/api') # Using /api as base for packs routes
     # --- REGISTER trades blueprint ---
     app.register_blueprint(trades_bp, url_prefix='/api')
+    app.register_blueprint(search_blueprint, url_prefix='/api/search')
     # -------------------------------
 
     # --- Global Error Handlers ---

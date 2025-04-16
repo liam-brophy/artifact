@@ -13,7 +13,7 @@ import Tooltip from '@mui/material/Tooltip';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 
 // Placeholder image if artwork image is missing or fails to load
-const PLACEHOLDER_IMAGE_URL = 'https://via.placeholder.com/300x200.png?text=Artwork';
+const PLACEHOLDER_IMAGE_URL = '/assets/Artifact_Hero.jpg'; // Use a local placeholder image
 
 // Helper to format artist details (optional)
 const formatArtistDetails = (artist) => {
