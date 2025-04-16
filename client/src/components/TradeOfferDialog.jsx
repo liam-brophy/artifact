@@ -57,7 +57,7 @@ const TradeOfferDialog = ({
   const fetchMyArtworks = async () => {
     setIsLoadingMyArtworks(true);
     try {
-      const response = await apiService.get('/api/users/me/collected-artworks');
+      const response = await apiService.get('/users/me/collected-artworks'); // Removed extra '/api'
       setMyArtworks(response.data.collectedArtworks?.map(item => item.artwork) || []);
     } catch (err) {
       console.error("Failed to fetch my artworks:", err);
@@ -71,7 +71,7 @@ const TradeOfferDialog = ({
   const fetchTheirArtworks = async () => {
     setIsLoadingTheirArtworks(true);
     try {
-      const response = await apiService.get(`/api/users/${recipientId}/collected-artworks`);
+      const response = await apiService.get(`/users/${recipientId}/collected-artworks`); // Removed extra '/api'
       setTheirArtworks(response.data.collectedArtworks?.map(item => item.artwork) || []);
     } catch (err) {
       console.error(`Failed to fetch ${recipientUsername}'s artworks:`, err);

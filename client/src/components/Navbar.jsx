@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
@@ -14,6 +14,7 @@ import InputBase from '@mui/material/InputBase';
 import Tooltip from '@mui/material/Tooltip';
 import ClickAwayListener from '@mui/material/ClickAwayListener';
 import Fade from '@mui/material/Fade';
+import axios from 'axios';
 
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -25,10 +26,12 @@ function Navbar() {
   const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const isDarkMode = theme === 'dark';
-  const themeClass = isDarkMode ? 'dark-theme' : 'light-theme';
+  const themeClass = isDarkMode ? 'dark-theme navbar-transparent' : 'light-theme navbar-transparent';
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [userResults, setUserResults] = useState([]);
+  const [isFetching, setIsFetching] = useState(false);
 
   // Logo paths based on theme
   const logoSrc = isDarkMode 
@@ -55,6 +58,46 @@ function Navbar() {
     if (searchOpen && !searchQuery.trim()) {
       setSearchOpen(false);
     }
+  };
+
+  // Debounced search effect
+  useEffect(() => {
+    const fetchUsers = async () => {
+      if (searchQuery.trim()) {
+        setIsFetching(true);
+        try {
+          console.log('Search query:', searchQuery);
+          const response = await axios.get(`/api/search?q=${encodeURIComponent(searchQuery.trim())}`);
+          console.log('API response:', response.data);
+          setUserResults(response.data.users || []);
+          console.log('User results:', userResults);
+        } catch (error) {
+          console.error('Error fetching user results:', error);
+        } finally {
+          setIsFetching(false);
+        }
+      } else {
+        setUserResults([]);
+      }
+    };
+
+    const debounceTimeout = setTimeout(fetchUsers, 300);
+    return () => clearTimeout(debounceTimeout);
+  }, [searchQuery]);
+
+  // Updated styles for search input transparency
+  const searchInputStyles = {
+    width: '100%',
+    fontSize: '1rem',
+    color: isDarkMode ? '#fff' : '#333',
+    backgroundColor: isDarkMode ? 'rgba(51, 51, 51, 0.8)' : 'rgba(255, 255, 255, 0.8)',
+    '& input': {
+      color: isDarkMode ? '#fff' : '#333',
+      '&::placeholder': {
+        color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)',
+        opacity: 1,
+      },
+    },
   };
 
   return (
@@ -106,18 +149,7 @@ function Navbar() {
                     }}
                   >
                     <InputBase
-                      sx={{ 
-                        width: '100%',
-                        fontSize: '1rem',
-                        color: isDarkMode ? '#fff' : '#333',
-                        '& input': {
-                          color: isDarkMode ? '#fff' : '#333',
-                          '&::placeholder': {
-                            color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)',
-                            opacity: 1,
-                          },
-                        },
-                      }}
+                      sx={searchInputStyles}
                       placeholder="Search artworks, users..."
                       inputProps={{ 'aria-label': 'search artworks and users' }}
                       value={searchQuery}
@@ -125,6 +157,30 @@ function Navbar() {
                       autoFocus
                       className={`search-input ${themeClass}`}
                     />
+
+                    {/* User Results Dropdown */}
+                    {isFetching ? (
+                      <Box className="search-results" sx={{ position: 'absolute', top: '100%', left: 0, width: '100%', background: isDarkMode ? '#333' : '#fff', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)', zIndex: 10, padding: '8px 12px', color: isDarkMode ? '#fff' : '#333', textAlign: 'center' }}>
+                        Loading...
+                      </Box>
+                    ) : userResults.length > 0 ? (
+                      <Box className="search-results" sx={{ position: 'absolute', top: '100%', left: 0, width: '100%', background: isDarkMode ? '#333' : '#fff', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)', zIndex: 10 }}>
+                        {userResults.map((user) => (
+                          <RouterLink 
+                            key={user.id} 
+                            to={`/users/${user.username}`} 
+                            className="search-result-item"
+                            style={{ display: 'block', padding: '8px 12px', color: isDarkMode ? '#fff' : '#333', textDecoration: 'none' }}
+                          >
+                            {user.username}
+                          </RouterLink>
+                        ))}
+                      </Box>
+                    ) : (
+                      <Box className="search-results" sx={{ position: 'absolute', top: '100%', left: 0, width: '100%', background: isDarkMode ? '#333' : '#fff', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)', zIndex: 10, padding: '8px 12px', color: isDarkMode ? '#fff' : '#333', textAlign: 'center' }}>
+                        No results found
+                      </Box>
+                    )}
                   </form>
                 </Fade>
               </Box>
