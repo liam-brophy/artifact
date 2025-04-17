@@ -144,6 +144,9 @@ class Trade(db.Model, SerializerMixin):
             return True, "Trade successfully completed"
         except Exception as e:
             db.session.rollback()
+            # Log the specific error for debugging on the server
+            current_app.logger.error(f"Error executing trade {trade_id}: {str(e)}", exc_info=True) 
+            # Return False and a user-friendly error message
             return False, f"Error completing trade: {str(e)}"
     
     # --- Database Constraints/Indexes ---

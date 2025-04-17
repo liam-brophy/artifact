@@ -670,8 +670,9 @@ function ProfilePage() {
                             indicatorColor="primary"
                             sx={{ minHeight: '48px' }}
                         >
-                            <Tab label={`Incoming (${receivedTrades.filter(t => t.status === 'pending').length})`} />
-                            <Tab label={`Outgoing (${sentTrades.filter(t => t.status === 'pending').length})`} />
+                            {/* Use case-insensitive filter for counts */}
+                            <Tab label={`Incoming (${receivedTrades.filter(t => t.status && t.status.toLowerCase() === 'pending').length})`} />
+                            <Tab label={`Outgoing (${sentTrades.filter(t => t.status && t.status.toLowerCase() === 'pending').length})`} />
                         </Tabs>
                     </Box>
 
@@ -702,7 +703,7 @@ function ProfilePage() {
                                             All
                                         </Button>
                                         <Button 
-                                            variant={receivedTrades.filter === 'pending' ? "contained" : "outlined"}
+                                            variant={receivedTradesFilter === 'pending' ? "contained" : "outlined"}
                                             size="small"
                                             onClick={() => setReceivedTradesFilter('pending')}
                                             sx={{ mr: 1 }}
@@ -710,157 +711,132 @@ function ProfilePage() {
                                         >
                                             Pending
                                         </Button>
+                                        {/* Replace Completed with Accepted */}
                                         <Button 
-                                            variant={receivedTrades.filter === 'completed' ? "contained" : "outlined"}
+                                            variant={receivedTradesFilter === 'accepted' ? "contained" : "outlined"} // Check for 'accepted'
                                             size="small"
-                                            onClick={() => setReceivedTradesFilter('completed')}
+                                            onClick={() => setReceivedTradesFilter('accepted')} // Set state to 'accepted'
                                             sx={{ mr: 1 }}
                                             color="success"
                                         >
-                                            Completed
+                                            Accepted 
                                         </Button>
                                         <Button 
-                                            variant={receivedTrades.filter === 'rejected' ? "contained" : "outlined"}
+                                            variant={receivedTradesFilter === 'rejected' ? "contained" : "outlined"} // Ensure lowercase state check
                                             size="small"
-                                            onClick={() => setReceivedTradesFilter('rejected')}
+                                            onClick={() => setReceivedTradesFilter('rejected')} // Ensure lowercase onClick
                                             color="error"
                                         >
                                             Rejected
                                         </Button>
                                     </Box>
 
-                                    {receivedTrades.map((trade) => (
-                                        <Box 
-                                            key={trade.trade_id} 
-                                            sx={{ 
-                                                mb: 3, 
-                                                p: 2, 
-                                                border: '1px solid',
-                                                borderColor: 
-                                                    trade.status === 'accepted' ? 'success.main' : 
-                                                    trade.status === 'rejected' ? 'error.main' : 
-                                                    trade.status === 'canceled' ? 'text.disabled' : 
-                                                    'grey.300',
-                                                borderRadius: 1,
-                                                backgroundColor: 'background.paper',
-                                                boxShadow: 1
-                                            }}
-                                        >
-                                            <Grid container spacing={2}>
-                                                {/* Trade information */}
-                                                <Grid item xs={12}>
-                                                    <Typography variant="subtitle1" fontWeight="bold">
-                                                        Trade from: {trade.initiator_username}
-                                                        {trade.status !== 'pending' && (
-                                                            <span className={`trade-status ${trade.status}`}>
-                                                                ({trade.status})
-                                                            </span>
+                                    {/* Apply filter before mapping - Case-insensitive comparison */}
+                                    {receivedTrades
+                                        .filter(trade => 
+                                            receivedTradesFilter === 'all' || 
+                                            (trade.status && trade.status.toLowerCase() === receivedTradesFilter)
+                                        )
+                                        .map((trade) => {
+                                            // Add this console log to inspect the trade object
+                                            console.log('Rendering received trade:', trade); 
+                                            return (
+                                                <Box 
+                                                    key={trade.trade_id} 
+                                                    sx={{ 
+                                                        mb: 3, 
+                                                        p: 2, 
+                                                        border: '1px solid',
+                                                        borderColor: 
+                                                            trade.status === 'accepted' ? 'success.main' : 
+                                                            trade.status === 'rejected' ? 'error.main' : 
+                                                            trade.status === 'canceled' ? 'text.disabled' : 
+                                                            'grey.300',
+                                                        borderRadius: 1,
+                                                        backgroundColor: 'background.paper',
+                                                        boxShadow: 1
+                                                    }}
+                                                >
+                                                    <Grid container spacing={2}>
+                                                        {/* Trade information */}
+                                                        <Grid item xs={12}>
+                                                            <Typography variant="subtitle1" fontWeight="bold">
+                                                                Trade from: {trade.initiator_username}
+                                                                {trade.status !== 'pending' && (
+                                                                    <span className={`trade-status ${trade.status}`}>
+                                                                        ({trade.status})
+                                                                    </span>
+                                                                )}
+                                                            </Typography>
+                                                            <Typography variant="body2" color="text.secondary">
+                                                                {new Date(trade.created_at).toLocaleString()}
+                                                            </Typography>
+                                                            {trade.message && (
+                                                                <Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic', p: 1, backgroundColor: 'grey.100', borderRadius: 1 }}>
+                                                                    "{trade.message}"
+                                                                </Typography>
+                                                            )}
+                                                        </Grid>
+
+                                                        {/* Artworks involved */}
+                                                        <Grid item xs={12} container spacing={2}>
+                                                            {/* Their offer */}
+                                                            <Grid item xs={12} sm={6}>
+                                                                <Typography variant="subtitle2">They offer:</Typography>
+                                                                {trade.offered_artwork ? (
+                                                                    <ArtworkCard 
+                                                                        artwork={trade.offered_artwork} 
+                                                                        isBlurred={false} // Don't blur in trade view
+                                                                        // Add any other relevant props if needed
+                                                                    />
+                                                                ) : (
+                                                                    <Typography>Artwork details unavailable</Typography>
+                                                                )}
+                                                            </Grid>
+                                                            {/* Your artwork */}
+                                                            <Grid item xs={12} sm={6}>
+                                                                <Typography variant="subtitle2">They want:</Typography>
+                                                                {trade.requested_artwork ? (
+                                                                    <ArtworkCard 
+                                                                        artwork={trade.requested_artwork} 
+                                                                        isBlurred={false} // Don't blur in trade view
+                                                                        // Add any other relevant props if needed
+                                                                    />
+                                                                ) : (
+                                                                    <Typography>Artwork details unavailable</Typography>
+                                                                )}
+                                                            </Grid>
+                                                        </Grid>
+
+                                                        {/* Trade actions - Check against uppercase PENDING */}
+                                                        {trade.status === 'PENDING' && (
+                                                            <Grid item xs={12} container spacing={1} justifyContent="center">
+                                                                <Grid item>
+                                                                    <Button 
+                                                                        variant="contained" 
+                                                                        color="success" 
+                                                                        startIcon={<CheckCircleOutlineIcon />}
+                                                                        onClick={() => handleAcceptTrade(trade.trade_id)}
+                                                                    >
+                                                                        Accept Trade
+                                                                    </Button>
+                                                                </Grid>
+                                                                <Grid item>
+                                                                    <Button 
+                                                                        variant="outlined" 
+                                                                        color="error" 
+                                                                        startIcon={<CancelIcon />}
+                                                                        onClick={() => handleRejectTrade(trade.trade_id)}
+                                                                    >
+                                                                        Reject
+                                                                    </Button>
+                                                                </Grid>
+                                                            </Grid>
                                                         )}
-                                                    </Typography>
-                                                    <Typography variant="body2" color="text.secondary">
-                                                        {new Date(trade.created_at).toLocaleString()}
-                                                    </Typography>
-                                                    {trade.message && (
-                                                        <Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic', p: 1, backgroundColor: 'grey.100', borderRadius: 1 }}>
-                                                            "{trade.message}"
-                                                        </Typography>
-                                                    )}
-                                                </Grid>
-
-                                                {/* Artworks involved */}
-                                                <Grid item xs={12} container spacing={2}>
-                                                    {/* Their offer */}
-                                                    <Grid item xs={12} sm={6}>
-                                                        <Typography variant="subtitle2">They offer:</Typography>
-                                                        <Box sx={{ 
-                                                            display: 'flex', 
-                                                            flexDirection: 'column',
-                                                            alignItems: 'center',
-                                                            p: 1, 
-                                                            border: '1px solid', 
-                                                            borderColor: 'primary.main',
-                                                            borderRadius: 1,
-                                                            position: 'relative'
-                                                        }}>
-                                                            <img 
-                                                                src={trade.offered_artwork?.image_url} 
-                                                                alt={trade.offered_artwork?.title}
-                                                                style={{ 
-                                                                    width: '100%', 
-                                                                    height: 'auto',
-                                                                    maxHeight: '200px',
-                                                                    objectFit: 'contain'
-                                                                }}
-                                                            />
-                                                            <Typography variant="body2" fontWeight="bold" sx={{ mt: 1 }}>
-                                                                {trade.offered_artwork?.title}
-                                                            </Typography>
-                                                            <Typography variant="body2" color="text.secondary">
-                                                                {trade.offered_artwork?.rarity}
-                                                            </Typography>
-                                                        </Box>
                                                     </Grid>
-                                                    {/* Your artwork */}
-                                                    <Grid item xs={12} sm={6}>
-                                                        <Typography variant="subtitle2">They want:</Typography>
-                                                        <Box sx={{ 
-                                                            display: 'flex', 
-                                                            flexDirection: 'column',
-                                                            alignItems: 'center', 
-                                                            p: 1, 
-                                                            border: '1px solid', 
-                                                            borderColor: 'secondary.main',
-                                                            borderRadius: 1,
-                                                            position: 'relative'
-                                                        }}>
-                                                            <img 
-                                                                src={trade.requested_artwork?.image_url} 
-                                                                alt={trade.requested_artwork?.title}
-                                                                style={{ 
-                                                                    width: '100%', 
-                                                                    height: 'auto',
-                                                                    maxHeight: '200px',
-                                                                    objectFit: 'contain'
-                                                                }}
-                                                            />
-                                                            <Typography variant="body2" fontWeight="bold" sx={{ mt: 1 }}>
-                                                                {trade.requested_artwork?.title}
-                                                            </Typography>
-                                                            <Typography variant="body2" color="text.secondary">
-                                                                {trade.requested_artwork?.rarity}
-                                                            </Typography>
-                                                        </Box>
-                                                    </Grid>
-                                                </Grid>
-
-                                                {/* Trade actions */}
-                                                {trade.status === 'pending' && (
-                                                    <Grid item xs={12} container spacing={1} justifyContent="center">
-                                                        <Grid item>
-                                                            <Button 
-                                                                variant="contained" 
-                                                                color="success" 
-                                                                startIcon={<CheckCircleOutlineIcon />}
-                                                                onClick={() => handleAcceptTrade(trade.trade_id)}
-                                                            >
-                                                                Accept Trade
-                                                            </Button>
-                                                        </Grid>
-                                                        <Grid item>
-                                                            <Button 
-                                                                variant="outlined" 
-                                                                color="error" 
-                                                                startIcon={<CancelIcon />}
-                                                                onClick={() => handleRejectTrade(trade.trade_id)}
-                                                            >
-                                                                Reject
-                                                            </Button>
-                                                        </Grid>
-                                                    </Grid>
-                                                )}
-                                            </Grid>
-                                        </Box>
-                                    ))}
+                                                </Box>
+                                            );
+                                        })}
                                 </>
                             )}
                         </div>
@@ -893,7 +869,7 @@ function ProfilePage() {
                                             All
                                         </Button>
                                         <Button 
-                                            variant={sentTrades.filter === 'pending' ? "contained" : "outlined"}
+                                            variant={sentTradesFilter === 'pending' ? "contained" : "outlined"}
                                             size="small"
                                             onClick={() => setSentTradesFilter('pending')}
                                             sx={{ mr: 1 }}
@@ -901,31 +877,23 @@ function ProfilePage() {
                                         >
                                             Pending
                                         </Button>
+                                        {/* Replace Completed with Accepted */}
                                         <Button 
-                                            variant={sentTrades.filter === 'completed' ? "contained" : "outlined"}
+                                            variant={sentTradesFilter === 'accepted' ? "contained" : "outlined"} // Check for 'accepted'
                                             size="small"
-                                            onClick={() => setSentTradesFilter('completed')}
+                                            onClick={() => setSentTradesFilter('accepted')} // Set state to 'accepted'
                                             sx={{ mr: 1 }}
                                             color="success"
                                         >
-                                            Completed
+                                            Accepted
                                         </Button>
                                         <Button 
-                                            variant={sentTrades.filter === 'rejected' ? "contained" : "outlined"}
+                                            variant={sentTradesFilter === 'rejected' ? "contained" : "outlined"} // Ensure lowercase state check
                                             size="small"
-                                            onClick={() => setSentTradesFilter('rejected')}
-                                            sx={{ mr: 1 }}
+                                            onClick={() => setSentTradesFilter('rejected')} // Ensure lowercase onClick
                                             color="error"
                                         >
                                             Rejected
-                                        </Button>
-                                        <Button 
-                                            variant={sentTrades.filter === 'canceled' ? "contained" : "outlined"}
-                                            size="small"
-                                            onClick={() => setSentTradesFilter('canceled')}
-                                            color="warning"
-                                        >
-                                            Canceled
                                         </Button>
                                     </Box>
 
@@ -972,69 +940,31 @@ function ProfilePage() {
                                                     {/* Your offer */}
                                                     <Grid item xs={12} sm={6}>
                                                         <Typography variant="subtitle2">You offer:</Typography>
-                                                        <Box sx={{ 
-                                                            display: 'flex', 
-                                                            flexDirection: 'column',
-                                                            alignItems: 'center',
-                                                            p: 1, 
-                                                            border: '1px solid', 
-                                                            borderColor: 'primary.main',
-                                                            borderRadius: 1,
-                                                            position: 'relative'
-                                                        }}>
-                                                            <img 
-                                                                src={trade.offered_artwork?.image_url} 
-                                                                alt={trade.offered_artwork?.title}
-                                                                style={{ 
-                                                                    width: '100%', 
-                                                                    height: 'auto',
-                                                                    maxHeight: '200px',
-                                                                    objectFit: 'contain'
-                                                                }}
+                                                        {trade.offered_artwork ? (
+                                                            <ArtworkCard 
+                                                                artwork={trade.offered_artwork} 
+                                                                isBlurred={false} 
                                                             />
-                                                            <Typography variant="body2" fontWeight="bold" sx={{ mt: 1 }}>
-                                                                {trade.offered_artwork?.title}
-                                                            </Typography>
-                                                            <Typography variant="body2" color="text.secondary">
-                                                                {trade.offered_artwork?.rarity}
-                                                            </Typography>
-                                                        </Box>
+                                                        ) : (
+                                                            <Typography>Artwork details unavailable</Typography>
+                                                        )}
                                                     </Grid>
                                                     {/* Their artwork */}
                                                     <Grid item xs={12} sm={6}>
                                                         <Typography variant="subtitle2">You want:</Typography>
-                                                        <Box sx={{ 
-                                                            display: 'flex', 
-                                                            flexDirection: 'column',
-                                                            alignItems: 'center', 
-                                                            p: 1, 
-                                                            border: '1px solid', 
-                                                            borderColor: 'secondary.main',
-                                                            borderRadius: 1,
-                                                            position: 'relative'
-                                                        }}>
-                                                            <img 
-                                                                src={trade.requested_artwork?.image_url} 
-                                                                alt={trade.requested_artwork?.title}
-                                                                style={{ 
-                                                                    width: '100%', 
-                                                                    height: 'auto',
-                                                                    maxHeight: '200px',
-                                                                    objectFit: 'contain'
-                                                                }}
+                                                        {trade.requested_artwork ? (
+                                                            <ArtworkCard 
+                                                                artwork={trade.requested_artwork} 
+                                                                isBlurred={false} 
                                                             />
-                                                            <Typography variant="body2" fontWeight="bold" sx={{ mt: 1 }}>
-                                                                {trade.requested_artwork?.title}
-                                                            </Typography>
-                                                            <Typography variant="body2" color="text.secondary">
-                                                                {trade.requested_artwork?.rarity}
-                                                            </Typography>
-                                                        </Box>
+                                                        ) : (
+                                                            <Typography>Artwork details unavailable</Typography>
+                                                        )}
                                                     </Grid>
                                                 </Grid>
 
-                                                {/* Trade actions */}
-                                                {trade.status === 'pending' && (
+                                                {/* Trade actions - Check against uppercase PENDING */}
+                                                {trade.status === 'PENDING' && (
                                                     <Grid item xs={12} container spacing={1} justifyContent="center">
                                                         <Grid item>
                                                             <Button 

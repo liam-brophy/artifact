@@ -109,8 +109,7 @@ const TradeOfferDialog = ({
       });
       
       toast.success("Trade offer sent successfully!");
-      // Swap order: navigate first, then close dialog
-      navigate('/profile'); 
+      // Close the dialog, no navigation needed as we are already on the recipient's profile
       onClose(); 
       
     } catch (err) {

@@ -436,9 +436,9 @@
 .pack-results-content {
   background-color: #1a1a1a;
   border-radius: 10px;
-  max-width: 800px;
-  width: 90%;
-  max-height: 85vh;
+  max-width: 1200px; /* Increased from 1000px */
+  width: 95%; /* Increased from 90% */
+  max-height: 95vh; /* Increased from 90vh */
   overflow-y: auto;
   padding: 30px;
   position: relative;
