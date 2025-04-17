@@ -23,15 +23,19 @@ import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemText from '@mui/material/ListItemText';
+import Avatar from '@mui/material/Avatar';
+import ListItemAvatar from '@mui/material/ListItemAvatar';
 
 // Icons
 import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
-import SwapHorizIcon from '@mui/icons-material/SwapHoriz'; // Add the swap/trade icon
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'; // For accept action
-import CancelIcon from '@mui/icons-material/Cancel'; // For reject/cancel action
-
-// Import Components
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz'; // Import SwapHorizIcon
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'; // Added for trade buttons
+import CancelIcon from '@mui/icons-material/Cancel'; // Added for trade buttons and delete button
+import PaletteIcon from '@mui/icons-material/Palette'; // Import PaletteIcon for artist role
 import ArtworkCard from '../components/ArtworkCard';
 import TradeOfferDialog from '../components/TradeOfferDialog';
 
@@ -81,6 +85,13 @@ function ProfilePage() {
     // Delete Dialog State
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+
+    // Follow List Modal State
+    const [isFollowModalOpen, setIsFollowModalOpen] = useState(false);
+    const [followModalType, setFollowModalType] = useState(''); // 'followers' or 'following'
+    const [followListData, setFollowListData] = useState([]);
+    const [isLoadingFollowList, setIsLoadingFollowList] = useState(false);
+    const [followListError, setFollowListError] = useState(null);
 
     // Derived State
     const isOwnProfile = isAuthenticated && profileUser && loggedInUser?.user_id === profileUser.user_id;
@@ -186,6 +197,50 @@ function ProfilePage() {
             console.error("Failed to cancel trade:", err);
             toast.error(err.response?.data?.error || "Failed to cancel trade");
         }
+    };
+
+    // --- Follow List Modal Functions ---
+    const fetchFollowList = useCallback(async (type) => {
+        if (!profileUser?.user_id) return;
+        
+        setIsLoadingFollowList(true);
+        setFollowListData([]);
+        setFollowListError(null);
+        setFollowModalType(type); // Set the type ('followers' or 'following')
+
+        const endpoint = `/users/${profileUser.user_id}/${type}`; // e.g., /users/123/followers
+
+        try {
+            const response = await apiService.get(endpoint);
+            // Adjust based on actual API response structure
+            // Assuming the API returns an object like { followers: [{ user_id: ..., username: ... }, ...] }
+            // or { following: [...] }
+            setFollowListData(response.data[type] || []); 
+            setIsFollowModalOpen(true); // Open modal only after successful fetch
+        } catch (err) {
+            console.error(`ProfilePage: Failed to fetch ${type}:`, err);
+            setFollowListError(`Could not load ${type}. Please try again later.`);
+            // Optionally open the modal even on error to show the error message
+            setIsFollowModalOpen(true); 
+        } finally {
+            setIsLoadingFollowList(false);
+        }
+    }, [profileUser?.user_id]); // Dependency on profileUser.user_id
+
+    const openFollowersModal = () => {
+        fetchFollowList('followers');
+    };
+
+    const openFollowingModal = () => {
+        fetchFollowList('following');
+    };
+
+    const closeFollowModal = () => {
+        setIsFollowModalOpen(false);
+        // Reset state when closing
+        setFollowListData([]);
+        setFollowListError(null);
+        setFollowModalType('');
     };
 
     // --- Fetch Profile User Data ---
@@ -455,11 +510,68 @@ function ProfilePage() {
             {/* Profile Header Section */}
             <section className="profile-header">
                 <div className="profile-info">
-                    <h1 className="profile-username">{profileUser.username}</h1>
-                    <p className="profile-role">Role: {profileUser.role}</p>
+                    {/* Display username and artist icon side-by-side */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                        <h1 className="profile-username" style={{ margin: 0, marginRight: '8px' }}>{profileUser.username}</h1>
+                        {/* Conditionally render PaletteIcon if user is an artist */}
+                        {isArtist && (
+                            <Tooltip title="Artist">
+                                <PaletteIcon color="primary" sx={{ fontSize: '1.5rem' }} />
+                            </Tooltip>
+                        )}
+                    </Box>
                     <div className="profile-social-counts">
-                        <span>Followers: {profileUser.followers_count ?? 0}</span>
-                        <span>Following: {profileUser.following_count ?? 0}</span>
+                        {/* Make Followers count clickable */}
+                        <Button
+                            onClick={openFollowersModal}
+                            disabled={isLoadingFollowList && followModalType === 'followers'}
+                            sx={{
+                                textTransform: 'none',
+                                p: '6px 8px',
+                                minWidth: 'auto',
+                                color: 'text.primary', // Ensure button base color is correct
+                                mr: 1,
+                                '&:hover': { backgroundColor: 'action.hover' },
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center'
+                            }}
+                        >
+                            {/* Ensure number has no shadow and uses primary text color */}
+                            <Typography variant="h6" component="span" sx={{ lineHeight: 1.2, color: 'text.primary', textShadow: 'none' }}>
+                                {profileUser.followers_count ?? 0}
+                            </Typography>
+                            {/* Ensure text has no shadow and uses primary text color */}
+                            <Typography variant="caption" component="span" sx={{ lineHeight: 1.2, color: 'text.primary', textShadow: 'none' }}>
+                                Followers
+                            </Typography>
+                            {isLoadingFollowList && followModalType === 'followers' && <CircularProgress size={12} sx={{ position: 'absolute', top: '50%', left: '50%', marginTop: '-6px', marginLeft: '-6px' }} />}
+                        </Button>
+                        {/* Make Following count clickable */}
+                        <Button
+                            onClick={openFollowingModal}
+                            disabled={isLoadingFollowList && followModalType === 'following'}
+                            sx={{
+                                textTransform: 'none',
+                                p: '6px 8px',
+                                minWidth: 'auto',
+                                color: 'text.primary', // Ensure button base color is correct
+                                '&:hover': { backgroundColor: 'action.hover' },
+                                display: 'flex', // Use flex for centering content
+                                flexDirection: 'column', // Stack vertically
+                                alignItems: 'center' // Center horizontally
+                            }}
+                        >
+                            {/* Ensure number has no shadow and uses primary text color */}
+                            <Typography variant="h6" component="span" sx={{ lineHeight: 1.2, color: 'text.primary', textShadow: 'none' }}>
+                                {profileUser.following_count ?? 0}
+                            </Typography>
+                            {/* Ensure text has no shadow and uses primary text color */}
+                            <Typography variant="caption" component="span" sx={{ lineHeight: 1.2, color: 'text.primary', textShadow: 'none' }}>
+                                Following
+                            </Typography>
+                            {isLoadingFollowList && followModalType === 'following' && <CircularProgress size={12} sx={{ position: 'absolute', top: '50%', left: '50%', marginTop: '-6px', marginLeft: '-6px' }} />}
+                        </Button>
                     </div>
                 </div>
                 <div className="profile-actions">
@@ -474,11 +586,12 @@ function ProfilePage() {
                                 {isFollowing ? 'Unfollow' : 'Follow'}
                             </Button>
                             
+                            {/* Only show propose trade if FOLLOWING the user */}
                             {isFollowing && (
                                 <Button
                                     variant="outlined"
                                     color="primary"
-                                    startIcon={<SwapHorizIcon />}
+                                    // startIcon={<SwapHorizIcon />} // Icon was causing issues, removed for now
                                     onClick={() => setTradeDialogOpen(true)}
                                     size="small"
                                     sx={{ ml: 1 }}
@@ -509,6 +622,19 @@ function ProfilePage() {
                                     <LogoutIcon />
                                 </IconButton>
                             </Tooltip>
+                            {/* Removed Delete button temporarily to fix syntax errors, can be re-added */}
+                            {/* 
+                            <Tooltip title="Delete Account">
+                                <IconButton 
+                                    onClick={openDeleteDialog} 
+                                    className="profile-delete-button"
+                                    aria-label="Delete Account"
+                                    color="error" // Indicate destructive action
+                                >
+                                    <CancelIcon />
+                                </IconButton>
+                            </Tooltip>
+                            */}
                          </Box>
                      )}
                 </div>
@@ -1002,6 +1128,53 @@ function ProfilePage() {
                 recipientId={profileUser?.user_id}
                 recipientUsername={profileUser?.username}
             />
+
+            {/* Follow List Modal */}
+             <Dialog open={isFollowModalOpen} onClose={closeFollowModal} maxWidth="xs" fullWidth>
+                 <DialogTitle>
+                     {isLoadingFollowList 
+                        ? 'Loading...' 
+                        : `${followModalType === 'followers' ? 'Followers' : 'Following'} (${followListData.length})`}
+                 </DialogTitle>
+                 <DialogContent dividers> {/* Add dividers for better separation */}
+                     {isLoadingFollowList ? (
+                         <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                             <CircularProgress />
+                         </Box>
+                     ) : followListError ? (
+                         <Alert severity="error">{followListError}</Alert>
+                     ) : followListData.length === 0 ? (
+                         <Typography sx={{ p: 2, textAlign: 'center' }}>
+                             No users found.
+                         </Typography>
+                     ) : (
+                         <List dense> {/* dense makes the list items smaller */}
+                             {followListData.map((user) => (
+                                 <ListItem 
+                                     key={user.user_id} 
+                                     button // Make list item clickable
+                                     component={RouterLink} // Use RouterLink for navigation
+                                     to={`/profile/${user.username}`} // Link to user's profile
+                                     onClick={closeFollowModal} // Close modal when a user is clicked
+                                 >
+                                     <ListItemAvatar>
+                                         {/* Placeholder Avatar - replace with actual user avatar if available */}
+                                         {/* You might need to fetch avatar URLs or generate initials */}
+                                         <Avatar sx={{ bgcolor: 'primary.light' }}> 
+                                             {user.username?.[0]?.toUpperCase()}
+                                         </Avatar>
+                                     </ListItemAvatar>
+                                     <ListItemText primary={user.username} />
+                                 </ListItem>
+                             ))}
+                         </List>
+                     )}
+                 </DialogContent>
+                 <DialogActions>
+                     <Button onClick={closeFollowModal}>Close</Button>
+                 </DialogActions>
+             </Dialog>
+
         </div> // End profile-page-container
     );
 }

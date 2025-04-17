@@ -28,6 +28,7 @@
   /* --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); */
   --secondary-text: #666666;
   --hero-title-color: black; /* Default to black for light mode */
+  --text-shadow-color: rgba(255, 255, 255, 0.6); /* Light shadow for light theme */
 }
 
 /* Dark theme variables */
@@ -43,6 +44,7 @@
   --nav-background: rgba(0, 0, 0, 0.95);
   /* --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5); */
   --secondary-text: #AAAAAA;
+  --text-shadow-color: rgba(0, 0, 0, 0.6); /* Dark shadow for dark theme */
 }
 
 /* Define hero title color variables for light and dark modes */
@@ -63,6 +65,7 @@ body {
   background-color: var(--background-color);
   transition: color 0.3s, background-color 0.3s;
   font-family: var(--body-font);
+  /* REMOVED global text shadow */
 }
 
 /* Custom scrollbar styling */
@@ -95,15 +98,23 @@ a {
   font-weight: 500;
   color: var(--accent-color);
   text-decoration: inherit;
+  /* REMOVED link text shadow */
 }
 a:hover {
   color: var(--accent-hover);
 }
 
-h1 {
+h1, h2, h3, h4, h5, h6 { /* Apply specifically to headers too if needed */
   font-size: 3.2em;
   line-height: 1.1;
   font-family: var(--header-font);
+  /* Ensure headers have NO text shadow */
+  text-shadow: none;
+}
+
+/* Apply text shadow selectively to standard text elements */
+p, span, li, label { /* Add other relevant selectors if needed */
+  text-shadow: 1px 1px 3px var(--text-shadow-color);
 }
 
 button {
@@ -114,9 +125,11 @@ button {
   font-weight: 500;
   font-family: inherit;
   background-color: var(--button-background);
-  color: var(--button-text);
+  color: white; /* Revert to white for difference blend mode */
   cursor: pointer;
   transition: border-color 0.25s, background-color 0.25s;
+  /* Revert to difference blend mode */
+  mix-blend-mode: difference;
 }
 button:hover {
   border-color: var(--accent-color);

@@ -160,7 +160,7 @@ function HomePage() {
         <div className="hero-content">
           <h1 className="hero-title">{welcomeMessage}</h1>
           <p className="hero-subtitle">
-            Discover, collect, and support digital artists on a platform designed for creative expression.
+            Collect and support artists<br></br> on a platform designed for discovery.
           </p>
           {!user && (
             <div className="hero-cta">

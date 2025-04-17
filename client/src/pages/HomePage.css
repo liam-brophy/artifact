@@ -45,35 +45,30 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-start; /* Changed from center to start for higher position */
-  align-items: flex-end; /* Right align content instead of left */
-  text-align: right; /* Right align text instead of left */
+  align-items: flex-start; /* Changed from flex-end to flex-start */
+  text-align: left; /* Changed from right to left */
   box-sizing: border-box;
 }
 
 /* Updated hero styles for a clean and bold look */
 .hero-title {
-  font-size: 3rem; /* Larger text for the title */
+  font-size: 4rem; /* Increased font size */
   font-weight: 800; /* Bold font weight */
   margin-bottom: 1.5rem; /* Adjusted spacing */
-  color: var(--hero-title-color, black); /* Default to black */
+  color: var(--text-color); /* Use standard theme text color */
   font-family: var(--header-font);
-  line-height: 1.3; /* Slightly increased line height */
-  max-width: 60%; /* Adjusted width for better readability */
+  line-height: 1.2; /* Adjusted line height */
+  max-width: 70%; /* Adjusted width */
   text-shadow: none; /* Removed shadow */
-}
-
-/* Temporarily hardcode the color to black for debugging */
-.hero-title {
-  color: black !important;
 }
 
 /* Updated hero styles for a clean and bold look */
 .hero-subtitle {
-  font-size: 1.5rem; /* Larger text for the subheader */
+  font-size: 1.8rem; /* Increased font size */
   font-weight: 600; /* Semi-bold font weight */
-  color: var(--hero-subtitle-color, black); /* Default to black */
+  color: var(--text-color); /* Use standard theme text color */
   margin-bottom: 2rem; /* Adjusted spacing */
-  max-width: 60%; /* Adjusted width for better readability */
+  max-width: 70%; /* Adjusted width */
   text-shadow: none; /* Removed shadow */
 }
 
@@ -89,13 +84,13 @@
 /* Responsive styles for the hero section */
 @media screen and (max-width: 768px) {
   .hero-title {
-    font-size: 2rem; /* Reduced from 2.5rem */
-    max-width: 80%;
+    font-size: 3rem; /* Adjusted responsive size */
+    max-width: 90%; /* Adjusted width */
   }
   
   .hero-subtitle {
-    font-size: 1rem; /* Reduced from 1.1rem */
-    max-width: 80%;
+    font-size: 1.3rem; /* Adjusted responsive size */
+    max-width: 90%; /* Adjusted width */
   }
 
   .hero-section {
@@ -115,12 +110,12 @@
 
 @media screen and (max-width: 576px) {
   .hero-title {
-    font-size: 1.8rem; /* Reduced from 2rem */
+    font-size: 2.5rem; /* Adjusted responsive size */
     max-width: 100%;
   }
   
   .hero-subtitle {
-    font-size: 0.9rem; /* Reduced from 1rem */
+    font-size: 1.1rem; /* Adjusted responsive size */
     max-width: 100%;
   }
 

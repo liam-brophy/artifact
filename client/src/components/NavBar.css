@@ -36,6 +36,18 @@
   -webkit-backdrop-filter: blur(8px); /* For Safari */
 }
 
+/* Override mix-blend-mode for elements within the navbar, but let specific color rules apply */
+.navbar button,
+.navbar .MuiButton-root,
+.navbar .MuiIconButton-root,
+.navbar a,
+.navbar span, /* Include spans if they might inherit blend mode */
+.navbar div /* Include divs if they might inherit blend mode */
+{
+  mix-blend-mode: normal !important; /* Reset blend mode, use !important to ensure override */
+  /* Color will be determined by more specific rules below or inherited */
+}
+
 /* Toolbar container */
 .navbar-toolbar {
   width: 100%;
