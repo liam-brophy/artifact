@@ -618,6 +618,7 @@ function ProfilePage() {
                                     onClick={logout} 
                                     className="profile-logout-button"
                                     aria-label="Logout"
+                                    sx={{ color: loggedInUser?.favorite_color || 'inherit' }} // Apply favorite color
                                 >
                                     <LogoutIcon />
                                 </IconButton>
