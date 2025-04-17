@@ -6,6 +6,7 @@ import React, {
   useCallback,
   useMemo,
 } from 'react';
+import { Navigate } from 'react-router-dom';
 import apiService from '../services/apiService'; // Adjust path as needed
 
 const AuthContext = createContext(null);
@@ -30,9 +31,26 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      const response = await apiService.get(AUTH_STATUS_ENDPOINT);
-      const fetchedUser = response?.data?.user;
+      const token = localStorage.getItem('authToken'); // Retrieve token from localStorage or other storage
       
+      // If no token is found, we're not authenticated - this is a normal state
+      if (!token) {
+        setUser(null);
+        setIsAuthenticated(false);
+        setOwnedArtworkIds(new Set());
+        if (isInitialLoad) {
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      const response = await apiService.get(AUTH_STATUS_ENDPOINT, {
+        headers: {
+          Authorization: `Bearer ${token}`, // Include token in the Authorization header
+        },
+      });
+      const fetchedUser = response?.data?.user;
+
       if (fetchedUser) {
         setUser(fetchedUser);
         setIsAuthenticated(true);
@@ -60,6 +78,8 @@ export const AuthProvider = ({ children }) => {
       // Don't treat 401 as an error - it's expected when not logged in
       if (error.response && error.response.status === 401) {
         console.log("User not authenticated - normal state before login");
+      } else if (error.response && error.response.status === 422) {
+        console.error("Unprocessable entity: Check the request payload or headers");
       } else {
         console.error("Auth status check failed:", error);
       }
@@ -76,23 +96,22 @@ export const AuthProvider = ({ children }) => {
 
   // --- Effect to Check Authentication Status on Load ---
   useEffect(() => {
-    fetchUserDataAndCollection(true); // Pass true for initial load
-    
-    // Add event listener for token refresh failure
+    fetchUserDataAndCollection(true).catch((error) => {
+      console.error("Error during initial auth check:", error);
+      // Make sure loading is set to false even if there's an error
+      setIsLoading(false);
+    });
+
     const handleTokenRefreshFailure = () => {
       console.log("Token refresh failed, logging out user");
-      // Skip the API call when logging out due to token refresh failure
-      // since the token is already invalid
       logout(true);
     };
-    
+
     window.addEventListener('auth:tokenRefreshFailed', handleTokenRefreshFailure);
-    
-    // Cleanup listener on unmount
+
     return () => {
       window.removeEventListener('auth:tokenRefreshFailed', handleTokenRefreshFailure);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchUserDataAndCollection]); // Depend on the stable useCallback function
 
   // --- Login Function ---
@@ -118,6 +137,7 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setIsAuthenticated(false);
     setOwnedArtworkIds(new Set());
+    localStorage.removeItem('authToken'); // Remove token from localStorage
 
     if (!skipApiCall) {
       try {
@@ -141,7 +161,12 @@ export const AuthProvider = ({ children }) => {
     ownedArtworkIds, // <-- Expose the Set of owned IDs
   }), [user, isAuthenticated, isLoading, login, logout, updateUser, ownedArtworkIds, fetchUserDataAndCollection]); // Added ownedArtworkIds and fetch func
 
-  // Render provider
+  // --- Render with loading state ---
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  // --- Render the context provider ---
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 

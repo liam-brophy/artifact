@@ -22,13 +22,22 @@ body {
   
   /* The box containing the form */
   .auth-container {
-    background-color: #fff; /* White background for the box */
+    background-color: rgba(255, 255, 255, 0.15); /* Very transparent white background */
+    backdrop-filter: blur(12px); /* Blur effect for glass-like appearance */
+    -webkit-backdrop-filter: blur(12px); /* For Safari support */
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+    border: 1px solid rgba(255, 255, 255, 0.2); /* Subtle border */
+    border-radius: 16px;
     padding: 30px 40px;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     width: 100%;
     max-width: 400px; /* Max width of the form box */
     text-align: center; /* Center title and other inline elements */
+    transition: all 0.3s ease;
+  }
+  
+  .auth-container:hover {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    transform: translateY(-5px);
   }
   
   /* Form title */

@@ -28,10 +28,15 @@ import LavaLampBackground from './components/LavaLampBackground'; // Import the 
 // --- Layout Component for Authenticated Users ---
 // This component will render the NavBar and the nested route content (Outlet)
 function AuthenticatedLayout() {
-    const { isAuthenticated } = useAuth(); // Check auth status here
+    const { isAuthenticated, isLoading } = useAuth(); // Check auth status here
     const { isDarkMode } = useTheme(); // Access theme context
 
-    // You could add more sophisticated loading checks if needed
+    // First handle loading state
+    if (isLoading) {
+        return <div className="full-page-loader">Loading Authentication...</div>;
+    }
+
+    // Then handle unauthenticated state
     if (!isAuthenticated) {
         // This should theoretically not be reached if ProtectedRoute works,
         // but acts as a safeguard or for direct access attempts.
@@ -53,10 +58,12 @@ function ProtectedRoute({ children }) {
     const { isAuthenticated, isLoading } = useAuth();
 
     if (isLoading) {
-        return <div>Loading Authentication...</div>; // Or a spinner component
+        // Show a loading indicator while authentication status is being determined
+        return <div className="full-page-loader">Loading Authentication...</div>;
     }
 
     if (!isAuthenticated) {
+        // Only redirect if we're sure the user isn't authenticated
         return <Navigate to="/login" replace />;
     }
 
@@ -69,7 +76,7 @@ function ArtistOnlyRoute({ children }) {
      const { isAuthenticated, isLoading, user } = useAuth();
 
      if (isLoading) {
-         return <div>Loading User Data...</div>;
+         return <div className="full-page-loader">Loading User Data...</div>;
      }
 
      if (!isAuthenticated) {
@@ -90,7 +97,7 @@ function App() {
     // No need for useAuth() here anymore
 
     return (
-        <Router>
+        <>
             <LavaLampBackground /> {/* Add the LavaLampBackground component */}
             <Routes>
                 {/* Public Routes */}
@@ -126,7 +133,7 @@ function App() {
                 <Route path="*" element={<NotFoundPage />} />
             </Routes>
             <Toaster position="top-center" /* ... options ... */ />
-        </Router>
+        </>
     );
 }
 

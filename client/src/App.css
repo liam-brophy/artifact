@@ -31,6 +31,119 @@ body, html {
   border-radius: 8px; /* Rounded corners for a polished look */
 }
 
+/* Auth pages glass effect styling */
+.auth-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+/* Auth container glass effect styling */
+.auth-container {
+  background: rgba(255, 255, 255, 0.15) !important; /* Very transparent white background */
+  backdrop-filter: blur(12px) !important; /* Increased blur for more glass-like effect */
+  -webkit-backdrop-filter: blur(12px) !important; /* For Safari support */
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1) !important; /* Subtle shadow */
+  border: 1px solid rgba(255, 255, 255, 0.2) !important; /* More subtle border */
+  border-radius: 16px !important; /* Rounded corners */
+  transition: all 0.3s ease;
+}
+
+.auth-container:hover {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  transform: translateY(-5px);
+}
+
+.auth-title {
+  margin-bottom: 25px;
+  color: #333;
+  font-weight: 700;
+  text-align: center;
+}
+
+.auth-form .form-group {
+  margin-bottom: 20px;
+}
+
+.auth-form .form-input {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  padding: 12px 15px;
+  width: 100%;
+  transition: all 0.3s ease;
+}
+
+.auth-form .form-input:focus {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
+}
+
+.auth-form .btn-primary {
+  background: rgba(79, 70, 229, 0.8);
+  border: none;
+  border-radius: 8px;
+  padding: 12px 20px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+  margin-bottom: 15px;
+}
+
+.auth-form .btn-primary:hover {
+  background: rgba(79, 70, 229, 0.9);
+  transform: translateY(-2px);
+}
+
+.auth-separator {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 20px 0;
+  color: rgba(0, 0, 0, 0.5);
+}
+
+.auth-separator::before,
+.auth-separator::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.auth-separator::before {
+  margin-right: 10px;
+}
+
+.auth-separator::after {
+  margin-left: 10px;
+}
+
+.google-signin-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 15px;
+}
+
+.auth-link {
+  display: block;
+  text-align: center;
+  color: rgba(79, 70, 229, 0.8);
+  font-weight: 500;
+  margin-top: 5px;
+  text-decoration: none;
+}
+
+.auth-link:hover {
+  color: rgba(79, 70, 229, 1);
+  text-decoration: underline;
+}
+
 /* Apply header font to all heading elements */
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--header-font);
