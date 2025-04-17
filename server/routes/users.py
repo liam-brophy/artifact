@@ -5,12 +5,14 @@ from sqlalchemy.orm import joinedload # For eager loading if needed
 import traceback
 import math # Added for pagination calculations
 
+# Import db from extensions instead of app
+from server.extensions import db
+
 # Import necessary models
 from server.models.user import User
 from server.models.artwork import Artwork
 from server.models.collection import Collection
 from server.models.user_follow import UserFollow
-from server.app import db # Import db instance
 
 users_bp = Blueprint('users', __name__)
 
@@ -300,13 +302,36 @@ def get_user_created_artworks(user_id):
         artworks = pagination.items
 
         # Adjust serialization rules based on what ArtworkCard component needs
-        artworks_data = [aw.to_dict(rules=(
-            '-collections', # Exclude potentially large list
-            'artist.user_id',
-            'artist.username'
-            # Ensure other needed fields like artwork_id, title, image_url, etc., are included by default or added here
-            # Or use 'only=(...)' if that's easier
-        )) for aw in artworks]
+        # artworks_data = [aw.to_dict(rules=(
+        #     '-collections', # Exclude potentially large list
+        #     'artist.user_id',
+        #     'artist.username'
+        #     # Ensure other needed fields like artwork_id, title, image_url, etc., are included by default or added here
+        #     # Or use 'only=(...)' if that's easier
+        # )) for aw in artworks]
+        # --- MANUAL Artwork Serialization ---
+        artworks_data = []
+        for aw in artworks:
+            artist_info = {}
+            if aw.artist:
+                artist_info = {
+                    "user_id": aw.artist.user_id,
+                    "username": aw.artist.username
+                    # Add other artist fields if needed by ArtworkCard
+                }
+            
+            artworks_data.append({
+                "artwork_id": aw.artwork_id,
+                "title": aw.title,
+                "image_url": aw.image_url,
+                "thumbnail_url": aw.thumbnail_url,
+                "rarity": aw.rarity,
+                "artist_name": aw.artist_name, # Include artist_name if available
+                "series": aw.series, # Include series if available
+                "artist": artist_info # Include nested artist info
+                # Add other fields needed by ArtworkCard like 'description', 'year', 'medium' if necessary
+            })
+        # --- End MANUAL Artwork Serialization ---
 
         response = {
             "artworks": artworks_data,
@@ -334,7 +359,7 @@ def get_user_created_artworks(user_id):
 @jwt_required()
 def get_user_collected_artworks(user_id):
     """Gets artworks collected by a specific user (checks follow relationship)."""
-    print(f"--- Request received for collected artworks: user_id={user_id} ---") # DEBUG
+    print(f"--- Request received for collected artworks: user_id={user_id}") # DEBUG
     current_user_id = get_jwt_identity()
 
     # Users can always view their own collections
@@ -419,28 +444,40 @@ def get_user_collected_artworks(user_id):
             print(f"    Artwork loaded: artwork_id={item.artwork.artwork_id}, title='{item.artwork.title}'") # DEBUG
 
             # Prepare artwork data using serialization (adjust fields as needed)
-            artwork_data = item.artwork.to_dict(
-                only=[
-                    "artwork_id", "title", "image_url", "thumbnail_url", "rarity"
-                ]
-            )
+            # artwork_data = item.artwork.to_dict(
+            #     only=[
+            #         "artwork_id", "title", "image_url", "thumbnail_url", "rarity"
+            #     ]
+            # )
+            # --- MANUAL Artwork Serialization ---
+            artwork_data = {
+                "artwork_id": item.artwork.artwork_id,
+                "title": item.artwork.title,
+                "image_url": item.artwork.image_url,
+                "thumbnail_url": item.artwork.thumbnail_url,
+                "rarity": item.artwork.rarity
+                # Add other fields needed by the frontend if necessary
+            }
+            # --- End MANUAL Artwork Serialization ---
 
-            # Prepare artist data safely
+            # Prepare artist data safely - MANUAL serialization instead of to_dict()
             artist_data = {}
             if item.artwork.artist:
-                 print(f"    Artist loaded: user_id={item.artwork.artist.user_id}, username='{item.artwork.artist.username}'") # DEBUG
-                 artist_data = item.artwork.artist.to_dict(only=["user_id", "username"])
+                print(f"    Artist loaded: user_id={item.artwork.artist.user_id}, username='{item.artwork.artist.username}'") # DEBUG
+                # Manual serialization instead of to_dict()
+                artist_data = {
+                    "user_id": item.artwork.artist.user_id,
+                    "username": item.artwork.artist.username
+                }
             else:
-                 print(f"    Artist relationship missing for artwork_id={item.artwork.artwork_id}") # DEBUG
+                print(f"    Artist relationship missing for artwork_id={item.artwork.artwork_id}") # DEBUG
 
-
-            # Append the structured data to the response list
+            # The rest of your code remains the same...
             final_collection_list.append({
                 "artwork": artwork_data,
                 "artist": artist_data,
                 "acquired_at": item.acquired_at.isoformat() + 'Z' if item.acquired_at else None,
                 "transaction_id": item.transaction_id
-                # We don't need collection_id as it doesn't exist
             })
 
         print(f"Finished processing loop. Final list length: {len(final_collection_list)}") # DEBUG
@@ -595,47 +632,76 @@ def update_user_preferences(user_id):
 @jwt_required()
 def get_my_collected_artworks():
     """Gets collected artworks for the currently authenticated user."""
-    current_user_id = get_jwt_identity()
-    
-    # Get pagination arguments
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 12, type=int)
-    
-    # Query collected artworks with pagination
-    query = Collection.query.filter_by(patron_id=current_user_id)
-    
-    # Get total count for pagination
-    total_items = query.count()
-    
-    # Apply pagination
-    collected_items = query.order_by(Collection.acquired_at.desc()) \
-        .limit(per_page).offset((page - 1) * per_page).all()
-    
-    # Create pagination info
-    pagination = {
-        'total_items': total_items,
-        'total_pages': math.ceil(total_items / per_page) if per_page > 0 else 0,
-        'current_page': page,
-        'per_page': per_page,
-        'has_next': page * per_page < total_items,
-        'has_prev': page > 1
-    }
-    
-    # Add artwork details to each collection item
-    collected_with_details = []
-    for item in collected_items:
-        # Get full artwork details
-        artwork = Artwork.query.get(item.artwork_id)
-        if artwork:
+    try:
+        current_user_id = get_jwt_identity()
+        
+        # Get pagination arguments
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 12, type=int)
+        per_page = max(1, min(per_page, 100)) # Clamp per_page
+        
+        # Query collected artworks with pagination
+        query = Collection.query.filter_by(patron_id=current_user_id)
+        
+        # Get total count for pagination
+        total_items = query.count()
+        
+        # Apply pagination
+        collected_items = query.options(
+                # Eager load Artwork data, and within that, the Artist data
+                joinedload(Collection.artwork).joinedload(Artwork.artist)
+            )\
+            .order_by(Collection.acquired_at.desc()) \
+            .limit(per_page).offset((page - 1) * per_page).all()
+        
+        # Create pagination info
+        pagination = {
+            'totalItems': total_items,
+            'totalPages': math.ceil(total_items / per_page) if per_page > 0 else 0,
+            'currentPage': page,
+            'perPage': per_page,
+            'hasNext': page * per_page < total_items,
+            'hasPrev': page > 1
+        }
+        
+        # --- MANUAL SERIALIZATION --- 
+        collected_with_details = []
+        for item in collected_items:
+            if not item.artwork:
+                continue # Skip if artwork is missing
+
+            artist_info = {}
+            if item.artwork.artist:
+                artist_info = {
+                    "user_id": item.artwork.artist.user_id,
+                    "username": item.artwork.artist.username
+                }
+
+            artwork_data = {
+                "artwork_id": item.artwork.artwork_id,
+                "title": item.artwork.title,
+                "image_url": item.artwork.image_url,
+                "thumbnail_url": item.artwork.thumbnail_url,
+                "rarity": item.artwork.rarity,
+                "artist_name": item.artwork.artist_name,
+                "series": item.artwork.series,
+                "artist": artist_info
+                # Add other fields if needed
+            }
+
             collected_with_details.append({
-                # Fixed: Collection uses a composite key (patron_id, artwork_id), not collection_id
                 'patron_id': item.patron_id,
                 'artwork_id': item.artwork_id,
-                'added_at': item.acquired_at,
-                'artwork': artwork.to_dict()
+                'acquired_at': item.acquired_at.isoformat() + 'Z' if item.acquired_at else None,
+                'transaction_id': item.transaction_id, # Include transaction_id if needed
+                'artwork': artwork_data
             })
-    
-    return jsonify({
-        'collectedArtworks': collected_with_details,
-        'pagination': pagination
-    }), 200
+        # --- END MANUAL SERIALIZATION ---
+        
+        return jsonify({
+            'collectedArtworks': collected_with_details,
+            'pagination': pagination
+        }), 200
+    except Exception as e:
+        current_app.logger.error(f"Error fetching user's collected artworks: {str(e)}", exc_info=True)
+        return jsonify({'error': "An internal server error occurred while fetching your collection."}), 500

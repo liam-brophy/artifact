@@ -1,10 +1,14 @@
 from datetime import datetime
 from sqlalchemy_serializer import SerializerMixin
 from sqlalchemy.sql import func
-from sqlalchemy import ForeignKey, Integer, String, Text, DateTime, Column, Index, CheckConstraint, and_, or_
+from sqlalchemy import ForeignKey, Integer, String, Text, DateTime, Column, Index, CheckConstraint, and_, or_, Enum
+from sqlalchemy.dialects.postgresql import ENUM
 
-# Import db instance from the main app file
-from server.app import db
+# Import db from extensions instead of from app to avoid circular imports
+from server.extensions import db
+
+# Define the enum values based on your database schema - updated to use uppercase values
+TradeStatusEnum = ENUM('PENDING', 'ACCEPTED', 'REJECTED', 'CANCELED', name='tradestatus', create_type=False)
 
 class Trade(db.Model, SerializerMixin):
     __tablename__ = 'trades'
@@ -24,8 +28,9 @@ class Trade(db.Model, SerializerMixin):
     # Message from initiator to recipient
     message = Column(Text, nullable=True)
     
-    # Trade status (using string instead of Enum)
-    status = Column(String(20), nullable=False, default='pending')
+    # Trade status as an enum that already exists in the database
+    # Updated to use uppercase values to match database
+    status = Column(TradeStatusEnum, nullable=False, default='PENDING')
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -90,7 +95,7 @@ class Trade(db.Model, SerializerMixin):
         if not trade:
             return False, "Trade not found"
         
-        if trade.status != 'pending':
+        if trade.status != 'PENDING':
             return False, f"Cannot accept a trade with status: {trade.status}"
         
         # Verify the artworks are still owned by the respective users
@@ -105,13 +110,13 @@ class Trade(db.Model, SerializerMixin):
         ).first()
         
         if not initiator_ownership or not recipient_ownership:
-            trade.status = 'rejected'  # Automatically reject if conditions changed
+            trade.status = 'REJECTED'  # Automatically reject if conditions changed
             db.session.commit()
             return False, "Trade cannot be completed because one or both artworks are no longer available"
         
         try:
-            # 1. Update trade status to accepted
-            trade.status = 'accepted'
+            # 1. Update trade status to ACCEPTED
+            trade.status = 'ACCEPTED'
             
             # 2. Exchange artwork ownership
             # Update ownership records
@@ -122,7 +127,7 @@ class Trade(db.Model, SerializerMixin):
             # Find other pending trades involving either of these artworks
             conflicting_trades = cls.query.filter(
                 and_(
-                    cls.status == 'pending',
+                    cls.status == 'PENDING',
                     cls.trade_id != trade.trade_id,
                     or_(
                         cls.offered_artwork_id.in_([trade.offered_artwork_id, trade.requested_artwork_id]),
@@ -133,7 +138,7 @@ class Trade(db.Model, SerializerMixin):
             
             # Cancel all conflicting trades
             for conflict in conflicting_trades:
-                conflict.status = 'canceled'
+                conflict.status = 'CANCELED'
             
             db.session.commit()
             return True, "Trade successfully completed"
@@ -143,8 +148,6 @@ class Trade(db.Model, SerializerMixin):
     
     # --- Database Constraints/Indexes ---
     __table_args__ = (
-        # Constraint to ensure status is one of the allowed values
-        CheckConstraint(status.in_(['pending', 'accepted', 'rejected', 'canceled']), name='valid_trade_status'),
         # Index for faster lookup of trades by user
         Index('idx_trades_initiator_id', 'initiator_id'),
         Index('idx_trades_recipient_id', 'recipient_id'),

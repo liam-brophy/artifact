@@ -4,12 +4,11 @@ import Cookies from 'js-cookie'; // Make sure you have run: npm install js-cooki
 
 // 1. Create Axios instance
 const apiService = axios.create({
-    baseURL: 'http://localhost:5000/api/', // Updated to include /api prefix
+    baseURL: 'http://localhost:5000/api/', // Keep using port 5000 since that's where the server is running
     withCredentials: true, // Essential for sending cookies
     headers: {
         'Content-Type': 'application/json',
     }
-    // timeout: 10000, // Optional timeout
 });
 
 // Flag to track if a token refresh is in progress
@@ -171,7 +170,6 @@ apiService.interceptors.response.use(
             // Specific handling (optional refinement)
             if (status === 401) {
                 errorMessage = 'Authentication required. Please log in.';
-                // Consider redirect or logout action here if appropriate
             } else if (status === 403) {
                 errorMessage = 'Permission denied.';
             } else if (status === 404) {

@@ -101,7 +101,7 @@ const TradeOfferDialog = ({
     setIsSubmitting(true);
     
     try {
-      const response = await apiService.post('/api/trades', {
+      const response = await apiService.post('/trades', {
         recipient_id: recipientId,
         offered_artwork_id: offeredArtworkId,
         requested_artwork_id: requestedArtworkId,
@@ -109,10 +109,10 @@ const TradeOfferDialog = ({
       });
       
       toast.success("Trade offer sent successfully!");
-      onClose(); // Close the dialog
+      // Swap order: navigate first, then close dialog
+      navigate('/profile'); 
+      onClose(); 
       
-      // Optionally navigate to the trades tab on your profile
-      navigate('/profile');
     } catch (err) {
       console.error("Failed to create trade:", err);
       toast.error(err.response?.data?.error || "Failed to create trade offer");

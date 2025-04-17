@@ -8,7 +8,22 @@ from datetime import timedelta  # Add missing import for timedelta
 db = SQLAlchemy()
 jwt = JWTManager()
 migrate = Migrate()
-cors = CORS()
+
+# Initialize CORS with default configuration
+cors = CORS(resources={
+    r"/api/*": {
+        "origins": [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:5173", 
+            "http://127.0.0.1:5173"
+        ],
+        "supports_credentials": True,
+        "methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization", "X-CSRF-Token"]
+    }
+})
+
 # Add others...
 
 # Define shared objects like your blocklist here

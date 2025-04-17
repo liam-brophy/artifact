@@ -23,16 +23,20 @@ class Collection(db.Model, SerializerMixin):
 
     # --- Serialization ---
     serialize_rules = (
-        # Include specific fields from patron
-        'patron.user_id',
-        'patron.username',
-        # Include the full artwork object (uses Artwork's rules)
-        # Careful: Artwork serialization includes artist details. Avoid deep nesting.
-        'artwork',
-        # Exclude the direct relationships themselves if artwork/patron info is included above
-        '-patron',
-        '-artwork',
-    )
+    # Include specific fields from patron
+    'patron.user_id',
+    'patron.username',
+    # Be explicit about which artwork fields you want
+    'artwork.artwork_id', 
+    'artwork.title',
+    'artwork.image_url',
+    'artwork.thumbnail_url',
+    'artwork.rarity',
+    # Exclude the complete objects to prevent recursion
+    '-patron',
+    '-artwork.collections',  # Important to prevent circular references
+    '-artwork.artist.collections',  # Prevent deeper circular references
+)
 
     def __repr__(self):
         return f'<Collection Patron {self.patron_id} - Artwork {self.artwork_id}>'

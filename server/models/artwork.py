@@ -39,12 +39,14 @@ class Artwork(db.Model, SerializerMixin):
 
     # --- Serialization ---
     serialize_rules = (
-        # Rule to include only specific fields from the related 'artist' (User) object
-        'artist.user_id',    # Include artist's user_id
-        'artist.username', # Include artist's username
-        # Exclude the collections relationship by default
-        '-collections',
-    )
+    # Be more explicit about artist fields
+    'artist.user_id',
+    'artist.username',
+    # Explicitly exclude relationships that cause recursion
+    '-artist.created_artworks',
+    '-artist.collections',
+    '-collections.artwork',  # Critical to break the circular reference
+)
 
     def __repr__(self):
         return f'<Artwork {self.artwork_id}: {self.title}>'
