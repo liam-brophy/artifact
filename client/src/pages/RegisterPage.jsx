@@ -6,6 +6,9 @@ import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
 import toast from 'react-hot-toast';
 import ColorPickerField from '../components/ColorPickerField';
+// Import MUI components
+import { TextField, InputAdornment, IconButton, Select, MenuItem, FormControl, InputLabel, FormHelperText } from '@mui/material'; 
+import { Visibility, VisibilityOff } from '@mui/icons-material'; // Import MUI icons
 
 // --- Constants ---
 const ROLES = { PATRON: 'patron', ARTIST: 'artist' };
@@ -35,6 +38,8 @@ function RegisterPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const { login, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
+  const [showPassword, setShowPassword] = useState(false); // State for password visibility
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false); // State for confirm password visibility
 
   // Check if already authenticated
   useEffect(() => {
@@ -147,6 +152,19 @@ function RegisterPage() {
   }, [handleGoogleCallback]);
 
 
+  // --- Password Visibility Handlers ---
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
+  const toggleConfirmPasswordVisibility = () => {
+    setShowConfirmPassword(!showConfirmPassword);
+  };
+
+  const handleMouseDownPassword = (event) => {
+    event.preventDefault(); // Prevent blur on icon click
+  };
+
   // --- Render ---
   return (
     <div className="auth-page">
@@ -168,42 +186,122 @@ function RegisterPage() {
         >
           {({ isSubmitting, errors, touched, setFieldValue, values, handleChange, handleBlur }) => (
             <Form className="auth-form">
-              {/* Role Selection - Moved to the top of the form */}
-              <div className="form-group">
-                <label className="form-label" htmlFor="role">Register As</label>
-                <Field as="select" name="role" id="role" className={`form-input ${touched.role && errors.role ? 'is-invalid' : ''}`} disabled={isSubmitting || googleLoading}
-                  onChange={e => {
+              {/* Role Selection - Using MUI Select */}
+              <FormControl fullWidth margin="normal" error={touched.role && Boolean(errors.role)} disabled={isSubmitting || googleLoading}>
+                <InputLabel id="role-select-label">Register As</InputLabel>
+                <Select
+                  labelId="role-select-label"
+                  id="role"
+                  name="role"
+                  value={values.role}
+                  label="Register As"
+                  onChange={(e) => {
                     const newRole = e.target.value;
-                    setFieldValue('role', newRole, false); // Use false as third parameter to prevent validation
-                    setRole(newRole); // Update local state (for Google)
-                  }}>
-                  <option value={ROLES.ARTIST}>Artist (Creator)</option>
-                  <option value={ROLES.PATRON}>Patron (Collector)</option>
-                </Field>
-                <ErrorMessage name="role" component="div" className="error-message validation-error" />
-              </div>
+                    handleChange(e); // Formik's handler
+                    setRole(newRole); // Update local state for Google
+                  }}
+                  onBlur={handleBlur}
+                >
+                  <MenuItem value={ROLES.ARTIST}>Artist (Creator)</MenuItem>
+                  <MenuItem value={ROLES.PATRON}>Patron (Collector)</MenuItem>
+                </Select>
+                {touched.role && errors.role && <FormHelperText>{errors.role}</FormHelperText>}
+              </FormControl>
 
-              {/* Username, Email, Password, Confirm Password Fields */}
-              <div className="form-group">
-                <label className="form-label" htmlFor="username">Username</label>
-                <Field type="text" name="username" placeholder="Choose a username" id="username" className={`form-input ${touched.username && errors.username ? 'is-invalid' : ''}`} disabled={isSubmitting || googleLoading}/>
-                <ErrorMessage name="username" component="div" className="error-message validation-error" />
-              </div>
-              <div className="form-group">
-                <label className="form-label" htmlFor="email">Email</label>
-                <Field type="email" name="email" placeholder="you@example.com" id="email" className={`form-input ${touched.email && errors.email ? 'is-invalid' : ''}`} disabled={isSubmitting || googleLoading}/>
-                <ErrorMessage name="email" component="div" className="error-message validation-error" />
-              </div>
-              <div className="form-group">
-                <label className="form-label" htmlFor="password">Password</label>
-                <Field type="password" name="password" placeholder="Password (min 8 characters)" id="password" className={`form-input ${touched.password && errors.password ? 'is-invalid' : ''}`} disabled={isSubmitting || googleLoading}/>
-                <ErrorMessage name="password" component="div" className="error-message validation-error" />
-              </div>
-              <div className="form-group">
-                <label className="form-label" htmlFor="confirmPassword">Confirm Password</label>
-                <Field type="password" name="confirmPassword" placeholder="Confirm Password" id="confirmPassword" className={`form-input ${touched.confirmPassword && errors.confirmPassword ? 'is-invalid' : ''}`} disabled={isSubmitting || googleLoading}/>
-                <ErrorMessage name="confirmPassword" component="div" className="error-message validation-error" />
-              </div>
+              {/* Username - Using MUI TextField */}
+              <TextField
+                fullWidth
+                margin="normal"
+                id="username"
+                name="username"
+                label="Username"
+                placeholder="Choose a username"
+                value={values.username}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                error={touched.username && Boolean(errors.username)}
+                helperText={touched.username && errors.username}
+                disabled={isSubmitting || googleLoading}
+              />
+
+              {/* Email - Using MUI TextField */}
+              <TextField
+                fullWidth
+                margin="normal"
+                id="email"
+                name="email"
+                label="Email"
+                type="email"
+                placeholder="you@example.com"
+                value={values.email}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                error={touched.email && Boolean(errors.email)}
+                helperText={touched.email && errors.email}
+                disabled={isSubmitting || googleLoading}
+              />
+
+              {/* Password - Using MUI TextField with visibility toggle */}
+              <TextField
+                fullWidth
+                margin="normal"
+                id="password"
+                name="password"
+                label="Password"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Password (min 8 characters)"
+                value={values.password}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                error={touched.password && Boolean(errors.password)}
+                helperText={touched.password && errors.password}
+                disabled={isSubmitting || googleLoading}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label="toggle password visibility"
+                        onClick={togglePasswordVisibility}
+                        onMouseDown={handleMouseDownPassword}
+                        edge="end"
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+
+              {/* Confirm Password - Using MUI TextField with visibility toggle */}
+              <TextField
+                fullWidth
+                margin="normal"
+                id="confirmPassword"
+                name="confirmPassword"
+                label="Confirm Password"
+                type={showConfirmPassword ? 'text' : 'password'}
+                placeholder="Confirm Password"
+                value={values.confirmPassword}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                error={touched.confirmPassword && Boolean(errors.confirmPassword)}
+                helperText={touched.confirmPassword && errors.confirmPassword}
+                disabled={isSubmitting || googleLoading}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label="toggle confirm password visibility"
+                        onClick={toggleConfirmPasswordVisibility}
+                        onMouseDown={handleMouseDownPassword}
+                        edge="end"
+                      >
+                        {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
 
               {/* Favorite Color Selection */}
               <div className="form-group">

@@ -1,4 +1,5 @@
 from datetime import datetime
+from flask import current_app
 from sqlalchemy_serializer import SerializerMixin
 from sqlalchemy.sql import func
 from sqlalchemy import ForeignKey, Integer, String, Text, DateTime, Column, Index, CheckConstraint, and_, or_, Enum

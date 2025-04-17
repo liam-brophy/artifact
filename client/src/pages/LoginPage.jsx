@@ -5,6 +5,8 @@ import apiService from '../services/apiService';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
 import toast from 'react-hot-toast';
+import { TextField, InputAdornment, IconButton } from '@mui/material'; // Import MUI components
+import { Visibility, VisibilityOff } from '@mui/icons-material'; // Import MUI icons
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
@@ -20,6 +22,7 @@ function LoginPage() {
     const googleButtonContainerRef = useRef(null);
     const [isGoogleScriptLoaded, setIsGoogleScriptLoaded] = useState(false);
     const initializationAttempts = useRef(0);
+    const [showPassword, setShowPassword] = useState(false); // State for password visibility
     
     // Check if the user is already authenticated on initial load
     useEffect(() => {
@@ -144,6 +147,14 @@ function LoginPage() {
         }
     };
 
+    const togglePasswordVisibility = () => {
+        setShowPassword(!showPassword);
+    };
+
+    const handleMouseDownPassword = (event) => {
+        event.preventDefault(); // Prevent blur on icon click
+    };
+
     // --- JSX RETURN ---
     return (
         <div className="auth-page">
@@ -155,7 +166,7 @@ function LoginPage() {
                     validationSchema={LoginSchema}
                     onSubmit={handleFormikSubmit}
                 >
-                    {({ isSubmitting, errors, touched }) => (
+                    {({ isSubmitting, errors, touched, values, handleChange, handleBlur }) => (
                         <Form className="auth-form">
                             <div className="form-group">
                                 <label htmlFor="email" className="form-label">Email</label>
@@ -170,16 +181,40 @@ function LoginPage() {
                                 <ErrorMessage name="email" component="div" className="error-message validation-error" />
                             </div>
                             <div className="form-group">
-                                <label htmlFor="password" className="form-label">Password</label>
-                                <Field 
-                                    type="password" 
-                                    name="password" 
-                                    placeholder="••••••••" 
-                                    id="password" 
-                                    className={`form-input ${touched.password && errors.password ? 'is-invalid' : ''}`} 
-                                    disabled={isSubmitting} 
+                                {/* Replace Field with MUI TextField */}
+                                <TextField
+                                    fullWidth
+                                    variant="outlined" // Or "filled", "standard"
+                                    margin="normal" // Adds some margin
+                                    id="password"
+                                    name="password"
+                                    label="Password"
+                                    type={showPassword ? 'text' : 'password'}
+                                    value={values.password}
+                                    onChange={handleChange}
+                                    onBlur={handleBlur}
+                                    error={touched.password && Boolean(errors.password)}
+                                    helperText={touched.password && errors.password}
+                                    disabled={isSubmitting}
+                                    InputProps={{ // Add the visibility toggle adornment
+                                        endAdornment: (
+                                            <InputAdornment position="end">
+                                                <IconButton
+                                                    aria-label="toggle password visibility"
+                                                    onClick={togglePasswordVisibility}
+                                                    onMouseDown={handleMouseDownPassword}
+                                                    edge="end"
+                                                >
+                                                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                                                </IconButton>
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                    // Apply some basic styling or use sx prop if needed
+                                    // className={`form-input ${touched.password && errors.password ? 'is-invalid' : ''}`} // Can remove or adapt if using MUI styles primarily
+                                    sx={{ mt: 1, mb: 1 }} // Example spacing using sx prop
                                 />
-                                <ErrorMessage name="password" component="div" className="error-message validation-error" />
+                                {/* Formik's ErrorMessage is handled by TextField's helperText */}
                             </div>
 
                             <div className="form-actions">
