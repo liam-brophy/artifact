@@ -33,10 +33,15 @@ function RegisterPage() {
   const [role, setRole] = useState(ROLES.PATRON);
   // Google specific loading state
   const [googleLoading, setGoogleLoading] = useState(false);
-  // Removed local error states (submitError, googleError)
-
+  const { login, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
-  const { login } = useAuth(); // Still need login to update context after Google success
+
+  // Check if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && !isLoading) {
+      navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, isLoading, navigate]);
 
   // --- Formik Submission Handler (Manual Registration) ---
   const handleManualFormSubmit = async (values, { setSubmitting }) => {
@@ -99,7 +104,8 @@ function RegisterPage() {
                  if (response?.data?.user) {
                     const userData = response.data.user;
                     await login(userData); // Update auth context
-                    navigate('/'); // Redirect to home/dashboard
+                    // Delay navigation slightly to ensure auth state is updated
+                    setTimeout(() => navigate('/', { replace: true }), 200);
                     return `Successfully signed in as ${userData.username || userData.email}!`; // Toast message
                  } else {
                      console.error("Google Sign-In backend response missing user data:", response?.data);

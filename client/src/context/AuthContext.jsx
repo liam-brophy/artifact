@@ -31,24 +31,9 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      const token = localStorage.getItem('authToken'); // Retrieve token from localStorage or other storage
-      
-      // If no token is found, we're not authenticated - this is a normal state
-      if (!token) {
-        setUser(null);
-        setIsAuthenticated(false);
-        setOwnedArtworkIds(new Set());
-        if (isInitialLoad) {
-          setIsLoading(false);
-        }
-        return;
-      }
-
-      const response = await apiService.get(AUTH_STATUS_ENDPOINT, {
-        headers: {
-          Authorization: `Bearer ${token}`, // Include token in the Authorization header
-        },
-      });
+      // We're using HTTP-only cookies, so we don't need to manually retrieve or send the token
+      // Just make the request and the browser will automatically include the cookies
+      const response = await apiService.get(AUTH_STATUS_ENDPOINT);
       const fetchedUser = response?.data?.user;
 
       if (fetchedUser) {
@@ -115,12 +100,17 @@ export const AuthProvider = ({ children }) => {
   }, [fetchUserDataAndCollection]); // Depend on the stable useCallback function
 
   // --- Login Function ---
-  // This function is likely called from your LoginPage component AFTER
+  // This function is called from the LoginPage component AFTER
   // a successful /api/auth/login API call. Pass the user data from the login response.
   const login = useCallback(async (userDataFromLoginResponse) => {
     setUser(userDataFromLoginResponse);
     setIsAuthenticated(true);
+    
+    // No need to store tokens in localStorage as we're using HTTP-only cookies
+    // The cookies are automatically sent with each request
+    
     await fetchUserDataAndCollection(false);
+    // No navigation here since the LoginPage component handles it
   }, [fetchUserDataAndCollection]); // Depend on the fetch function
 
   // --- Update User Data ---
@@ -137,11 +127,12 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setIsAuthenticated(false);
     setOwnedArtworkIds(new Set());
-    localStorage.removeItem('authToken'); // Remove token from localStorage
+    // No need to remove token from localStorage since we're using HTTP-only cookies
 
     if (!skipApiCall) {
       try {
         await apiService.post(LOGOUT_ENDPOINT);
+        // The server should handle clearing the cookies in the response
       } catch (error) {
         // Silent failure is okay here - we're logging out anyway
         console.log("Logout API call failed, but continuing with client-side logout");

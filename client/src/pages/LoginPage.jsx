@@ -20,6 +20,13 @@ function LoginPage() {
     const googleButtonContainerRef = useRef(null);
     const [isGoogleScriptLoaded, setIsGoogleScriptLoaded] = useState(false);
     const initializationAttempts = useRef(0);
+    
+    // Check if the user is already authenticated on initial load
+    useEffect(() => {
+        if (isAuthenticated && !isAuthLoading) {
+            navigate('/', { replace: true });
+        }
+    }, [isAuthenticated, isAuthLoading, navigate]);
 
     const handleGoogleSignInSuccess = useCallback(async (googleResponse) => {
         const id_token = googleResponse.credential;
@@ -33,7 +40,8 @@ function LoginPage() {
                     if (apiResponse?.data?.user) {
                         const userData = apiResponse.data.user;
                         await login(userData);
-                        navigate('/');
+                        // Delay navigation slightly to ensure auth state is updated
+                        setTimeout(() => navigate('/', { replace: true }), 200);
                         return `Welcome, ${userData.username || userData.email}!`;
                     } else {
                         throw new Error('Google Sign-In failed: Unexpected server response.');
@@ -123,7 +131,8 @@ function LoginPage() {
                 const userData = response.data.user;
                 await login(userData);
                 toast.success(`Welcome back, ${userData.username || userData.email}!`);
-                navigate('/');
+                // Delay navigation slightly to ensure auth state is updated
+                setTimeout(() => navigate('/', { replace: true }), 200);
             } else {
                 toast.error('Login failed: Unexpected response from server.');
             }
