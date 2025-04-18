@@ -159,7 +159,7 @@ function LoginPage() {
     return (
         <div className="auth-page">
             <div className="auth-container">
-                <h3 className="auth-title">Login to your account</h3>
+                <h5 className="auth-title">Login to your account</h5>
 
                 <Formik
                     initialValues={{ email: '', password: '' }}
