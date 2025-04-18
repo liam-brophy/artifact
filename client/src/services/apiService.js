@@ -3,6 +3,8 @@ import toast from 'react-hot-toast'; // <-- Import toast
 import Cookies from 'js-cookie'; // Make sure you have run: npm install js-cookie
 import API_BASE_URL from '../config'; // Adjust the import path as necessary
 
+console.log("API_BASE_URL in apiService:", API_BASE_URL);
+
 const apiService = axios.create({
     baseURL: API_BASE_URL, // Use the dynamically set base URL
     withCredentials: true,
