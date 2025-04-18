@@ -2,7 +2,7 @@ import os
 from flask import Flask, jsonify
 from dotenv import load_dotenv
 from datetime import timedelta, datetime
-# from flask_cors import CORS
+from flask_cors import CORS
 from flask_apscheduler import APScheduler
 import logging
 
@@ -80,28 +80,20 @@ def create_app(config_object=None):
     jwt.init_app(app)
     # migrate must be initialized *after* db and *after* models are imported/known
     migrate.init_app(app, db)
-    # cors.init_app(app, resources={
-    #     r"/api/*": { # Apply CORS to all routes starting with /api/
-    #         "origins": [
-    #             "http://localhost:3000",
-    #             "http://127.0.0.1:3000",
-    #             "http://localhost:5173",   # Your Vite frontend origin
-    #             "http://127.0.0.1:5173",
-    #             "https://www.artifact.online"
-    #         ],
-    #         "supports_credentials": True, # IMPORTANT for sending/receiving cookies
-    #         "methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    #         "allow_headers": ["Content-Type", "Authorization", "X-CSRF-Token"]
-    #     }
-    # })
-
-    @app.after_request
-    def add_cors_headers(response):
-        response.headers['Access-Control-Allow-Origin'] = 'https://www.artifact.online'
-        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-CSRF-Token'
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
-        return response
+    cors.init_app(app, resources={
+        r"/api/*": { # Apply CORS to all routes starting with /api/
+            "origins": [
+                "http://localhost:3000",
+                "http://127.0.0.1:3000",
+                "http://localhost:5173",   # Your Vite frontend origin
+                "http://127.0.0.1:5173",
+                "https://www.artifact.online"
+            ],
+            "supports_credentials": True, # IMPORTANT for sending/receiving cookies
+            "methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization", "X-CSRF-Token"]
+        }
+    })
 
     # --- JWT Loaders (Define them HERE, after jwt.init_app) ---
     @jwt.token_in_blocklist_loader
