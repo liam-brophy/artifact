@@ -1,11 +1,11 @@
 import axios from 'axios';
 import toast from 'react-hot-toast'; // <-- Import toast
 import Cookies from 'js-cookie'; // Make sure you have run: npm install js-cookie
+import API_BASE_URL from '../config'; // Adjust the import path as necessary
 
-// 1. Create Axios instance
 const apiService = axios.create({
-    baseURL: 'http://localhost:5000/api/', // Keep using port 5000 since that's where the server is running
-    withCredentials: true, // Essential for sending cookies
+    baseURL: API_BASE_URL, // Use the dynamically set base URL
+    withCredentials: true,
     headers: {
         'Content-Type': 'application/json',
     }
