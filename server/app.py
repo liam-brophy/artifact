@@ -86,7 +86,8 @@ def create_app(config_object=None):
                 "http://localhost:3000",
                 "http://127.0.0.1:3000",
                 "http://localhost:5173",   # Your Vite frontend origin
-                "http://127.0.0.1:5173"
+                "http://127.0.0.1:5173",
+                "https://www.artifact.online"
             ],
             "supports_credentials": True, # IMPORTANT for sending/receiving cookies
             "methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
