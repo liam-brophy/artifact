@@ -14,3 +14,4 @@ requests
 Flask-APScheduler
 gunicorn # Add gunicorn for deployment
 sqlalchemy_serializer
+google-auth
