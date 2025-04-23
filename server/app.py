@@ -8,21 +8,18 @@ import logging
 
 # from flask_seeder import Seeder # Not currently used, can be commented out or removed if not needed
 
-# Import extensions and BLOCKLIST from the new file
+# Import extensions and BLOCKLIST
 from .extensions import db, jwt, migrate, cors, BLOCKLIST
 
 # --- IMPORT MODELS HERE ---
-# This is the crucial section where Flask-Migrate needs to know about ALL your models
 from .models.user import User
 from .models.artwork import Artwork     # Assuming you have artwork.py
 from .models.collection import Collection # Assuming you have collection.py
 from .models.user_follow import UserFollow # Assuming you have user_follow.py
-# --- ADD THESE IMPORTS for the new pack models ---
 from .models.pack_type import PackType   # Import PackType model
 from .models.user_pack import UserPack   # Import UserPack model
 from .models.trade import Trade          # Import Trade model
-# ---------------------------------------------------
-# Import any other models you have (e.g., UserFollow)
+
 
 # Create scheduler instance
 scheduler = APScheduler()
@@ -43,7 +40,7 @@ def create_app(config_object=None):
         JWT_TOKEN_LOCATION=["headers", "cookies"],
         JWT_ACCESS_TOKEN_EXPIRES=timedelta(hours=1),
         JWT_REFRESH_TOKEN_EXPIRES=timedelta(days=30),
-        JWT_COOKIE_SAMESITE="Lax",
+        JWT_COOKIE_SAMESITE="None", # Set to 'None' for cross-origin request
         JWT_COOKIE_SECURE=os.environ.get('FLASK_ENV') == 'production', # True in prod (HTTPS)
         JWT_ACCESS_COOKIE_NAME="access_token_cookie",
         JWT_REFRESH_COOKIE_NAME="refresh_token_cookie",
@@ -126,12 +123,9 @@ def create_app(config_object=None):
     app.register_blueprint(users_bp, url_prefix='/api/users')
     app.register_blueprint(artworks_bp, url_prefix='/api/artworks')
     app.register_blueprint(uploads_bp, url_prefix='/api/upload-image')
-    # --- REGISTER pack blueprint ---
     app.register_blueprint(packs_bp, url_prefix='/api') # Using /api as base for packs routes
-    # --- REGISTER trades blueprint ---
     app.register_blueprint(trades_bp, url_prefix='/api')
     app.register_blueprint(search_blueprint, url_prefix='/api/search')
-    # -------------------------------
 
     # --- Global Error Handlers ---
     @app.errorhandler(404)

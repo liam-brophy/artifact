@@ -33,15 +33,14 @@ const processQueue = (error, token = null) => {
 // Function to refresh the auth token
 const refreshAuthToken = async () => {
     try {
-        // Use a new axios instance to avoid interceptors
-        const response = await axios.post('http://localhost:5000/api/auth/refresh', {}, {
-            withCredentials: true // Important to send the refresh token cookie
-        });
-        return response;
+      const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, {
+        withCredentials: true,
+      });
+      return response;
     } catch (error) {
-        return Promise.reject(error);
+      return Promise.reject(error);
     }
-};
+  };
 
 // 2. Request Interceptor (for CSRF)
 apiService.interceptors.request.use(
