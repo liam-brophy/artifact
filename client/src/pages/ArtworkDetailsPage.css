@@ -1,22 +1,18 @@
 /* ArtworkDetailsPage.css - Styles for the artwork details page with responsive design */
 
-/* Main container with no horizontal padding to maximize width */
+/* Main container with padding for spacing and maximum width constraint */
 .artwork-details-container {
-  padding-top: 2rem;
-  padding-bottom: 2rem;
+  padding: 2rem 1rem;
   width: 100%;
-  max-width: 100%;
-  margin: 0;
-  padding-left: 0;
-  padding-right: 0;
+  max-width: 1400px;
+  margin: 0 auto; /* Center the container */
   font-family: var(--body-font);
   box-sizing: border-box;
 }
 
-/* Back button with margin to compensate for container's zero padding */
+/* Back button with margin for spacing */
 .back-button {
   margin-bottom: 1.5rem;
-  margin-left: 1rem;
   transition: background-color 0.3s;
 }
 
@@ -24,103 +20,36 @@
   background-color: rgba(0, 0, 0, 0.08);
 }
 
-/* Content container with full width */
+/* Content container with improved flex layout */
 .artwork-content-container {
   display: flex;
   flex-direction: column;
-  gap: 0; /* Remove gap to maximize image space */
+  gap: 2rem; /* Consistent spacing between elements */
   width: 100%;
-  background: rgba(255, 255, 255, 0.8); /* Semi-transparent white */
-  backdrop-filter: blur(10px); /* Blur effect for glass-like appearance */
-  border: 1px solid rgba(255, 255, 255, 0.3); /* Subtle border */
-  border-radius: 8px; /* Rounded corners for a polished look */
 }
 
-/* Side by side layout for medium+ screens */
-@media (min-width: 768px) {
-  .artwork-content-container {
-    flex-direction: row;
-    align-items: flex-start;
-  }
-  
-  /* Set the image container to take almost all available width */
-  .artwork-image-container {
-    width: calc(100% - 320px); /* Full width minus fixed sidebar width */
-    flex: 1 0 auto; /* Don't allow shrinking */
-    height: 100vh; /* Full viewport height to maintain aspect ratio */
-    max-height: calc(100vh - 120px); /* Account for header and some padding */
-  }
-  
-  .artwork-details-panel {
-    width: 320px; /* Fixed width for details panel */
-    flex: 0 0 320px; /* Fixed width, don't grow or shrink */
-  }
-  
-  /* Ensure image and border have the same styling at all widths */
-  .artwork-image,
-  .artwork-border {
-    width: 100%;
-    height: 100%;
-    object-fit: cover; /* Same as mobile */
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-  }
-  
-  /* Border should use fill to ensure it covers the full card boundary */
-  .artwork-border {
-    object-fit: fill;
-  }
-}
-
-/* Artwork image container takes full width on mobile */
+/* Artwork image container - maintain consistent aspect ratio */
 .artwork-image-container {
   background-color: #000;
-  border-radius: 0; /* Remove border radius to maximize space */
+  border-radius: 8px;
   overflow: hidden;
-  box-shadow: none; /* Remove shadow to maximize space */
-  height: 70vh; /* Use viewport height for responsive sizing */
   position: relative;
   width: 100%;
-  /* Set a maximum aspect ratio to prevent excessive tallness on desktop */
-  max-width: min(100%, calc(70vh * 1.2)); /* Max width based on height with wider aspect ratio for desktop */
-  margin: 0 auto; /* Center the container */
-}
-
-/* Improve aspect ratio for desktop views */
-@media (min-width: 768px) {
-  .artwork-image-container {
-    max-width: min(calc(100% - 340px), calc(70vh * 1.2)); /* Max width based on remaining space or aspect ratio */
-    height: calc(100vh - 120px);
-  }
-}
-
-@media (min-width: 1024px) {
-  .artwork-image-container {
-    max-width: min(calc(100% - 340px), calc(70vh * 1.4)); /* Wider aspect ratio for larger screens */
-  }
-}
-
-@media (min-width: 1440px) {
-  .artwork-image-container {
-    max-width: min(calc(100% - 340px), calc(70vh * 1.6)); /* Even wider for very large screens */
-  }
+  aspect-ratio: 2/3; /* Match the aspect ratio used in ArtworkCard */
+  max-width: 500px; /* Limit maximum size */
+  margin: 0 auto; /* Center on mobile */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 /* Image fills the entire container */
 .artwork-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover; /* Cover ensures the image fills the entire container */
   position: absolute;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   z-index: 1;
-  padding: 0;
 }
 
 /* Border overlay also fills the container */
@@ -130,7 +59,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain; /* Changed from fill to contain for more consistent display */
+  object-fit: contain;
   z-index: 2;
   pointer-events: none;
 }
@@ -142,30 +71,43 @@ object.artwork-border {
   overflow: visible;
 }
 
-/* Details panel */
+/* Details panel styling with glass effect */
 .artwork-details-panel {
   padding: 1.5rem;
   border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.7); /* Semi-transparent white background */
+  backdrop-filter: blur(10px); /* Blur effect for glass-like appearance */
+  border: 1px solid rgba(255, 255, 255, 0.3); /* Subtle border */
+  width: 100%;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  background-color: #fff;
-  overflow: auto;
-  margin: 1rem;
 }
 
-@media (min-width: 768px) {
+/* Apply dark mode styles to the details panel */
+[data-theme='dark'] .artwork-details-panel {
+  background-color: rgba(18, 18, 18, 0.7); /* Semi-transparent dark background */
+  border: 1px solid rgba(51, 51, 51, 0.3); /* Subtle border for dark mode */
+}
+
+/* Responsive side-by-side layout for larger screens */
+@media (min-width: 992px) {
+  .artwork-content-container {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+  
+  .artwork-image-container {
+    flex: 0 0 auto;
+    width: 45%;
+    max-width: 600px;
+    margin: 0;
+  }
+  
   .artwork-details-panel {
-    max-height: calc(100vh - 120px); /* Match height with image container */
+    flex: 1;
     position: sticky;
     top: 2rem;
-    margin: 0 1rem 0 0; /* Remove left margin for desktop view */
-  }
-}
-
-/* Larger screens - keep the same proportions */
-@media (min-width: 1200px) {
-  /* Make sure the image container maintains its proportions on large screens */
-  .artwork-image-container {
-    max-width: none; /* Remove any max-width constraint */
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
   }
 }
 
@@ -177,6 +119,7 @@ object.artwork-border {
   margin-bottom: 0.75rem;
   font-family: var(--header-font);
   line-height: 1.2;
+  color: var(--text-color); /* Use theme text color */
 }
 
 /* Artist name */
@@ -301,10 +244,12 @@ object.artwork-border {
 }
 
 .form-actions {
-  display: flex;
+  display: flex !important;
+  flex-direction: row !important;
   justify-content: flex-end;
   gap: 1rem;
   margin-top: 1.5rem;
+  flex-wrap: nowrap !important; /* Prevent wrapping to ensure buttons stay side-by-side */
 }
 
 /* Form field custom styling */
@@ -336,6 +281,18 @@ object.artwork-border {
   
   .artwork-creator-actions button {
     width: 100%;
+  }
+  
+  /* Ensure form action buttons stay side-by-side even on mobile */
+  .form-actions {
+    flex-direction: row;
+    justify-content: space-between; /* Give more space between buttons on small screens */
+  }
+  
+  .form-actions button {
+    min-width: 80px; /* Ensure buttons have enough width for text */
+    padding-left: 8px;
+    padding-right: 8px;
   }
 }
 

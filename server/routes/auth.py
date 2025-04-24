@@ -148,16 +148,22 @@ def login_user():
     if not data:
         return jsonify({"error": {"code": "INVALID_INPUT", "message": "No input data provided"}}), 400
 
-    email = data.get('email')
+    identifier = data.get('identifier')
     password = data.get('password')
 
-    if not email or not password:
+    if not identifier or not password:
         errors = {}
-        if not email: errors['email'] = "Email is required."
+        if not identifier: errors['identifier'] = "Username or email is required."
         if not password: errors['password'] = "Password is required."
         return jsonify({"error": {"code": "VALIDATION_001", "message": "Input validation failed", "details": errors}}), 400
 
-    user = User.query.filter_by(email=email).first()
+    # Try to find user by email first
+    user = User.query.filter_by(email=identifier).first()
+    
+    # If not found by email, try username
+    if not user:
+        user = User.query.filter_by(username=identifier).first()
+    
     if user and user.check_password(password):
         # --- Generate Tokens ---
         access_token = create_access_token(identity=user.user_id)
@@ -171,29 +177,24 @@ def login_user():
             db.session.rollback()
             current_app.logger.warning(f"DB warning: Failed to update last_login for user {user.user_id} during login: {e}")
 
-        # --- Prepare User Data for Response (Choose ONE way) ---
-        # Option 1: Using your existing specific dict (seems fine)
+        # --- Prepare User Data for Response ---
         login_user_response_data = user.to_dict(only=["user_id", "username", "role", "email", "profile_image_url", "favorite_color"])
-        # Option 2: Using the rules-based dict (if you prefer)
-        # login_user_response_data = user.to_dict(rules=('-password_hash', '-collections', '-created_artworks', '-packs'))
 
         # --- Create JSON Response ---
         response_data = {
             "message": "Login successful",
-            "access_token": access_token,  # <-- Add token string here
-            "user": login_user_response_data # <-- Include the prepared user data
+            "access_token": access_token,
+            "user": login_user_response_data
         }
-        response = jsonify(response_data) # Pass the whole dictionary to jsonify
+        response = jsonify(response_data)
 
-        # --- Set Cookies (Keep this!) ---
-        # This sets the cookies for browser interaction, but we also added
-        # the token to the body for easier access in Postman/scripts.
+        # --- Set Cookies ---
         set_access_cookies(response, access_token)
         set_refresh_cookies(response, refresh_token)
 
         return response, 200
     else:
-        return jsonify({"error": {"code": "AUTH_002", "message": "Invalid email or password"}}), 401
+        return jsonify({"error": {"code": "AUTH_002", "message": "Invalid username/email or password"}}), 401
 
 
 @auth_bp.route('/status', methods=['GET', 'OPTIONS'])
@@ -423,7 +424,11 @@ def google_auth():
             current_app.logger.info(f"New user attempting Google Sign-Up: {user_email}")
 
             if not requested_role:
-                return jsonify({"error": {"code": "VALIDATION_ROLE_MISSING", "message": "Role ('artist' or 'patron') is required for Google Sign-Up."}}), 400
+                return jsonify({"error": {
+                    "code": "VALIDATION_ROLE_MISSING", 
+                    "message": "In order to sign in with Google, please register as an artist or patron first.",
+                    "action": "register"
+                }}), 400
 
             is_valid_role, role_msg_or_val = User.validate_role(requested_role)
             if not is_valid_role:

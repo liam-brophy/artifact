@@ -147,7 +147,7 @@ function ArtStudio({ mode = 'customize', artworkData = null, onSave = null, onCa
   
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+      <Box className="loading-container">
         <CircularProgress />
       </Box>
     );
@@ -155,7 +155,7 @@ function ArtStudio({ mode = 'customize', artworkData = null, onSave = null, onCa
   
   if (error) {
     return (
-      <Box sx={{ p: 2 }}>
+      <Box className="error-container">
         <Alert severity="error">{error}</Alert>
         <Button 
           startIcon={<ArrowBackIcon />} 
@@ -169,10 +169,10 @@ function ArtStudio({ mode = 'customize', artworkData = null, onSave = null, onCa
   }
   
   return (
-    <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <Box className="art-studio-container">
       {/* Header area */}
-      <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h5" component="h1">
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h5" component="h1" sx={{ color: 'var(--text-color)' }}>
           {mode === 'customize' ? 'Customize Your Artwork' : 'Select Border Style'}
         </Typography>
         
@@ -193,57 +193,34 @@ function ArtStudio({ mode = 'customize', artworkData = null, onSave = null, onCa
             onClick={handleSave}
             disabled={saving}
           >
-            {saving ? 'Saving...' : mode === 'customize' ? 'Save Changes' : 'Apply Border'}
+            {saving ? 'Saving...' : mode === 'customize' ? 'Save' : 'Apply Border'}
           </Button>
         </Box>
       </Box>
       
-      {/* Main content area with sidebar on right */}
-      <Box sx={{ 
-        display: 'flex', 
-        flex: 1, 
-        overflow: 'hidden',
-        flexDirection: { xs: 'column', md: 'row' } // Column on mobile, row on desktop
-      }}>
-        {/* Large artwork preview area */}
-        <Box sx={{ 
-          flex: 1, 
-          bgcolor: '#000', 
-          position: 'relative',
-          overflow: 'hidden',
-          height: { xs: '70vh', md: 'auto' } // Fixed height on mobile, auto on desktop 
-        }}>
-          <div className="artwork-preview-container">
+      {/* Main content area with consistent layout */}
+      <Box className="studio-content-container">
+        {/* Artwork preview area with consistent sizing */}
+        <div className="artwork-preview-container">
+          <img 
+            src={artwork?.image_url} 
+            alt={artwork?.title} 
+            className="artwork-image"
+          />
+          
+          {/* Show border based on currentBorderId */}
+          {currentBorderId && (
             <img 
-              src={artwork?.image_url} 
-              alt={artwork?.title} 
-              className="artwork-image"
+              src={`${import.meta.env.BASE_URL}svg/borders/${currentBorderId}.svg`} 
+              alt="Border" 
+              className="artwork-border"
             />
-            
-            {/* Show border based on currentBorderId instead */}
-            {currentBorderId && (
-              <img 
-                src={`${import.meta.env.BASE_URL}svg/borders/${currentBorderId}.svg`} 
-                alt="Border" 
-                className="artwork-border"
-              />
-            )}
-          </div>
-        </Box>
+          )}
+        </div>
         
-        {/* Sidebar for border selection - on right for desktop, below for mobile */}
-        <Box sx={{ 
-          width: { xs: '100%', md: '250px' }, 
-          bgcolor: '#f9f9f9', 
-          p: 2, 
-          boxShadow: { xs: '0 -4px 10px rgba(0,0,0,0.1)', md: '-4px 0 10px rgba(0,0,0,0.1)' },
-          overflowY: 'auto',
-          display: 'flex',
-          flexDirection: { xs: 'row', md: 'column' }, // Row layout on mobile
-          flexWrap: { xs: 'wrap', md: 'nowrap' },
-          gap: 2
-        }}>
-          <Typography variant="h6" gutterBottom sx={{ width: '100%' }}>
+        {/* Sidebar for border selection with glass effect */}
+        <Box className="studio-sidebar-panel">
+          <Typography variant="h6" gutterBottom sx={{ color: 'var(--text-color)' }}>
             Select Border Style
           </Typography>
           
@@ -270,19 +247,14 @@ function ArtStudio({ mode = 'customize', artworkData = null, onSave = null, onCa
             {AVAILABLE_BORDERS.map((border) => (
               <Card 
                 key={border.id || 'no-border'} 
-                sx={{ 
-                  mb: { xs: 0, md: 2 }, 
-                  cursor: 'pointer',
-                  border: currentBorderId === border.id ? '2px solid #2196f3' : '1px solid #ddd',
-                  '&:hover': {
-                    boxShadow: 3
-                  },
+                className={`border-option-card ${currentBorderId === border.id ? 'selected' : ''}`}
+                onClick={() => handleDecalSelect(border.id)}
+                sx={{
                   flexBasis: { xs: 'calc(50% - 8px)', sm: 'calc(33% - 11px)', md: '100%' }
                 }}
-                onClick={() => handleBorderSelect(border.id)}
               >
                 <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
-                  <Typography variant="body2">
+                  <Typography variant="body2" sx={{ color: 'var(--text-color)' }}>
                     {border.name}
                   </Typography>
                 </CardContent>

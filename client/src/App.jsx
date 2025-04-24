@@ -98,6 +98,37 @@ function ArtistOnlyRoute({ children }) {
 
 // --- Main App Structure ---
 function App() {
+    const auth = useAuth();
+    const { isAuthenticated, fetchUserDataAndCollection, user } = auth;
+    
+    // Debug logging to check auth state at App level
+    useEffect(() => {
+        console.log("App - Auth state:", { 
+            isAuthenticated, 
+            hasUser: !!user, 
+            user: user ? { ...user } : null,
+            fullAuthState: { ...auth }
+        });
+    }, [isAuthenticated, user, auth]);
+
+    // Single-run effect to check auth status
+    useEffect(() => {
+        // We'll use localStorage to track if we've already attempted to refresh the auth
+        // during this browser session to avoid infinite loops
+        const hasRefreshedAuth = localStorage.getItem('auth_refresh_attempted');
+        
+        if (!isAuthenticated && !hasRefreshedAuth) {
+            // Mark that we've attempted to refresh auth in this session
+            localStorage.setItem('auth_refresh_attempted', 'true');
+            fetchUserDataAndCollection(true);
+            
+            // Clear this flag after a short delay so we can retry on future page loads if needed
+            setTimeout(() => {
+                localStorage.removeItem('auth_refresh_attempted');
+            }, 10000); // Clear after 10 seconds
+        }
+    }, []); // Empty dependency array runs once on mount
+
     return (
         <>
             <LavaLampBackground />

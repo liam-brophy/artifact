@@ -43,6 +43,10 @@ const refreshAuthToken = async () => {
 // 2. Request Interceptor (for CSRF)
 apiService.interceptors.request.use(
     (config) => {
+        // Debug cookies being sent with requests
+        console.log("API Request to:", config.url);
+        console.log("Cookies being sent:", document.cookie);
+        
         const methodsRequiringCsrf = ['post', 'put', 'delete', 'patch'];
         
         // Special handling for multipart/form-data (file uploads)

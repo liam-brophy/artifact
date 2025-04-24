@@ -14,7 +14,7 @@
   /* Hero section - full width with left-aligned text */
 .hero-section {
   position: relative;
-  margin: 0 0 4rem 0; /* Keep bottom margin, remove others */
+  margin: 0 0 2rem 0; /* Reduced bottom margin from 4rem to 2rem */
   height: 600px; /* Fixed height */
   width: 100%; /* Use 100% width to fill container */
   overflow: hidden;

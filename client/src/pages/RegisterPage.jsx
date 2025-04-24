@@ -50,43 +50,33 @@ function RegisterPage() {
 
   // --- Formik Submission Handler (Manual Registration) ---
   const handleManualFormSubmit = async (values, { setSubmitting }) => {
-    // No need to clear local error state
-    const registerPromise = apiService.post('/auth/register', {
-      username: values.username,
-      email: values.email,
-      password: values.password,
-      role: values.role,
-      favorite_color: values.favorite_color // Add favorite_color to API call
-    });
-
-    toast.promise(
-        registerPromise,
-        {
-            loading: 'Registering account...',
-            success: (response) => { // Success callback
-                // Instead of alert, show success toast
-                // Alert('Registration successful! Please log in.');
-                navigate('/login'); // Redirect to login page
-                return 'Registration successful! Please log in.'; // Toast message
-            },
-            error: (err) => { // Error callback
-                // Interceptor handles showing the toast with backend error message
-                console.error("Manual Registration Component Catch:", err);
-                // Return the error message for the toast.promise error state if needed,
-                // but interceptor likely already showed one. Maybe return a generic fallback.
-                return err.response?.data?.error?.message || err.message || 'Registration failed.';
-            }
-        }
-    ).finally(() => {
-        // Ensure submit state is always reset
-        setSubmitting(false);
-    });
+    try {
+      const response = await apiService.post('/auth/register', {
+        username: values.username,
+        email: values.email,
+        password: values.password,
+        role: values.role,
+        favorite_color: values.favorite_color
+      });
+      
+      // Registration successful
+      toast.success('Registration successful! Please log in.');
+      navigate('/login');
+    } catch (err) {
+      // Show only one error message
+      const errorMessage = err.response?.data?.error?.message || 
+                          err.response?.data?.error?.details || 
+                          err.message || 
+                          'Registration failed. Please try again.';
+      toast.error(errorMessage);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
 
   // --- Google Sign-Up/In Callback Handler ---
   const handleGoogleCallback = useCallback(async (googleResponse) => {
-    // console.log("Google Sign-Up/In Callback Received:", googleResponse);
     const id_token = googleResponse.credential;
     if (!id_token) {
       console.error("Google response missing credential (token).");
@@ -95,38 +85,33 @@ function RegisterPage() {
     }
 
     setGoogleLoading(true); // Indicate Google processing start
+    
+    try {
+      const response = await apiService.post('/auth/google', {
+        token: id_token,
+        role: role // Include the currently selected role
+      });
 
-    const googleAuthPromise = apiService.post('/auth/google', {
-      token: id_token,
-      role: role // Include the currently selected role
-    });
-
-    toast.promise(
-        googleAuthPromise,
-        {
-            loading: `Registering as ${role} with Google...`,
-            success: async (response) => { // Success callback receives API response
-                 if (response?.data?.user) {
-                    const userData = response.data.user;
-                    await login(userData); // Update auth context
-                    // Delay navigation slightly to ensure auth state is updated
-                    setTimeout(() => navigate('/', { replace: true }), 200);
-                    return `Successfully signed in as ${userData.username || userData.email}!`; // Toast message
-                 } else {
-                     console.error("Google Sign-In backend response missing user data:", response?.data);
-                     throw new Error('Google Sign-In failed: Unexpected server response.'); // Trigger error toast
-                 }
-            },
-            error: (err) => { // Error callback receives error object
-                console.error("Google Sign-Up/In Backend Component Catch:", err);
-                // Interceptor likely showed an error, return message for toast.promise
-                return err.response?.data?.error?.message || err.message || 'Google Sign-Up/In failed.';
-            }
-        }
-    ).finally(() => {
-         setGoogleLoading(false); // Stop Google loading indicator
-    });
-
+      if (response?.data?.user) {
+        const userData = response.data.user;
+        await login(userData); // Update auth context
+        // Navigate to homepage
+        navigate('/', { replace: true });
+        toast.success(`Successfully signed in as ${userData.username || userData.email}!`);
+      } else {
+        console.error("Google Sign-In backend response missing user data:", response?.data);
+        toast.error('Google Sign-In failed: Unexpected server response.');
+      }
+    } catch (err) {
+      console.error("Google Sign-Up/In error:", err);
+      // Show only one error message
+      const errorMessage = err.response?.data?.error?.message || 
+                          err.message || 
+                          'Google Sign-Up/In failed.';
+      toast.error(errorMessage);
+    } finally {
+      setGoogleLoading(false); // Stop Google loading indicator
+    }
   }, [role, login, navigate]);
 
 

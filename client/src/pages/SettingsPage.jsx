@@ -92,6 +92,23 @@ function SettingsPage() {
         }
     };
 
+    // Color Preference update handler
+    const handleColorSubmit = async (event) => {
+        event.preventDefault();
+        setIsUpdatingColor(true);
+        
+        try {
+            await apiService.put('/auth/me', { favorite_color: favoriteColor });
+            await refreshUserContext(); // Update the global user context
+            toast.success('Your color preference has been saved.');
+        } catch (err) {
+            console.error("Failed to save color preference:", err);
+            toast.error('Failed to save your color preference. Please try again.');
+        } finally {
+            setIsUpdatingColor(false);
+        }
+    };
+
     // Theme styles
     const themeStyles = {
         themeOption: {
@@ -150,7 +167,7 @@ function SettingsPage() {
 
     // --- Profile Update Handler ---
     const handleUpdateProfile = async (values, { setSubmitting, setErrors }) => {
-        // Filter out only changed values to send to backend (optional optimization)
+        // Filter out only changed values to send to backend
         const changedValues = {};
         for (const key in values) {
             if (values[key] !== initialFormValues[key]) {
@@ -164,35 +181,35 @@ function SettingsPage() {
             return;
         }
 
-        const updatePromise = apiService.put('/auth/me', changedValues); // Send only changed values
-
-        toast.promise(
-            updatePromise,
-            {
-                loading: 'Saving settings...',
-                success: (response) => {
-                    // Optionally update AuthContext state optimistically or with response
-                    if (response?.data?.user && updateUser) {
-                         updateUser(response.data.user); // Update context with new user data from backend
-                    }
-                    return 'Profile updated successfully!'; // Toast message
-                },
-                error: (err) => {
-                    // Interceptor handles general errors, but check for validation errors from backend
-                    if (err.response?.status === 400 && err.response?.data?.error?.details) {
-                        setErrors(err.response.data.error.details); // Set Formik errors
-                        return 'Please fix the validation errors.'; // Specific toast for validation
-                    } else if (err.response?.status === 409) { // Example: Handle unique constraint error
-                        setErrors({ username: 'This username is already taken.' }); // Set specific Formik error
-                         return 'Username already taken.'; // Specific toast
-                    }
-                    // Return generic message, interceptor likely showed a better one
-                    return err.response?.data?.error || err.message || 'Failed to update profile.';
-                }
+        try {
+            const response = await apiService.put('/auth/me', changedValues);
+            
+            // Update AuthContext with new user data
+            if (response?.data?.user && updateUser) {
+                updateUser(response.data.user);
             }
-        ).finally(() => {
-            setSubmitting(false); // Ensure button is re-enabled
-        });
+            
+            toast.success('Profile updated successfully!');
+        } catch (err) {
+            console.error("Failed to update profile:", err);
+            
+            // Handle validation errors from backend
+            if (err.response?.status === 400 && err.response?.data?.error?.details) {
+                setErrors(err.response.data.error.details);
+                toast.error('Please fix the validation errors.');
+            } else if (err.response?.status === 409) {
+                setErrors({ username: 'This username is already taken.' });
+                toast.error('Username already taken.');
+            } else {
+                // Show a generic error message
+                const errorMessage = err.response?.data?.error?.message || 
+                                    err.message || 
+                                    'Failed to update profile.';
+                toast.error(errorMessage);
+            }
+        } finally {
+            setSubmitting(false);
+        }
     };
 
 

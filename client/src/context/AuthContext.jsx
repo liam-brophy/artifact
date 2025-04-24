@@ -31,12 +31,19 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
+      // Debug the auth status API call
+      console.log("AuthContext - Making auth status API call to:", AUTH_STATUS_ENDPOINT);
+      
       // We're using HTTP-only cookies, so we don't need to manually retrieve or send the token
       // Just make the request and the browser will automatically include the cookies
       const response = await apiService.get(AUTH_STATUS_ENDPOINT);
+      
+      console.log("AuthContext - Auth status API response:", response.data);
+      
       const fetchedUser = response?.data?.user;
 
       if (fetchedUser) {
+        console.log("AuthContext - User found in response, setting authenticated state");
         setUser(fetchedUser);
         setIsAuthenticated(true);
 
@@ -81,14 +88,19 @@ export const AuthProvider = ({ children }) => {
 
   // --- Effect to Check Authentication Status on Load ---
   useEffect(() => {
-    fetchUserDataAndCollection(true).catch((error) => {
-      console.error("Error during initial auth check:", error);
+    // Debug logging for auth check
+    console.log("AuthContext - Starting initial auth check");
+    
+    fetchUserDataAndCollection(true).then(result => {
+      console.log("AuthContext - Auth check completed successfully", result);
+    }).catch((error) => {
+      console.error("AuthContext - Error during initial auth check:", error);
       // Make sure loading is set to false even if there's an error
       setIsLoading(false);
     });
 
     const handleTokenRefreshFailure = () => {
-      // console.log("Token refresh failed, logging out user");
+      console.log("AuthContext - Token refresh failed, logging out user");
       logout(true);
     };
 
@@ -103,13 +115,22 @@ export const AuthProvider = ({ children }) => {
   // This function is called from the LoginPage component AFTER
   // a successful /api/auth/login API call. Pass the user data from the login response.
   const login = useCallback(async (userDataFromLoginResponse) => {
+    console.log("AuthContext - Login function called with user data:", userDataFromLoginResponse);
+    
     setUser(userDataFromLoginResponse);
     setIsAuthenticated(true);
     
     // No need to store tokens in localStorage as we're using HTTP-only cookies
     // The cookies are automatically sent with each request
     
-    await fetchUserDataAndCollection(false);
+    // Explicitly fetch auth status to ensure cookies are properly recognized
+    try {
+      console.log("AuthContext - Refreshing auth data after login");
+      await fetchUserDataAndCollection(false);
+      console.log("AuthContext - Auth refresh completed after login");
+    } catch (err) {
+      console.error("AuthContext - Error refreshing auth after login:", err);
+    }
     // No navigation here since the LoginPage component handles it
   }, [fetchUserDataAndCollection]); // Depend on the fetch function
 

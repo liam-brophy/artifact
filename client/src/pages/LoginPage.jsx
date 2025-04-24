@@ -11,7 +11,16 @@ import { Visibility, VisibilityOff } from '@mui/icons-material'; // Import MUI i
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 const LoginSchema = Yup.object().shape({
-    email: Yup.string().email('Invalid email address').required('Email is required'),
+    identifier: Yup.string()
+        .required('Username or email is required')
+        .test('is-valid-identifier', 'Enter a valid username or email', (value) => {
+            // Check if it's a valid email
+            const emailRegex = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
+            // Check if it's a valid username (adjust pattern to match your username rules)
+            const usernameRegex = /^[a-zA-Z0-9_-]{3,50}$/;
+            
+            return emailRegex.test(value) || usernameRegex.test(value);
+        }),
     password: Yup.string().min(6, 'Password must be at least 6 characters').required('Password is required'),
 });
 
@@ -33,30 +42,46 @@ function LoginPage() {
 
     const handleGoogleSignInSuccess = useCallback(async (googleResponse) => {
         const id_token = googleResponse.credential;
-        const googleLoginPromise = apiService.post('/auth/google', { token: id_token });
-
-        toast.promise(
-            googleLoginPromise,
-            {
-                loading: 'Verifying Google Sign-In...',
-                success: async (apiResponse) => {
-                    if (apiResponse?.data?.user) {
-                        const userData = apiResponse.data.user;
-                        await login(userData);
-                        navigate('/', { replace: true }); // Navigate immediately
-                        return `Welcome, ${userData.username || userData.email}!`;
-                    } else {
-                        throw new Error('Google Sign-In failed: Unexpected server response.');
-                    }
-                },
-                error: (err) => {
-                    return err.response?.data?.error?.message ||
-                        err.response?.data?.message ||
-                        err.message ||
-                        'An error occurred during Google Sign-In.';
-                }
+        
+        try {
+            const response = await apiService.post('/auth/google', { token: id_token });
+            
+            if (response?.data?.user) {
+                const userData = response.data.user;
+                await login(userData);
+                navigate('/', { replace: true });
+                toast.success(`Welcome, ${userData.username || userData.email}!`);
+            } else {
+                toast.error('Google Sign-In failed: Unexpected server response.');
             }
-        );
+        } catch (err) {
+            // Special handling for the missing role error
+            if (err.response?.data?.error?.code === "VALIDATION_ROLE_MISSING") {
+                // Show only one error message with a registration button
+                toast((t) => (
+                    <div className="google-register-toast">
+                        <p>{err.response.data.error.message}</p>
+                        <button 
+                            onClick={() => {
+                                toast.dismiss(t.id);
+                                navigate('/register');
+                            }}
+                            className="btn btn-primary btn-sm"
+                        >
+                            Register Now
+                        </button>
+                    </div>
+                ), { duration: 8000 });
+            } else {
+                // Show regular error for other cases
+                toast.error(
+                    err.response?.data?.error?.message ||
+                    err.response?.data?.message ||
+                    err.message ||
+                    'An error occurred during Google Sign-In.'
+                );
+            }
+        }
     }, [login, navigate]);
 
     // Check if Google script is loaded
@@ -124,16 +149,25 @@ function LoginPage() {
     // --- OTHER LOGIC / HANDLERS ---
     const handleFormikSubmit = async (values, { setSubmitting }) => {
         try {
+            console.log("LoginPage - Submitting login form");
             const response = await apiService.post('/auth/login', {
-                email: values.email,
+                identifier: values.identifier,
                 password: values.password
             });
 
+            console.log("LoginPage - Login API response:", response.data);
+
             if (response?.data?.user) {
                 const userData = response.data.user;
+                console.log("LoginPage - Calling login function with user data");
                 await login(userData);
                 toast.success(`Welcome back, ${userData.username || userData.email}!`);
-                navigate('/', { replace: true }); // Navigate immediately
+                
+                // Add a small delay before navigation to allow authentication state to update
+                setTimeout(() => {
+                    console.log("LoginPage - Navigating to home page");
+                    navigate('/', { replace: true });
+                }, 100);
             } else {
                 toast.error('Login failed: Unexpected response from server.');
             }
@@ -160,23 +194,23 @@ function LoginPage() {
                 <h5 className="auth-title">Login to your account</h5>
 
                 <Formik
-                    initialValues={{ email: '', password: '' }}
+                    initialValues={{ identifier: '', password: '' }}
                     validationSchema={LoginSchema}
                     onSubmit={handleFormikSubmit}
                 >
                     {({ isSubmitting, errors, touched, values, handleChange, handleBlur }) => (
                         <Form className="auth-form">
                             <div className="form-group">
-                                <label htmlFor="email" className="form-label">Email</label>
+                                <label htmlFor="identifier" className="form-label">Username or Email</label>
                                 <Field 
-                                    type="email" 
-                                    name="email" 
-                                    placeholder="you@example.com" 
-                                    id="email" 
-                                    className={`form-input ${touched.email && errors.email ? 'is-invalid' : ''}`} 
+                                    type="text" 
+                                    name="identifier" 
+                                    placeholder="Enter username or email" 
+                                    id="identifier" 
+                                    className={`form-input ${touched.identifier && errors.identifier ? 'is-invalid' : ''}`} 
                                     disabled={isSubmitting} 
                                 />
-                                <ErrorMessage name="email" component="div" className="error-message validation-error" />
+                                <ErrorMessage name="identifier" component="div" className="error-message validation-error" />
                             </div>
                             <div className="form-group">
                                 {/* Replace Field with MUI TextField */}

@@ -27,7 +27,7 @@ import logoBlack from '../assets/Artifact_Logo_Black.png';
 import './NavBar.css';
 
 function Navbar() {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const isDarkMode = theme === 'dark';
   const themeClass = isDarkMode ? 'dark-theme navbar-transparent' : 'light-theme navbar-transparent';
@@ -36,6 +36,11 @@ function Navbar() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [userResults, setUserResults] = useState([]);
   const [isFetching, setIsFetching] = useState(false);
+
+  // Debug log when user or auth state changes
+  useEffect(() => {
+    console.log("Navbar - Auth state updated:", { isAuthenticated, user });
+  }, [user, isAuthenticated]);
 
   // Use the imported logos
   const logoSrc = isDarkMode ? logoWhite : logoBlack;
@@ -237,7 +242,6 @@ function Navbar() {
           </Box>
         </Toolbar>
       </AppBar>
-      
       {/* Add toolbar placeholder to prevent content from hiding under the fixed navbar */}
       <Toolbar />
     </>

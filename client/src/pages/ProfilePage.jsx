@@ -398,57 +398,31 @@ function ProfilePage() {
     }, [profileUser?.user_id, profileUser?.role, isOwnProfile, collectedArtworksPage, profileLoadError]);
 
     // --- Follow/Unfollow Handler ---
-    const handleFollowToggle = useCallback(async () => {
-        if (!profileUser?.user_id || !isAuthenticated) return;
-
-        const targetUserId = profileUser.user_id; // ID of the user being viewed/followed/unfollowed
-        const action = isFollowing ? 'delete' : 'post';
-
-        // --- CORRECTED ENDPOINTS ---
-        // Both POST and DELETE target the same path structure in your backend
-        const endpoint = `/users/${targetUserId}/follow`;
-        // -------------------------
-
-        // Body is only needed for POST
-        const body = action === 'post' ? {} : null; // No body needed for follow based on your backend
-
-        // Use toast.promise for follow/unfollow actions
-        const followPromise = action === 'post'
-            ? apiService.post(endpoint, body) // POST to /users/<id>/follow
-            : apiService.delete(endpoint);    // DELETE to /users/<id>/follow
-
-        toast.promise(
-            followPromise,
-            {
-                loading: isFollowing ? 'Unfollowing...' : 'Following...',
-                success: (response) => { // Receive response on success
-                    // Toggle state and optimistically update count
-                    setIsFollowing(!isFollowing);
-                    setProfileUser(prev => ({
-                        ...prev,
-                        // Optimistic update: Increment/decrement based on the *previous* state
-                        followers_count: (prev.followers_count ?? 0) + (isFollowing ? -1 : 1)
-                    }));
-                    // Use message from backend if available (POST returns one)
-                    // DELETE returns 204 No Content, so response.data might be empty
-                    const successMsg = action === 'post'
-                        ? (response?.data?.message || `Successfully followed ${profileUser.username}!`)
-                        : `Successfully unfollowed ${profileUser.username}!`;
-                    return successMsg; // Toast message
-                },
-                error: (err) => {
-                    // Interceptor should show detailed error, this is fallback/summary
-                    console.error(`ProfilePage: Failed to ${action} follow:`, err);
-                    // Check for specific conflict error from backend
-                    if (err.response?.status === 409) {
-                         return "Already following this user."; // Specific message for conflict
-                    }
-                    return `Could not ${isFollowing ? 'unfollow' : 'follow'} user.`; // Toast message
-                }
+    const handleFollowAction = async () => {
+        setIsLoadingFollowAction(true);
+        
+        try {
+            if (isFollowing) {
+                // Unfollow
+                await apiService.delete(`/users/${userId}/followers`);
+                setIsFollowing(false);
+                setFollowerCount(prev => prev - 1);
+                toast.success(`Unfollowed ${username}`);
+            } else {
+                // Follow
+                await apiService.post(`/users/${userId}/followers`);
+                setIsFollowing(true);
+                setFollowerCount(prev => prev + 1);
+                toast.success(`Following ${username}`);
             }
-        );
-    // Include all dependencies used inside useCallback
-    }, [profileUser?.user_id, profileUser?.username, isAuthenticated, isFollowing]);
+        } catch (err) {
+            console.error("Follow/unfollow error:", err);
+            const action = isFollowing ? 'unfollow' : 'follow';
+            toast.error(`Unable to ${action} ${username}. Please try again.`);
+        } finally {
+            setIsLoadingFollowAction(false);
+        }
+    };
 
     // --- Delete Profile Handlers ---
     const openDeleteDialog = () => setIsDeleteDialogOpen(true);
@@ -579,7 +553,7 @@ function ProfilePage() {
                         <>
                             <Button 
                                 variant={isFollowing ? "outlined" : "contained"} 
-                                onClick={handleFollowToggle} 
+                                onClick={handleFollowAction} 
                                 size="small" 
                                 className={`profile-follow-button ${isFollowing ? 'following' : ''}`}
                             >
