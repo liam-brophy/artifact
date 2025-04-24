@@ -5,25 +5,33 @@ def init_database():
     with app.app_context():
         conn = db.engine.connect()
         
-        # Check if enum type exists before trying to create it
-        try:
-            result = conn.execute(text(
-                "SELECT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'artwork_rarity_enum')"
-            ))
-            enum_exists = result.scalar()
-            
-            if not enum_exists:
-                conn.execute(text(
-                    "CREATE TYPE artwork_rarity_enum AS ENUM ('common', 'uncommon', 'rare', 'epic', 'legendary')"
+        # Define all enum types needed
+        enum_types = {
+            'artwork_rarity_enum': ['common', 'uncommon', 'rare', 'epic', 'legendary'],
+            'tradestatus': ['pending', 'accepted', 'rejected', 'canceled']  # Add the values for tradestatus
+        }
+        
+        # Create all enum types
+        for enum_name, enum_values in enum_types.items():
+            try:
+                result = conn.execute(text(
+                    f"SELECT EXISTS (SELECT 1 FROM pg_type WHERE typname = '{enum_name}')"
                 ))
-                conn.commit()
-                print("✅ Created artwork_rarity_enum type")
-            else:
-                print("✅ artwork_rarity_enum type already exists")
+                enum_exists = result.scalar()
                 
-        except Exception as e:
-            print(f"⚠️ Error checking/creating enum: {e}")
-            
+                if not enum_exists:
+                    values_str = "', '".join(enum_values)
+                    conn.execute(text(
+                        f"CREATE TYPE {enum_name} AS ENUM ('{values_str}')"
+                    ))
+                    conn.commit()
+                    print(f"✅ Created {enum_name} type")
+                else:
+                    print(f"✅ {enum_name} type already exists")
+                    
+            except Exception as e:
+                print(f"⚠️ Error with enum {enum_name}: {e}")
+                
         # Drop all tables first (to avoid conflicts)
         try:
             db.drop_all()
