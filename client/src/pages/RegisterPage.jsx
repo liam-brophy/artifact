@@ -302,14 +302,14 @@ function RegisterPage() {
                 />
               </div>
 
-              <div className="form-actions">
-                <button type="submit" className="btn btn-primary" disabled={isSubmitting || googleLoading}>
-                  {isSubmitting ? 'Registering...' : 'Register'}
-                </button>
-                <Link to="/login" className="auth-link">
-                  Already have an account? Login
-                </Link>
-              </div>
+              {/* Remove form-actions div for consistent vertical layout */}
+              <button type="submit" className="btn btn-primary" disabled={isSubmitting || googleLoading}>
+                {isSubmitting ? 'Registering...' : 'Register'}
+              </button>
+              
+              <Link to="/login" className="auth-link">
+                Already have an account? Login
+              </Link>
             </Form>
           )}
         </Formik>

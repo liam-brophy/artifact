@@ -249,14 +249,14 @@ function LoginPage() {
                                 {/* Formik's ErrorMessage is handled by TextField's helperText */}
                             </div>
 
-                            <div className="form-actions">
-                                <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-                                    {isSubmitting ? 'Processing...' : 'Login'}
-                                </button>
-                                <Link to="/register" className="auth-link">
-                                    Don't have an account? Register
-                                </Link>
-                            </div>
+                            {/* Remove the form-actions div and place buttons separately */}
+                            <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+                                {isSubmitting ? 'Processing...' : 'Login'}
+                            </button>
+                            
+                            <Link to="/register" className="auth-link">
+                                Don't have an account? Register
+                            </Link>
                         </Form>
                     )}
                 </Formik>

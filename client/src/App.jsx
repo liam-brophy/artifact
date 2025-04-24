@@ -53,6 +53,18 @@ function AuthenticatedLayout() {
     );
 }
 
+// --- Layout Component for Auth Pages (No NavBar) ---
+function AuthLayout() {
+    const { isDarkMode } = useTheme();
+    return (
+        <div className={`app-container ${isDarkMode ? 'dark-theme' : 'light-theme'}`}>
+            <main>
+                <Outlet /> {/* Renders the nested auth route component */}
+            </main>
+        </div>
+    );
+}
+
 // --- Layout Component for Public Routes ---
 // This component might include a simplified header/footer or just the Outlet
 // for pages accessible to everyone. It also includes the NavBar which will adapt.
@@ -133,16 +145,20 @@ function App() {
         <>
             <LavaLampBackground />
             <Routes>
+                {/* Auth Routes without NavBar */}
+                <Route element={<AuthLayout />}>
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
+                </Route>
+
                 {/* Routes using the Public Layout (includes adaptable NavBar) */}
                 <Route element={<PublicLayout />}>
                     <Route path="/" element={<HomePage />} /> {/* HomePage is now public */}
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="/register" element={<RegisterPage />} />
                     <Route path="/search" element={<SearchPage />} /> {/* Search can be public */}
                     <Route path="/artworks/:artworkId" element={<ArtworkDetailsPage />} /> {/* Artwork details can be public */}
                     {/* Add other public routes here */}
                 </Route>
-
+                
                 {/* Routes using the Authenticated Layout (NavBar + Auth Check) */}
                 <Route element={<AuthenticatedLayout />}>
                     {/* Profile, Settings, etc. require login */}
