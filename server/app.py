@@ -1,5 +1,5 @@
 import os
-from flask import Flask, jsonify
+from flask import Flask, jsonify, make_response # <-- Import make_response
 from dotenv import load_dotenv
 from datetime import timedelta, datetime
 # Import CSRFProtect
@@ -61,19 +61,19 @@ def create_app(config_object=None):
         SCHEDULER_TIMEZONE="UTC",
 
         # --- Flask-WTF CSRF Configuration ---
+        # Keep WTF enabled, but we'll control the cookie manually below
         WTF_CSRF_ENABLED=True,
-        WTF_CSRF_TIME_LIMIT=None, # Default is 3600 seconds
         # Header your frontend WILL send
         WTF_CSRF_HEADERS=['X-CSRF-Token'], # Or ['X-CSRFToken'], MATCH FRONTEND
-        # --- Cookie settings for Flask-WTF CSRF token ---
-        WTF_CSRF_SSL_STRICT=is_production, # Require HTTPS for CSRF cookie in prod
-        WTF_CSRF_COOKIE_SECURE=is_production, # Send cookie only over HTTPS in prod
-        WTF_CSRF_COOKIE_SAMESITE='None' if is_production else 'Lax', # Crucial for cross-domain
-        WTF_CSRF_COOKIE_HTTPONLY=False, # IMPORTANT: JS needs to read this cookie value
-        WTF_CSRF_COOKIE_NAME='csrf_token', # Name of the cookie JS will read
-        # WTF_CSRF_COOKIE_DOMAIN= # Usually not needed if path is '/' and SameSite=None
         # Prevent checking only session/form data, ensuring cookie settings are respected
         WTF_CSRF_CHECK_DEFAULT=False,
+
+        # We are setting cookie manually, so these might not be strictly needed
+        # but keeping them doesn't hurt and clarifies intent.
+        WTF_CSRF_COOKIE_NAME='csrf_token', # Name of the cookie JS will read
+        WTF_CSRF_COOKIE_HTTPONLY=False, # IMPORTANT: JS needs to read this cookie value
+        WTF_CSRF_COOKIE_SECURE=is_production, # Send cookie only over HTTPS in prod
+        WTF_CSRF_COOKIE_SAMESITE='None' if is_production else 'Lax', # Crucial for cross-domain
     )
 
     # Override with config_object if provided (useful for testing)
@@ -149,16 +149,28 @@ def create_app(config_object=None):
     app.register_blueprint(trades_bp, url_prefix='/api')
     app.register_blueprint(search_blueprint, url_prefix='/api/search')
 
-    # --- Add Endpoint to Provide Initial CSRF Token ---
+    # --- MODIFIED Endpoint to Explicitly Set CSRF Cookie ---
     @app.route('/api/auth/csrf-token', methods=['GET'])
     def get_csrf_token():
         """
-        Endpoint to initialize the session and set the CSRF cookie.
-        The frontend should call this on load.
+        Endpoint to explicitly generate and set the non-HttpOnly CSRF cookie.
         """
-        token = generate_csrf() # Generates token and ensures cookie is set in response
-        response = jsonify({"detail": "CSRF cookie set"})
-        # No need to manually set the cookie here, CSRFProtect handles it
+        # Generate the CSRF token value
+        csrf_token_value = generate_csrf()
+
+        # Create a response object
+        response = make_response(jsonify({"detail": "CSRF token cookie explicitly set"}))
+
+        # Manually set the cookie on the response object
+        response.set_cookie(
+            key=app.config.get('WTF_CSRF_COOKIE_NAME', 'csrf_token'), # Use configured name or default
+            value=csrf_token_value,
+            secure=app.config.get('WTF_CSRF_COOKIE_SECURE', is_production),
+            samesite=app.config.get('WTF_CSRF_COOKIE_SAMESITE', 'None' if is_production else 'Lax'),
+            httponly=app.config.get('WTF_CSRF_COOKIE_HTTPONLY', False), # Explicitly set HttpOnly=False
+            path='/' # Usually set path to root
+            # max_age=app.config.get('WTF_CSRF_TIME_LIMIT') # Optional: set max_age if needed
+        )
         return response
 
     # --- Global Error Handlers ---
