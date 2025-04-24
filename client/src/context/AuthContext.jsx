@@ -62,7 +62,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       // Don't treat 401 as an error - it's expected when not logged in
       if (error.response && error.response.status === 401) {
-        console.log("User not authenticated - normal state before login");
+        // console.log("User not authenticated - normal state before login");
       } else if (error.response && error.response.status === 422) {
         console.error("Unprocessable entity: Check the request payload or headers");
       } else {
@@ -88,7 +88,7 @@ export const AuthProvider = ({ children }) => {
     });
 
     const handleTokenRefreshFailure = () => {
-      console.log("Token refresh failed, logging out user");
+      // console.log("Token refresh failed, logging out user");
       logout(true);
     };
 
@@ -134,8 +134,8 @@ export const AuthProvider = ({ children }) => {
         await apiService.post(LOGOUT_ENDPOINT);
         // The server should handle clearing the cookies in the response
       } catch (error) {
+        // console.log("Logout API call failed, but continuing with client-side logout");
         // Silent failure is okay here - we're logging out anyway
-        console.log("Logout API call failed, but continuing with client-side logout");
       }
     }
   }, []);

@@ -83,6 +83,75 @@
 
 /* Responsive styles for the hero section */
 @media screen and (max-width: 768px) {
+  .hero-section {
+    min-height: 450px; /* Use min-height and adjust value */
+    height: auto; /* Allow height to adjust */
+    margin-bottom: 3rem; /* Adjust spacing */
+  }
+
+  .hero-content {
+    padding: 2rem 2rem; /* Adjust padding */
+    justify-content: center; /* Center content vertically */
+  }
+
+  .hero-title {
+    font-size: 2.8rem; /* Adjust font size */
+    max-width: 90%;
+    text-align: left; /* Keep left align */
+  }
+
+  .hero-subtitle {
+    font-size: 1.2rem; /* Adjust font size */
+    max-width: 90%;
+    text-align: left; /* Keep left align */
+  }
+
+  /* Remove redundant container padding overrides */
+  /* .home-page-container { ... } */
+}
+
+@media screen and (max-width: 576px) {
+  .hero-section {
+    min-height: 350px; /* Further adjust min-height */
+    margin-bottom: 2rem;
+  }
+
+  .hero-content {
+    padding: 1.5rem 1rem; /* Further adjust padding */
+    align-items: center; /* Center align items */
+    text-align: center; /* Center align text */
+  }
+
+  .hero-title {
+    font-size: 2.2rem; /* Adjust font size */
+    max-width: 100%; /* Allow full width when centered */
+    text-align: center; /* Ensure text is centered */
+  }
+
+  .hero-subtitle {
+    font-size: 1rem; /* Adjust font size */
+    max-width: 100%; /* Allow full width when centered */
+    text-align: center; /* Ensure text is centered */
+  }
+
+  .hero-cta {
+    display: flex;
+    flex-direction: column; /* Stack buttons vertically */
+    align-items: center; /* Center buttons */
+    width: 100%;
+  }
+
+  .hero-cta Button {
+    width: 80%; /* Make buttons slightly narrower than full width */
+    margin: 0.5rem 0 !important; /* Add vertical spacing, remove horizontal */
+    text-align: center;
+  }
+
+  /* Remove redundant container padding overrides */
+  /* .home-page-container { ... } */
+}
+
+@media screen and (max-width: 768px) {
   .hero-title {
     font-size: 3rem; /* Adjusted responsive size */
     max-width: 90%; /* Adjusted width */
@@ -447,6 +516,19 @@
     margin: 0.25rem;
     width: 100%;
     display: block;
+  }
+
+  .hero-content {
+    align-items: center; /* Center align items */
+    text-align: center; /* Center align text */
+  }
+
+  .hero-title {
+    text-align: center; /* Ensure text is centered */
+  }
+
+  .hero-subtitle {
+    text-align: center; /* Ensure text is centered */
   }
 }
 

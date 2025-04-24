@@ -34,7 +34,7 @@ function FollowerList({ userId }) {
             setFollowers([]);
 
             try {
-                console.log(`Fetching list for user ${userId}. Token being used:`, token);
+                // console.log(`Fetching list for user ${userId}. Token being used:`, token);
                 // Prepare Axios config with Authorization header
                 const config = {
                     headers: {
@@ -59,8 +59,8 @@ function FollowerList({ userId }) {
                     setFollowers(response.data.items);
                 }
                  else {
-                    console.warn("Unexpected data format received for followers:", response.data);
                     setFollowers([]); // Set empty if format is wrong
+                    // console.warn("Unexpected data format received for followers:", response.data);
                 }
 
             } catch (err) {

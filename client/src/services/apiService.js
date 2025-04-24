@@ -3,8 +3,6 @@ import toast from 'react-hot-toast'; // <-- Import toast
 import Cookies from 'js-cookie'; // Make sure you have run: npm install js-cookie
 import API_BASE_URL from '../config'; // Adjust the import path as necessary
 
-console.log("API_BASE_URL in apiService:", API_BASE_URL);
-
 const apiService = axios.create({
     baseURL: API_BASE_URL, // Use the dynamically set base URL
     withCredentials: true,
@@ -55,31 +53,16 @@ apiService.interceptors.request.use(
         }
         
         if (methodsRequiringCsrf.includes(config.method.toLowerCase())) {
-            console.log('--- CSRF Interceptor Running for:', config.method, config.url); // Log entry
-
-            // Log raw document.cookie before trying to get specific one
-            console.log('Raw document.cookie:', document.cookie);
-
             // Ensure cookie/header names match your Flask-JWT-Extended config
             const csrfToken = Cookies.get('csrf_token'); // Use Flask-WTF's cookie name
 
-            // Log the result of Cookies.get()
-            console.log("Result of Cookies.get('csrf_token'):", csrfToken);
-
             if (csrfToken) {
-                // Log that the token was found and the header *should* be set
-                console.log('CSRF token found. Setting X-CSRF-Token header.');
                 config.headers['X-CSRF-Token'] = csrfToken; // Ensure header name matches backend
             } else {
-                // Log that the token was *not* found by Cookies.get()
-                console.warn("CSRF token ('csrf_token') *NOT FOUND* by Cookies.get(). Header not set.");
+                // Optionally handle the case where the token is missing, 
+                // though the backend should ultimately reject if required.
             }
 
-            // Log the final headers object *before* returning config
-            console.log('Final request headers:', config.headers);
-
-        } else {
-             console.log('--- CSRF Interceptor Skipping (Method not state-changing):', config.method, config.url);
         }
         return config;
     },
@@ -224,11 +207,10 @@ export const initializeCsrf = async () => {
         // Make a GET request to the endpoint that sets the CSRF cookie
         // Ensure this endpoint exists on your backend and is configured to set the cookie
         await apiService.get('/auth/csrf-token');
-        console.log('Initial CSRF cookie requested successfully.');
     } catch (error) {
         // Handle error fetching initial token (e.g., network issue)
         // This might prevent subsequent state-changing requests from working
-        console.error('Failed to fetch initial CSRF token:', error);
+        console.error('Failed to fetch initial CSRF token:', error); // Kept console.error
         // Consider a more user-friendly error message or retry logic
         toast.error('Could not initialize security token. Some actions may fail.');
     }

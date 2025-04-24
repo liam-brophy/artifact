@@ -92,7 +92,7 @@ function UserPacks() {
   }, [showDailyPackTimer, nextPackInfo]);
 
   const handleOpenPack = async (packId, packName) => {
-    console.log(`Attempting to open pack with ID: ${packId}`);
+    // console.log(`Attempting to open pack with ID: ${packId}`);
     setIsOpening(true);
     setError(null);
     setOpenedPackResult(null);
@@ -103,7 +103,7 @@ function UserPacks() {
       const response = await apiService.post(`/user-packs/${packId}/open`);
 
       // Handle successful response (200 OK)
-      console.log("Pack opened successfully:", response.data);
+      // console.log("Pack opened successfully:", response.data);
       setOpenedPackResult({
         ...response.data,
         packType: packName // Add the pack type to the result
@@ -145,7 +145,7 @@ function UserPacks() {
     
     try {
       const response = await apiService.post('/user-packs/claim-daily');
-      console.log("Daily pack claimed:", response.data);
+      // console.log("Daily pack claimed:", response.data);
       
       // If successful, add the new pack to the packs list
       if (response.data.user_pack_id) {

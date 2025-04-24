@@ -86,7 +86,7 @@ function RegisterPage() {
 
   // --- Google Sign-Up/In Callback Handler ---
   const handleGoogleCallback = useCallback(async (googleResponse) => {
-    console.log("Google Sign-Up/In Callback Received:", googleResponse);
+    // console.log("Google Sign-Up/In Callback Received:", googleResponse);
     const id_token = googleResponse.credential;
     if (!id_token) {
       console.error("Google response missing credential (token).");
@@ -146,7 +146,7 @@ function RegisterPage() {
         toast.error("Failed to initialize Google Sign-In library.");
       }
     } else {
-      console.warn("Google Identity Services library not loaded yet.");
+      // console.warn("Google Identity Services library not loaded yet.");
       // Optionally show a message or retry loading
     }
   }, [handleGoogleCallback]);

@@ -79,18 +79,23 @@ function ArtStudio({ mode = 'customize', artworkData = null, onSave = null, onCa
   
   // Handle border selection
   const handleBorderSelect = (borderId) => {
-    console.log('Border selected:', borderId);
+    setSelectedBorder(borderId);
+    // console.log('Border selected:', borderId);
+  };
+
+  const handleDecalSelect = (decalId) => {
+    console.log('Decal selected:', decalId);
     
     // Update both state variables to maintain UI consistency
-    setSelectedBorder(borderId);
-    setCurrentBorderId(borderId);
+    setSelectedBorder(decalId);
+    setCurrentBorderId(decalId);
     setSaveSuccess(false);
     
     // Directly update the artwork state with the new border for immediate visual feedback
     if (artwork) {
       setArtwork({
         ...artwork,
-        border_decal_id: borderId
+        border_decal_id: decalId
       });
     }
   };

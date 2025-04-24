@@ -32,7 +32,7 @@ function FollowingList({ userId }) {
             setFollowingUsers([]);
 
             try {
-                console.log(`Fetching list for user ${userId}. Token being used:`, token);
+                // console.log(`Fetching list for user ${userId}. Token being used:`, token);
                 // Prepare Axios config with Authorization header
                 const config = {
                     headers: {
@@ -54,8 +54,8 @@ function FollowingList({ userId }) {
                     // Adapt if your API returns { items: [...], ... } (common pagination)
                    setFollowingUsers(response.data.items);
                 } else {
-                    console.warn("Unexpected data format received for following list:", response.data);
                     setFollowingUsers([]); // Set empty if format is wrong
+                    // console.warn("Unexpected data format received for following list:", response.data);
                 }
 
             } catch (err) {

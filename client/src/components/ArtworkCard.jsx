@@ -46,6 +46,7 @@ function ArtworkCard({
     const navigate = useNavigate();
     const { isAuthenticated } = useAuth();
     const [tradeDialogOpen, setTradeDialogOpen] = useState(false);
+    const [imageError, setImageError] = useState(false);
 
     // Basic check if artwork data exists
     if (!artwork) {
@@ -62,7 +63,7 @@ function ArtworkCard({
     const handleImageError = (event) => {
         event.target.onerror = null; // Prevent infinite loop if placeholder also fails
         event.target.src = PLACEHOLDER_IMAGE_URL;
-        console.warn(`Failed to load image: ${displayImageUrl}`);
+        // console.warn(`Failed to load image: ${displayImageUrl}`);
     };
     
     // Handle click on the card (navigate to artwork detail)

@@ -162,16 +162,14 @@ function HomePage() {
           <p className="hero-subtitle">
             Collect and support artists<br></br> on a platform designed for discovery.
           </p>
-          {!user && (
+          {/* Removed hero CTA button for anonymous users */}
+          {/* {!user && (
             <div className="hero-cta">
               <Button component={RouterLink} to="/register" variant="contained" color="primary" size="large" sx={{ mr: 1, mb: 1 }}> 
                 Join as Artist or Patron 
               </Button>
-              <Button component={RouterLink} to="/gallery" variant="outlined" size="large" sx={{ mr: 1, mb: 1 }} className="hero-button-outlined"> 
-                Explore Artworks 
-              </Button>
             </div>
-          )}
+          )} */}
         </div>
       </section>
       {/* --- End Hero Section --- */}

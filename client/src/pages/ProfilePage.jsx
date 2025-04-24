@@ -866,7 +866,7 @@ function ProfilePage() {
                                         )
                                         .map((trade) => {
                                             // Add this console log to inspect the trade object
-                                            console.log('Rendering received trade:', trade); 
+                                            // console.log('Rendering received trade:', trade); 
                                             return (
                                                 <Box 
                                                     key={trade.trade_id} 

@@ -151,7 +151,7 @@ function Upload() {
                 },
             });
             
-            console.log('Upload response:', uploadResponse.data);
+            // console.log('Upload response:', uploadResponse.data);
             
             // Store the image URLs for later use
             const imageData = {

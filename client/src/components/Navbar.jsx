@@ -19,6 +19,10 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
+// Import the logos from src/assets
+import logoWhite from '../assets/Artifact_Logo_White.png';
+import logoBlack from '../assets/Artifact_Logo_Black.png';
+
 // Import the CSS file
 import './NavBar.css';
 
@@ -33,10 +37,8 @@ function Navbar() {
   const [userResults, setUserResults] = useState([]);
   const [isFetching, setIsFetching] = useState(false);
 
-  // Logo paths based on theme
-  const logoSrc = isDarkMode 
-    ? '/assets/Artifact_Logo_White.png' 
-    : '/assets/Artifact_Logo_Black.png';
+  // Use the imported logos
+  const logoSrc = isDarkMode ? logoWhite : logoBlack;
 
   // Handle search submission
   const handleSearchSubmit = (e) => {
@@ -66,11 +68,11 @@ function Navbar() {
       if (searchQuery.trim()) {
         setIsFetching(true);
         try {
-          console.log('Search query:', searchQuery);
+          // console.log('Search query:', searchQuery);
           const response = await axios.get(`/api/search?q=${encodeURIComponent(searchQuery.trim())}`);
-          console.log('API response:', response.data);
+          // console.log('API response:', response.data);
           setUserResults(response.data.users || []);
-          console.log('User results:', userResults);
+          // console.log('User results:', userResults);
         } catch (error) {
           console.error('Error fetching user results:', error);
         } finally {

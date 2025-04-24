@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'; // Add useEffect
+import React, { useEffect } from 'react';
 import {
   BrowserRouter as Router,
   Routes,
@@ -6,12 +6,12 @@ import {
   Navigate,
   Outlet // Import Outlet for layout routes
 } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext'; // useAuth still needed in child components/layouts
-import { ThemeProvider, useTheme } from './context/ThemeContext'; // Import ThemeProvider and useTheme
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { Toaster } from 'react-hot-toast';
-import { initializeCsrf } from './services/apiService'; // Import the function
+import { initializeCsrf } from './services/apiService';
 
-import NavBar from './components/Navbar'; // Correct casing to match the file name
+import NavBar from './components/Navbar'; // Correct casing
 
 // Import Page Components
 import LoginPage from './pages/LoginPage';
@@ -21,116 +21,124 @@ import ProfilePage from './pages/ProfilePage';
 import NotFoundPage from './pages/NotFoundPage';
 import UploadPage from './pages/UploadPage';
 import SettingsPage from './pages/SettingsPage';
-import ArtworkDetailsPage from './pages/ArtworkDetailsPage'; // Import the new ArtworkDetailsPage
-import ArtStudio from './components/ArtStudio'; // Import the new ArtStudio component
-import SearchPage from './pages/SearchPage'; // Import the SearchPage component
-import LavaLampBackground from './components/LavaLampBackground'; // Import the new LavaLampBackground component
+import ArtworkDetailsPage from './pages/ArtworkDetailsPage';
+import ArtStudio from './components/ArtStudio';
+import SearchPage from './pages/SearchPage';
+import LavaLampBackground from './components/LavaLampBackground';
 
 // --- Layout Component for Authenticated Users ---
-// This component will render the NavBar and the nested route content (Outlet)
+// This component renders the NavBar and the nested route content (Outlet)
+// It ensures the user is authenticated before rendering its children.
 function AuthenticatedLayout() {
-    const { isAuthenticated, isLoading } = useAuth(); // Check auth status here
-    const { isDarkMode } = useTheme(); // Access theme context
+    const { isAuthenticated, isLoading } = useAuth();
+    const { isDarkMode } = useTheme();
 
-    // First handle loading state
     if (isLoading) {
         return <div className="full-page-loader">Loading Authentication...</div>;
     }
 
-    // Then handle unauthenticated state
+    // If not authenticated after loading, redirect to login
     if (!isAuthenticated) {
-        // This should theoretically not be reached if ProtectedRoute works,
-        // but acts as a safeguard or for direct access attempts.
         return <Navigate to="/login" replace />;
     }
 
+    // Render the layout for authenticated users
     return (
         <div className={`app-container ${isDarkMode ? 'dark-theme' : 'light-theme'}`}>
-            <NavBar /> 
+            <NavBar /> {/* NavBar is part of the authenticated experience */}
             <main>
-                 <Outlet /> 
+                 <Outlet /> {/* Renders the nested protected route component */}
             </main>
         </div>
     );
 }
 
-// --- Protected Route Logic Component ---
-function ProtectedRoute({ children }) {
-    const { isAuthenticated, isLoading } = useAuth();
-
-    if (isLoading) {
-        // Show a loading indicator while authentication status is being determined
-        return <div className="full-page-loader">Loading Authentication...</div>;
-    }
-
-    if (!isAuthenticated) {
-        // Only redirect if we're sure the user isn't authenticated
-        return <Navigate to="/login" replace />;
-    }
-
-    // If authenticated, render the child component (the actual page)
-    return children;
+// --- Layout Component for Public Routes ---
+// This component might include a simplified header/footer or just the Outlet
+// for pages accessible to everyone. It also includes the NavBar which will adapt.
+function PublicLayout() {
+    const { isDarkMode } = useTheme();
+    // We include NavBar here too, but it will render differently for logged-out users
+    return (
+        <div className={`app-container ${isDarkMode ? 'dark-theme' : 'light-theme'}`}>
+            <NavBar />
+            <main>
+                <Outlet /> {/* Renders the nested public route component */}
+            </main>
+        </div>
+    );
 }
+
+
+// --- Protected Route Logic Component (Optional - can be handled by AuthenticatedLayout) ---
+// If needed for finer control, but AuthenticatedLayout already does this.
+// function ProtectedRoute({ children }) { ... } // Keep if needed elsewhere
 
 // --- Artist Only Route Logic Component ---
 function ArtistOnlyRoute({ children }) {
      const { isAuthenticated, isLoading, user } = useAuth();
 
      if (isLoading) {
-         return <div className="full-page-loader">Loading User Data...</div>;
+         return <div className="full-page-loader\">Loading User Data...</div>;
      }
 
+     // Artist routes are implicitly authenticated, but double-check
      if (!isAuthenticated) {
          return <Navigate to="/login" replace />;
      }
 
      if (user?.role !== 'artist') {
           // toast.error("Access Denied: Artist role required.");
-          return <Navigate to="/" replace />; // Redirect non-artists (e.g., to home)
+          return <Navigate to="/" replace />; // Redirect non-artists to home
      }
 
-     return children; // Render the child if user is an authenticated artist
+     return children;
 }
 
 
 // --- Main App Structure ---
 function App() {
-    // No need for useAuth() here anymore
-
     return (
         <>
-            <LavaLampBackground /> {/* Add the LavaLampBackground component */}
+            <LavaLampBackground />
             <Routes>
-                {/* Public Routes */}
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
+                {/* Routes using the Public Layout (includes adaptable NavBar) */}
+                <Route element={<PublicLayout />}>
+                    <Route path="/" element={<HomePage />} /> {/* HomePage is now public */}
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
+                    <Route path="/search" element={<SearchPage />} /> {/* Search can be public */}
+                    <Route path="/artworks/:artworkId" element={<ArtworkDetailsPage />} /> {/* Artwork details can be public */}
+                    {/* Add other public routes here */}
+                </Route>
 
-                {/*  */}
-                <Route element={<AuthenticatedLayout />}> {/* s */}
-                    <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
-                    <Route path="/users/:username" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-                    <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} /> {/* */}
+                {/* Routes using the Authenticated Layout (NavBar + Auth Check) */}
+                <Route element={<AuthenticatedLayout />}>
+                    {/* Profile, Settings, etc. require login */}
+                    <Route path="/users/:username" element={<ProfilePage />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                    {/* Artist-specific routes are nested within authenticated layout */}
                     <Route
                         path="/upload"
                         element={
-                            <ArtistOnlyRoute> {/* Specific protection for artists */}
+                            <ArtistOnlyRoute>
                                 <UploadPage />
                             </ArtistOnlyRoute>
                         }
                     />
-                    <Route path="/artworks/:artworkId" element={<ProtectedRoute><ArtworkDetailsPage /></ProtectedRoute>} /> {/* Fixed route path */}
                     <Route
                         path="/studio/:artworkId"
                         element={
-                            <ArtistOnlyRoute> {/* Only artists can customize artwork */}
+                            <ArtistOnlyRoute>
                                 <ArtStudio />
                             </ArtistOnlyRoute>
                         }
                     />
-                    <Route path="/search" element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
+                    {/* Add any other strictly authenticated routes here */}
                 </Route>
 
-                {/* Catch-all or Not Found - Render outside AuthenticatedLayout if NavBar shouldn't show */}
+                {/* Catch-all Not Found - Render outside specific layouts */}
+                {/* Consider if NotFoundPage should have a layout */}
                 <Route path="*" element={<NotFoundPage />} />
             </Routes>
             <Toaster position="top-center" /* ... options ... */ />
@@ -138,12 +146,11 @@ function App() {
     );
 }
 
-// provides the AuthContext and ThemeContext, and initializes CSRF
+// AppWrapper remains the same
 function AppWrapper() {
-  // Call initializeCsrf once when the app loads
   useEffect(() => {
     initializeCsrf();
-  }, []); // Empty dependency array ensures this runs only once on mount
+  }, []);
 
   return (
     <AuthProvider>
