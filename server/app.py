@@ -72,6 +72,8 @@ def create_app(config_object=None):
         WTF_CSRF_COOKIE_HTTPONLY=False, # IMPORTANT: JS needs to read this cookie value
         WTF_CSRF_COOKIE_NAME='csrf_token', # Name of the cookie JS will read
         # WTF_CSRF_COOKIE_DOMAIN= # Usually not needed if path is '/' and SameSite=None
+        # Prevent checking only session/form data, ensuring cookie settings are respected
+        WTF_CSRF_CHECK_DEFAULT=False,
     )
 
     # Override with config_object if provided (useful for testing)
