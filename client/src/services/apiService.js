@@ -56,7 +56,7 @@ apiService.interceptors.request.use(
         
         if (methodsRequiringCsrf.includes(config.method.toLowerCase())) {
             // Ensure cookie/header names match your Flask-JWT-Extended config
-            const csrfToken = Cookies.get('csrf_access_token');
+            const csrfToken = Cookies.get('csrf_token');
             if (csrfToken) {
                 config.headers['X-CSRF-Token'] = csrfToken;
             } else {
@@ -111,7 +111,7 @@ apiService.interceptors.response.use(
                     processQueue(null, refreshResponse);
                     
                     // Retry the original request with new csrf token
-                    const csrfToken = Cookies.get('csrf_access_token');
+                    const csrfToken = Cookies.get('csrf_token');
                     if (csrfToken) {
                         originalRequest.headers['X-CSRF-Token'] = csrfToken;
                     }
@@ -140,7 +140,7 @@ apiService.interceptors.response.use(
                         }
                         
                         // Update csrf token in the request
-                        const csrfToken = Cookies.get('csrf_access_token');
+                        const csrfToken = Cookies.get('csrf_token');
                         if (csrfToken) {
                             originalRequest.headers['X-CSRF-Token'] = csrfToken;
                         }
@@ -198,6 +198,24 @@ apiService.interceptors.response.use(
         return Promise.reject(error);
     }
 );
+
+// --- IMPORTANT: Add Initial CSRF Fetch Logic ---
+// This function should be called ONCE when your application loads.
+// Place the *call* to this function in your main App component or entry point.
+export const initializeCsrf = async () => {
+    try {
+        // Make a GET request to the endpoint that sets the CSRF cookie
+        // Ensure this endpoint exists on your backend and is configured to set the cookie
+        await apiService.get('/auth/csrf-token');
+        console.log('Initial CSRF cookie requested successfully.');
+    } catch (error) {
+        // Handle error fetching initial token (e.g., network issue)
+        // This might prevent subsequent state-changing requests from working
+        console.error('Failed to fetch initial CSRF token:', error);
+        // Consider a more user-friendly error message or retry logic
+        toast.error('Could not initialize security token. Some actions may fail.');
+    }
+};
 
 // 4. Export the instance
 export default apiService;

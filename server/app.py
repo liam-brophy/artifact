@@ -2,7 +2,9 @@ import os
 from flask import Flask, jsonify
 from dotenv import load_dotenv
 from datetime import timedelta, datetime
-from flask_cors import CORS
+# Import CSRFProtect
+from flask_wtf.csrf import CSRFProtect, generate_csrf
+from flask_cors import CORS # Keep this
 from flask_apscheduler import APScheduler
 import logging
 
@@ -29,33 +31,47 @@ load_dotenv()
 def create_app(config_object=None):
     app = Flask(__name__)
 
+    # --- Determine if in production ---
+    is_production = os.environ.get('FLASK_ENV') == 'production'
+
     # --- Configuration ---
     # Default configuration settings
     app.config.from_mapping(
-        SECRET_KEY=os.environ.get('SECRET_KEY', 'dev_secret_key'), # Default for dev
+        SECRET_KEY=os.environ.get('SECRET_KEY', 'dev_secret_key'), # MUST BE SET and consistent
         SQLALCHEMY_DATABASE_URI=os.environ.get('DATABASE_URI'),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         SQLALCHEMY_ECHO=False, # Set to True for debugging SQL
         JWT_SECRET_KEY=os.environ.get('JWT_SECRET_KEY'), # Load from env!
-        JWT_TOKEN_LOCATION=["headers", "cookies"],
+        JWT_TOKEN_LOCATION=["headers", "cookies"], # Keep cookies if you need refresh tokens etc. via cookie
         JWT_ACCESS_TOKEN_EXPIRES=timedelta(hours=1),
         JWT_REFRESH_TOKEN_EXPIRES=timedelta(days=30),
-        JWT_COOKIE_SAMESITE="None", # Set to 'None' for cross-origin request
-        JWT_COOKIE_SECURE=os.environ.get('FLASK_ENV') == 'production', # True in prod (HTTPS)
+        JWT_COOKIE_SAMESITE="None", # Still needed for JWT cookies
+        JWT_COOKIE_SECURE=is_production, # Still needed for JWT cookies
         JWT_ACCESS_COOKIE_NAME="access_token_cookie",
         JWT_REFRESH_COOKIE_NAME="refresh_token_cookie",
         JWT_ACCESS_COOKIE_PATH="/",
         JWT_REFRESH_COOKIE_PATH="/",
-        JWT_COOKIE_CSRF_PROTECT=True, # Enable CSRF protection
-        JWT_ACCESS_CSRF_HEADER_NAME="X-CSRF-Token",
-        JWT_REFRESH_CSRF_HEADER_NAME="X-CSRF-Token",
+        JWT_COOKIE_CSRF_PROTECT=False, # <-- *** DISABLE JWT's CSRF ***
         JWT_BLOCKLIST_ENABLED=True, # Enable blocklisting
         JWT_BLOCKLIST_TOKEN_CHECKS=["access", "refresh"],
         GOOGLE_CLIENT_ID=os.environ.get('GOOGLE_CLIENT_ID'), # Add Google Client ID config
-        
+
         # Scheduler configuration
         SCHEDULER_API_ENABLED=True,
-        SCHEDULER_TIMEZONE="UTC"
+        SCHEDULER_TIMEZONE="UTC",
+
+        # --- Flask-WTF CSRF Configuration ---
+        WTF_CSRF_ENABLED=True,
+        WTF_CSRF_TIME_LIMIT=None, # Default is 3600 seconds
+        # Header your frontend WILL send
+        WTF_CSRF_HEADERS=['X-CSRF-Token'], # Or ['X-CSRFToken'], MATCH FRONTEND
+        # --- Cookie settings for Flask-WTF CSRF token ---
+        WTF_CSRF_SSL_STRICT=is_production, # Require HTTPS for CSRF cookie in prod
+        WTF_CSRF_COOKIE_SECURE=is_production, # Send cookie only over HTTPS in prod
+        WTF_CSRF_COOKIE_SAMESITE='None' if is_production else 'Lax', # Crucial for cross-domain
+        WTF_CSRF_COOKIE_HTTPONLY=False, # IMPORTANT: JS needs to read this cookie value
+        WTF_CSRF_COOKIE_NAME='csrf_token', # Name of the cookie JS will read
+        # WTF_CSRF_COOKIE_DOMAIN= # Usually not needed if path is '/' and SameSite=None
     )
 
     # Override with config_object if provided (useful for testing)
@@ -74,9 +90,12 @@ def create_app(config_object=None):
     # --- Initialize Extensions ---
     db.init_app(app)
     # jwt must be initialized *before* loaders are defined
-    jwt.init_app(app)
+    jwt.init_app(app) # Keep JWT for token generation/verification
     # migrate must be initialized *after* db and *after* models are imported/known
     migrate.init_app(app, db)
+    # IMPORTANT: Initialize CSRF *after* setting config and *before* registering blueprints
+    csrf = CSRFProtect(app)
+    # Keep your CORS config, ensure X-CSRF-Token is in allow_headers
     cors.init_app(app, resources={
         r"/api/*": { # Apply CORS to all routes starting with /api/
             "origins": [
@@ -88,6 +107,7 @@ def create_app(config_object=None):
             ],
             "supports_credentials": True, # IMPORTANT for sending/receiving cookies
             "methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+             # Ensure your chosen CSRF header name is here
             "allow_headers": ["Content-Type", "Authorization", "X-CSRF-Token"]
         }
     })
@@ -126,6 +146,18 @@ def create_app(config_object=None):
     app.register_blueprint(packs_bp, url_prefix='/api') # Using /api as base for packs routes
     app.register_blueprint(trades_bp, url_prefix='/api')
     app.register_blueprint(search_blueprint, url_prefix='/api/search')
+
+    # --- Add Endpoint to Provide Initial CSRF Token ---
+    @app.route('/api/auth/csrf-token', methods=['GET'])
+    def get_csrf_token():
+        """
+        Endpoint to initialize the session and set the CSRF cookie.
+        The frontend should call this on load.
+        """
+        token = generate_csrf() # Generates token and ensures cookie is set in response
+        response = jsonify({"detail": "CSRF cookie set"})
+        # No need to manually set the cookie here, CSRFProtect handles it
+        return response
 
     # --- Global Error Handlers ---
     @app.errorhandler(404)
@@ -181,3 +213,9 @@ def create_app(config_object=None):
 
 # This correctly sets up the app instance for Flask CLI commands like 'flask run', 'flask db'
 app = create_app()
+
+# Add a command to generate initial CSRF token if needed (optional)
+# You generally want the frontend to hit the endpoint though.
+@app.cli.command("generate-csrf")
+def generate_csrf_command():
+    print("CSRF Token:", generate_csrf())

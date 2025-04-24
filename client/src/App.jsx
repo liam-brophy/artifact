@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react'; // Add useEffect
 import {
   BrowserRouter as Router,
   Routes,
@@ -9,6 +9,7 @@ import {
 import { AuthProvider, useAuth } from './context/AuthContext'; // useAuth still needed in child components/layouts
 import { ThemeProvider, useTheme } from './context/ThemeContext'; // Import ThemeProvider and useTheme
 import { Toaster } from 'react-hot-toast';
+import { initializeCsrf } from './services/apiService'; // Import the function
 
 import NavBar from './components/Navbar'; // Correct casing to match the file name
 
@@ -137,8 +138,13 @@ function App() {
     );
 }
 
-// provides the AuthContext
+// provides the AuthContext and ThemeContext, and initializes CSRF
 function AppWrapper() {
+  // Call initializeCsrf once when the app loads
+  useEffect(() => {
+    initializeCsrf();
+  }, []); // Empty dependency array ensures this runs only once on mount
+
   return (
     <AuthProvider>
       <ThemeProvider>
