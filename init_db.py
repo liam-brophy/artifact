@@ -1,17 +1,29 @@
 from server.app import app, db
-from sqlalchemy import text
+from sqlalchemy import text, exc
 
 def init_database():
     with app.app_context():
-        # First, check and create the enum type
         conn = db.engine.connect()
-        try:
-            conn.execute(text("CREATE TYPE IF NOT EXISTS artwork_rarity_enum AS ENUM ('common', 'uncommon', 'rare', 'epic', 'legendary')"))
-            conn.commit()
-            print("✅ Created or verified artwork_rarity_enum type")
-        except Exception as e:
-            print(f"⚠️ Error creating enum: {e}")
         
+        # Check if enum type exists before trying to create it
+        try:
+            result = conn.execute(text(
+                "SELECT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'artwork_rarity_enum')"
+            ))
+            enum_exists = result.scalar()
+            
+            if not enum_exists:
+                conn.execute(text(
+                    "CREATE TYPE artwork_rarity_enum AS ENUM ('common', 'uncommon', 'rare', 'epic', 'legendary')"
+                ))
+                conn.commit()
+                print("✅ Created artwork_rarity_enum type")
+            else:
+                print("✅ artwork_rarity_enum type already exists")
+                
+        except Exception as e:
+            print(f"⚠️ Error checking/creating enum: {e}")
+            
         # Drop all tables first (to avoid conflicts)
         try:
             db.drop_all()
