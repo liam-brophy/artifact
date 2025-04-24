@@ -43,8 +43,7 @@ function LoginPage() {
                     if (apiResponse?.data?.user) {
                         const userData = apiResponse.data.user;
                         await login(userData);
-                        // Delay navigation slightly to ensure auth state is updated
-                        setTimeout(() => navigate('/', { replace: true }), 200);
+                        navigate('/', { replace: true }); // Navigate immediately
                         return `Welcome, ${userData.username || userData.email}!`;
                     } else {
                         throw new Error('Google Sign-In failed: Unexpected server response.');
@@ -134,8 +133,7 @@ function LoginPage() {
                 const userData = response.data.user;
                 await login(userData);
                 toast.success(`Welcome back, ${userData.username || userData.email}!`);
-                // Delay navigation slightly to ensure auth state is updated
-                setTimeout(() => navigate('/', { replace: true }), 200);
+                navigate('/', { replace: true }); // Navigate immediately
             } else {
                 toast.error('Login failed: Unexpected response from server.');
             }
