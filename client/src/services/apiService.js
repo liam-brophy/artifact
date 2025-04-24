@@ -55,14 +55,31 @@ apiService.interceptors.request.use(
         }
         
         if (methodsRequiringCsrf.includes(config.method.toLowerCase())) {
+            console.log('--- CSRF Interceptor Running for:', config.method, config.url); // Log entry
+
+            // Log raw document.cookie before trying to get specific one
+            console.log('Raw document.cookie:', document.cookie);
+
             // Ensure cookie/header names match your Flask-JWT-Extended config
-            const csrfToken = Cookies.get('csrf_token');
+            const csrfToken = Cookies.get('csrf_token'); // Use Flask-WTF's cookie name
+
+            // Log the result of Cookies.get()
+            console.log("Result of Cookies.get('csrf_token'):", csrfToken);
+
             if (csrfToken) {
-                config.headers['X-CSRF-Token'] = csrfToken;
+                // Log that the token was found and the header *should* be set
+                console.log('CSRF token found. Setting X-CSRF-Token header.');
+                config.headers['X-CSRF-Token'] = csrfToken; // Ensure header name matches backend
             } else {
-                // Optional: Warn if CSRF needed but cookie not found
-                console.warn('CSRF cookie not found for state-changing request.');
+                // Log that the token was *not* found by Cookies.get()
+                console.warn("CSRF token ('csrf_token') *NOT FOUND* by Cookies.get(). Header not set.");
             }
+
+            // Log the final headers object *before* returning config
+            console.log('Final request headers:', config.headers);
+
+        } else {
+             console.log('--- CSRF Interceptor Skipping (Method not state-changing):', config.method, config.url);
         }
         return config;
     },
