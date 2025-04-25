@@ -38,6 +38,13 @@ body, html {
   align-items: center;
   min-height: 100vh;
   padding: 20px;
+  box-sizing: border-box;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
 }
 
 /* Auth container glass effect styling */
@@ -49,6 +56,10 @@ body, html {
   border: 1px solid rgba(255, 255, 255, 0.2) !important; /* More subtle border */
   border-radius: 16px !important; /* Rounded corners */
   transition: all 0.3s ease;
+  max-width: 450px;
+  width: 100%;
+  padding: 30px;
+  margin: 0 auto;
 }
 
 .auth-container:hover {
@@ -153,6 +164,7 @@ body, html {
   margin: 15px auto 0;
   text-decoration: none;
   width: 100%;
+  text-align: center;
 }
 
 .auth-link:hover {
@@ -237,4 +249,15 @@ h1, h2, h3, h4, h5, h6 {
 .google-register-toast .btn-primary:hover {
   background-color: #3367D6;
   border-color: #3367D6;
+}
+
+.auth-logo-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 25px;
+}
+
+.auth-logo {
+  max-width: 150px;
+  height: auto;
 }

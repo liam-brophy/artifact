@@ -13,21 +13,27 @@ body {
   /* Main container for centering the auth box */
   .auth-page {
     width: 100%;
+    min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
     padding: 20px; /* Add padding for smaller screens */
     box-sizing: border-box; /* Include padding in width/height */
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
   }
   
   /* The box containing the form */
   .auth-container {
-    background-color: rgba(255, 255, 255, 0.15); /* Very transparent white background */
-    backdrop-filter: blur(12px); /* Blur effect for glass-like appearance */
-    -webkit-backdrop-filter: blur(12px); /* For Safari support */
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1); /* Subtle shadow */
-    border: 1px solid rgba(255, 255, 255, 0.2); /* Subtle border */
-    border-radius: 16px;
+    background-color: transparent; /* Removed the background color for a more minimal look */
+    backdrop-filter: none; /* Removed blur effect */
+    -webkit-backdrop-filter: none; /* Removed for Safari support */
+    box-shadow: none; /* Removed shadow for minimal appearance */
+    border: none; /* Removed border for cleaner look */
+    border-radius: 10px;
     padding: 30px 40px;
     width: 100%;
     max-width: 400px; /* Max width of the form box */
@@ -36,8 +42,23 @@ body {
   }
   
   .auth-container:hover {
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-    transform: translateY(-5px);
+    /* Removed hover effects for minimal design */
+    box-shadow: none;
+    transform: none;
+  }
+  
+  /* Logo container and logo styling */
+  .auth-logo-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+  
+  .auth-logo {
+    max-width: 180px; /* Set a fixed maximum width */
+    height: auto; /* Maintain aspect ratio */
+    width: 60%; /* Take up 60% of container width */
+    object-fit: contain; /* Ensure entire logo is visible */
   }
   
   /* Form title */
@@ -54,7 +75,7 @@ body {
   .auth-form {
     display: flex;
     flex-direction: column;
-    gap: 20px; /* Spacing between form groups */
+    gap: 12px; /* Reduced from 20px to 12px for tighter spacing between form groups */
     text-align: left; /* Align labels/inputs left */
   }
   
@@ -62,7 +83,8 @@ body {
   .form-group {
     display: flex;
     flex-direction: column;
-    gap: 6px; /* Space between label and input */
+    gap: 4px; /* Reduced from 6px to 4px - space between label and input */
+    margin-bottom: 0; /* Ensure no additional bottom margin */
   }
   
   /* Label styling */
@@ -140,6 +162,10 @@ body {
     color: #333;
     text-decoration: none;
     font-size: 0.9em;
+    display: block;
+    text-align: center;
+    width: 100%;
+    margin: 8px auto 5px; /* Reduced margin from 15px to 8px at the top */
   }
   
   .auth-link:hover {
@@ -149,7 +175,7 @@ body {
   /* Separator ("OR") styling */
   .auth-separator {
     text-align: center;
-    margin: 25px 0;
+    margin: 15px 0; /* Reduced from 25px to 15px to create more even spacing */
     color: #888;
     font-size: 0.9em;
     text-transform: uppercase;

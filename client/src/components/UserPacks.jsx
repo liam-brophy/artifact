@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import apiService from '../services/apiService';
+import ArtworkCard from './ArtworkCard';
 import './UserPacks.css';
 
 function UserPacks() {
@@ -13,6 +14,13 @@ function UserPacks() {
   const [isClaimingPack, setIsClaimingPack] = useState(false); // Tracks if a claim daily pack request is in progress
   const [showDailyPackTimer, setShowDailyPackTimer] = useState(false); // Controls visibility of daily pack timer
   const [timeRemaining, setTimeRemaining] = useState(null); // Tracks countdown for next daily pack
+  
+  // New state variables for animation
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  const [revealingCard, setRevealingCard] = useState(false);
+  const [revealedCards, setRevealedCards] = useState([]);
+  const [allRevealed, setAllRevealed] = useState(false);
+  const [autoRevealActive, setAutoRevealActive] = useState(true); // Track if auto-reveal is active
 
   // useEffect to fetch packs and next pack availability
   useEffect(() => {
@@ -90,6 +98,102 @@ function UserPacks() {
       return () => clearInterval(timer);
     }
   }, [showDailyPackTimer, nextPackInfo]);
+
+  // Reset animation states when opening a new pack
+  useEffect(() => {
+    if (openedPackResult) {
+      setCurrentCardIndex(0);
+      setRevealingCard(false);
+      setRevealedCards([]);
+      setAllRevealed(false);
+    }
+  }, [openedPackResult]);
+
+  // Auto reveal effect - with slower timing
+  useEffect(() => {
+    if (!openedPackResult || !autoRevealActive || allRevealed) return;
+    
+    // If we have cards to reveal and auto-reveal is active
+    if (openedPackResult.artworks_received && 
+        currentCardIndex < openedPackResult.artworks_received.length && 
+        !revealingCard) {
+      
+      // Start revealing the next card with a longer delay between cards
+      const revealTimer = setTimeout(() => {
+        handleRevealNextCard();
+      }, 1500); // Extended delay between cards (1.5 seconds)
+      
+      return () => clearTimeout(revealTimer);
+    }
+  }, [openedPackResult, currentCardIndex, revealingCard, autoRevealActive, allRevealed]);
+
+  // Handle revealing the next card - with slower animation
+  const handleRevealNextCard = () => {
+    if (!openedPackResult?.artworks_received) return;
+    
+    const artworks = openedPackResult.artworks_received;
+    if (currentCardIndex >= artworks.length) return;
+    
+    setRevealingCard(true);
+    
+    // After the reveal animation completes, add the card to revealed cards
+    // Increased from 1500ms to 3000ms for a slower, more graceful animation
+    setTimeout(() => {
+      setRevealedCards(prev => [...prev, artworks[currentCardIndex]]);
+      setRevealingCard(false);
+      setCurrentCardIndex(prev => prev + 1);
+      
+      // Check if all cards are now revealed
+      if (currentCardIndex === artworks.length - 1) {
+        setAllRevealed(true);
+      }
+    }, 3000); // Match this with the animation duration in CSS
+  };
+
+  // Reveal all cards at once
+  const handleRevealAll = () => {
+    if (!openedPackResult?.artworks_received) return;
+    
+    setRevealedCards(openedPackResult.artworks_received);
+    setCurrentCardIndex(openedPackResult.artworks_received.length);
+    setAllRevealed(true);
+  };
+
+  // Skip animation and show all cards immediately
+  const handleSkipAnimation = () => {
+    setAutoRevealActive(false);
+    handleRevealAll();
+  };
+
+  // Create confetti effect for legendary cards
+  const createConfetti = (rarity) => {
+    if (rarity?.toLowerCase() !== 'legendary') return;
+    
+    // Create 50 confetti pieces
+    const confettiContainer = document.createElement('div');
+    confettiContainer.className = 'confetti-container';
+    document.body.appendChild(confettiContainer);
+    
+    const colors = ['#f00', '#0f0', '#00f', '#ff0', '#0ff', '#f0f'];
+    
+    for (let i = 0; i < 50; i++) {
+      const confetti = document.createElement('div');
+      confetti.className = 'confetti';
+      confetti.style.left = `${Math.random() * 100}%`;
+      confetti.style.width = `${Math.random() * 10 + 5}px`;
+      confetti.style.height = `${Math.random() * 10 + 5}px`;
+      confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+      confetti.style.animation = `confetti-fall ${Math.random() * 3 + 2}s linear forwards`;
+      confettiContainer.appendChild(confetti);
+    }
+    
+    // Remove confetti after animation
+    setTimeout(() => {
+      if (confettiContainer && confettiContainer.parentNode) {
+        confettiContainer.parentNode.removeChild(confettiContainer);
+      }
+    }, 5000);
+  };
 
   const handleOpenPack = async (packId, packName) => {
     // console.log(`Attempting to open pack with ID: ${packId}`);
@@ -231,6 +335,7 @@ function UserPacks() {
     const name = packName.toLowerCase();
     if (name.includes('premium')) return 'pack-card premium';
     if (name.includes('daily')) return 'pack-card daily';
+    if (name.includes('artist')) return 'pack-card artist';
     return 'pack-card';
   };
 
@@ -286,6 +391,26 @@ function UserPacks() {
   // Group the packs by type for rendering
   const groupedPacks = groupPacksByType(packs);
 
+  // Component render for a card being revealed with extra styling to ensure proper scaling
+  const renderRevealingCard = (artwork) => {
+    // Check if the current card should trigger a confetti effect
+    const isLegendary = artwork.rarity?.toLowerCase() === 'legendary';
+    
+    if (isLegendary) {
+      createConfetti(artwork.rarity);
+    }
+    
+    return (
+      <div className={`revealing-card ${revealingCard ? 'animate' : ''}`}>
+        <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+          <ArtworkCard artwork={artwork} />
+          {/* Add rarity animation effect */}
+          <div className={`rarity-animation ${getRarityClass(artwork.rarity)}`} />
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="packs-container">
       <h2 className="packs-title">Your Packs</h2>
@@ -315,47 +440,77 @@ function UserPacks() {
       {openedPackResult && (
         <div className="pack-results-overlay">
           <div className="pack-results-content">
-            <div className="pack-results-header">
-              <h2 className="pack-results-title">{openedPackResult.packType || 'Pack'} Opened!</h2>
-              <p>You received the following artwork{openedPackResult.artworks_received?.length !== 1 ? 's' : ''}:</p>
-            </div>
-            
             {openedPackResult.artworks_received && openedPackResult.artworks_received.length > 0 ? (
-              <div className="artwork-grid">
-                {openedPackResult.artworks_received.map(art => (
-                  <div className="artwork-item" key={art.artwork_id}>
-                    <div className="artwork-image-container">
-                      <img 
-                        src={art.image_url} 
-                        alt={art.title} 
-                        className="artwork-image" 
-                        onError={(e) => {
-                          console.error("Failed to load artwork image:", art.image_url);
-                          e.target.src = "https://via.placeholder.com/200x200?text=Image+Not+Available";
+              <div className="dynamic-card-container">
+                {/* Card Reveal Animation Container - Only visible during reveal */}
+                {!allRevealed && (
+                  <>
+                    {/* Stack of unrevealed cards */}
+                    {currentCardIndex < openedPackResult.artworks_received.length && (
+                      <div className="card-stack">
+                        {[...Array(Math.min(3, openedPackResult.artworks_received.length - currentCardIndex))].map((_, i) => (
+                          <div 
+                            key={i} 
+                            className="stack-card" 
+                            style={{ '--index': i }}
+                          ></div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Currently revealing card */}
+                    {revealingCard && currentCardIndex < openedPackResult.artworks_received.length && (
+                      renderRevealingCard(openedPackResult.artworks_received[currentCardIndex])
+                    )}
+                    
+                    {/* Progress indicator */}
+                    <div className="reveal-progress">
+                      <div 
+                        className="reveal-progress-bar" 
+                        style={{ 
+                          width: `${(currentCardIndex / openedPackResult.artworks_received.length) * 100}%` 
                         }}
-                      />
+                      ></div>
                     </div>
-                    <div className="artwork-info">
-                      <h4 className="artwork-title">{art.title || "Untitled Artwork"}</h4>
-                      <p className="artwork-artist">by {art.artist?.username || 'Unknown Artist'}</p>
-                      {art.rarity && (
-                        <span className={`rarity-badge ${getRarityClass(art.rarity)}`}>
-                          {art.rarity}
-                        </span>
-                      )}
+                    
+                    {/* Skip button */}
+                    <button 
+                      className="skip-button"
+                      onClick={handleSkipAnimation}
+                    >
+                      Skip Animation
+                    </button>
+                  </>
+                )}
+                
+                {/* Unified grid for already revealed cards - grows as cards are revealed */}
+                <div className={`revealed-cards-container ${allRevealed ? 'all-revealed' : ''}`}>
+                  {revealedCards.map((artwork, index) => (
+                    <div 
+                      key={artwork.artwork_id} 
+                      className="revealed-card"
+                      style={{ '--index': index }}
+                    >
+                      <ArtworkCard artwork={artwork} />
                     </div>
+                  ))}
+                </div>
+                
+                {/* Action button - only shown when all cards are revealed */}
+                {allRevealed && (
+                  <div className="modal-actions">
+                    <button 
+                      className="close-button" 
+                      onClick={handleCloseResults}
+                    >
+                      Add to Collection
+                    </button>
                   </div>
-                ))}
+                )}
               </div>
             ) : (
               <p className="no-artworks-message">No artworks were found in this pack.</p>
             )}
-            
-            <div className="modal-actions">
-              <button className="close-button" onClick={handleCloseResults}>
-                Add to Collection
-              </button>
-            </div>
           </div>
         </div>
       )}
@@ -406,7 +561,7 @@ function UserPacks() {
               <li key={packGroup.name} className="pack-list-item">
                 {/* Count badge as independent element */}
                 {packGroup.count > 1 && (
-                  <div className={`pack-count-badge ${getPackCardClass(packGroup.name).includes('premium') ? 'premium' : getPackCardClass(packGroup.name).includes('daily') ? 'daily' : ''}`} data-count={packGroup.count > 10 ? "10+" : packGroup.count}>
+                  <div className="pack-count-badge" data-count={packGroup.count > 10 ? "10+" : packGroup.count}>
                     <span>{packGroup.count}</span>
                   </div>
                 )}

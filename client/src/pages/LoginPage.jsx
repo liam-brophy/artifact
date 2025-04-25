@@ -7,6 +7,8 @@ import * as Yup from 'yup';
 import toast from 'react-hot-toast';
 import { TextField, InputAdornment, IconButton } from '@mui/material'; // Import MUI components
 import { Visibility, VisibilityOff } from '@mui/icons-material'; // Import MUI icons
+// Import the logo directly
+import logoImage from '../assets/Artifact_Logo_Black.png';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
@@ -191,7 +193,9 @@ function LoginPage() {
     return (
         <div className="auth-page">
             <div className="auth-container">
-                <h5 className="auth-title">Login to your account</h5>
+                <div className="auth-logo-container">
+                    <img src={logoImage} alt="Artifact Logo" className="auth-logo" />
+                </div>
 
                 <Formik
                     initialValues={{ identifier: '', password: '' }}
@@ -201,7 +205,6 @@ function LoginPage() {
                     {({ isSubmitting, errors, touched, values, handleChange, handleBlur }) => (
                         <Form className="auth-form">
                             <div className="form-group">
-                                <label htmlFor="identifier" className="form-label">Username or Email</label>
                                 <Field 
                                     type="text" 
                                     name="identifier" 
@@ -217,7 +220,7 @@ function LoginPage() {
                                 <TextField
                                     fullWidth
                                     variant="outlined" // Or "filled", "standard"
-                                    margin="normal" // Adds some margin
+                                    margin="dense" // Changed from "normal" to "dense" for tighter spacing
                                     id="password"
                                     name="password"
                                     label="Password"
@@ -244,7 +247,7 @@ function LoginPage() {
                                     }}
                                     // Apply some basic styling or use sx prop if needed
                                     // className={`form-input ${touched.password && errors.password ? 'is-invalid' : ''}`} // Can remove or adapt if using MUI styles primarily
-                                    sx={{ mt: 1, mb: 1 }} // Example spacing using sx prop
+                                    sx={{ mt: 0, mb: 1 }} // Reduced top margin from 1 to 0
                                 />
                                 {/* Formik's ErrorMessage is handled by TextField's helperText */}
                             </div>

@@ -53,12 +53,12 @@ const ColorPickerField = ({
   };
 
   return (
-    <div>
-      <label className="form-label" htmlFor={name}>
+    <div style={{ width: '100%' }}>
+      <label className="form-label" htmlFor={name} style={{ display: 'block', textAlign: 'center', marginBottom: '8px' }}>
         {label}
       </label>
       
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '5px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '5px' }}>
         <input
           type="color"
           id={name}
@@ -68,21 +68,20 @@ const ColorPickerField = ({
           onBlur={onBlur}
           disabled={disabled}
           style={{ 
-            width: '60px', 
+            width: '100%', 
             height: '40px', 
-            border: 'none',
+            border: '1px solid #ccc',
             borderRadius: '4px',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            backgroundColor: 'transparent', /* Make background transparent */
+            appearance: 'none', /* Remove default appearance */
+            overflow: 'hidden' /* Hide any overflow */
           }}
         />
-        
-        <span>
-          {color.toUpperCase()}
-        </span>
       </div>
       
       {touched && error && (
-        <div className="error-message validation-error">{error}</div>
+        <div className="error-message validation-error" style={{ textAlign: 'center' }}>{error}</div>
       )}
     </div>
   );

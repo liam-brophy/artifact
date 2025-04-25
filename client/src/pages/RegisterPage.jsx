@@ -9,6 +9,8 @@ import ColorPickerField from '../components/ColorPickerField';
 // Import MUI components
 import { TextField, InputAdornment, IconButton, Select, MenuItem, FormControl, InputLabel, FormHelperText } from '@mui/material'; 
 import { Visibility, VisibilityOff } from '@mui/icons-material'; // Import MUI icons
+// Import the logo directly
+import logoImage from '../assets/Artifact_Logo_Black.png';
 
 // --- Constants ---
 const ROLES = { PATRON: 'patron', ARTIST: 'artist' };
@@ -154,8 +156,10 @@ function RegisterPage() {
   return (
     <div className="auth-page">
       <div className="auth-container">
-        <h3 className="auth-title">Create your account</h3>
-
+        <div className="auth-logo-container">
+          <img src={logoImage} alt="Artifact Logo" className="auth-logo" />
+        </div>
+        
         <Formik
           initialValues={{ 
             username: '', 
@@ -172,7 +176,7 @@ function RegisterPage() {
           {({ isSubmitting, errors, touched, setFieldValue, values, handleChange, handleBlur }) => (
             <Form className="auth-form">
               {/* Role Selection - Using MUI Select */}
-              <FormControl fullWidth margin="normal" error={touched.role && Boolean(errors.role)} disabled={isSubmitting || googleLoading}>
+              <FormControl fullWidth margin="dense" error={touched.role && Boolean(errors.role)} disabled={isSubmitting || googleLoading}>
                 <InputLabel id="role-select-label">Register As</InputLabel>
                 <Select
                   labelId="role-select-label"
@@ -196,7 +200,7 @@ function RegisterPage() {
               {/* Username - Using MUI TextField */}
               <TextField
                 fullWidth
-                margin="normal"
+                margin="dense" // Changed from "normal" to "dense" for tighter spacing
                 id="username"
                 name="username"
                 label="Username"
@@ -212,7 +216,7 @@ function RegisterPage() {
               {/* Email - Using MUI TextField */}
               <TextField
                 fullWidth
-                margin="normal"
+                margin="dense" // Changed from "normal" to "dense" for tighter spacing
                 id="email"
                 name="email"
                 label="Email"
@@ -229,7 +233,7 @@ function RegisterPage() {
               {/* Password - Using MUI TextField with visibility toggle */}
               <TextField
                 fullWidth
-                margin="normal"
+                margin="dense" // Changed from "normal" to "dense" for tighter spacing
                 id="password"
                 name="password"
                 label="Password"
@@ -260,7 +264,7 @@ function RegisterPage() {
               {/* Confirm Password - Using MUI TextField with visibility toggle */}
               <TextField
                 fullWidth
-                margin="normal"
+                margin="dense"
                 id="confirmPassword"
                 name="confirmPassword"
                 label="Confirm Password"
@@ -289,10 +293,10 @@ function RegisterPage() {
               />
 
               {/* Favorite Color Selection */}
-              <div className="form-group">
+              <div className="form-group" style={{ textAlign: 'center' }}>
                 <ColorPickerField
                   name="favorite_color"
-                  label="Choose Your Favorite Color"
+                  label="What's your favorite color?"
                   value={values.favorite_color}
                   onChange={handleChange}
                   onBlur={handleBlur}
