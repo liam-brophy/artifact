@@ -127,7 +127,7 @@ function UserPacks() {
     }
   }, [openedPackResult, currentCardIndex, revealingCard, autoRevealActive, allRevealed]);
 
-  // Handle revealing the next card - with slower animation
+  // Handle revealing the next card - with revised animation flow to use waiting area
   const handleRevealNextCard = () => {
     if (!openedPackResult?.artworks_received) return;
     
@@ -136,8 +136,7 @@ function UserPacks() {
     
     setRevealingCard(true);
     
-    // After the reveal animation completes, add the card to revealed cards
-    // Increased from 1500ms to 3000ms for a slower, more graceful animation
+    // After the reveal animation completes, add the card to revealed cards waiting area
     setTimeout(() => {
       setRevealedCards(prev => [...prev, artworks[currentCardIndex]]);
       setRevealingCard(false);

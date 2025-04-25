@@ -52,6 +52,7 @@ function ProfilePage() {
     const [isLoadingProfile, setIsLoadingProfile] = useState(true);
     const [profileLoadError, setProfileLoadError] = useState(null); // For specific profile load failure msg
     const [isFollowing, setIsFollowing] = useState(false);
+    const [isLoadingFollowAction, setIsLoadingFollowAction] = useState(false); // Add loading state for follow action
 
     // Tab State
     const [activeTab, setActiveTab] = useState(0);
@@ -351,6 +352,49 @@ function ProfilePage() {
     }, [profileUser?.user_id, profileUser?.role, createdArtworksPage, profileLoadError]);
 
     // --- Fetch Collected Artworks ---
+    const fetchCollectedArtworks = useCallback(async (page) => {
+        if (!profileUser?.user_id) return;
+        
+        setIsLoadingCollectedArtworks(true);
+        try {
+            const endpoint = `/users/${profileUser.user_id}/collected-artworks`;
+            const response = await apiService.get(endpoint, { params: { page } });
+            
+            const artworksData = response.data.collectedArtworks?.map(item => item.artwork).filter(art => art != null) || [];
+            setCollectedArtworks(artworksData);
+
+            if (response.data.pagination) {
+                setCollectedArtworksPagination(response.data.pagination);
+            } else {
+                // Reset or provide default if backend doesn't return pagination
+                setCollectedArtworksPagination({ 
+                    totalItems: artworksData.length, 
+                    totalPages: 1, 
+                    currentPage: 1, 
+                    perPage: artworksData.length || 12, 
+                    hasNext: false, 
+                    hasPrev: false 
+                });
+            }
+        } catch (err) {
+            // Handle 403 errors gracefully - this happens when viewing collections of users we don't follow
+            if (err.response?.status === 403) {
+                console.log(`User doesn't have permission to view ${profileUser.username}'s collection. Need to follow first.`);
+                // Don't show an error toast for this expected scenario
+            } else {
+                // Interceptor will show toast error for other errors. Component logs it.
+                console.error(`ProfilePage: Failed to fetch collected artworks:`, err);
+            }
+            setCollectedArtworks([]);
+            setCollectedArtworksPagination({ 
+                totalPages: 1, currentPage: 1, perPage: 12, totalItems: 0, hasNext: false, hasPrev: false 
+            }); // Reset pagination
+        } finally {
+            setIsLoadingCollectedArtworks(false);
+        }
+    }, [profileUser]);
+
+    // --- Fetch Collected Artworks Effect ---
     useEffect(() => {
         // Don't fetch if profile hasn't loaded or failed specifically
         // Only fetch if viewing own profile (regardless of role) or if viewing artist profile (to show their collection)
@@ -360,65 +404,47 @@ function ProfilePage() {
             return;
         }
 
-        const fetchCollectedArtworks = async (page) => {
-            setIsLoadingCollectedArtworks(true);
-            try {
-                const endpoint = `/users/${profileUser.user_id}/collected-artworks`;
-                const response = await apiService.get(endpoint, { params: { page } });
-                
-                const artworksData = response.data.collectedArtworks?.map(item => item.artwork).filter(art => art != null) || [];
-                setCollectedArtworks(artworksData);
-
-                if (response.data.pagination) {
-                    setCollectedArtworksPagination(response.data.pagination);
-                } else {
-                    // Reset or provide default if backend doesn't return pagination
-                    setCollectedArtworksPagination({ 
-                        totalItems: artworksData.length, 
-                        totalPages: 1, 
-                        currentPage: 1, 
-                        perPage: artworksData.length || 12, 
-                        hasNext: false, 
-                        hasPrev: false 
-                    });
-                }
-            } catch (err) {
-                // Interceptor will show toast error. Component logs it.
-                console.error(`ProfilePage: Failed to fetch collected artworks:`, err);
-                setCollectedArtworks([]);
-                setCollectedArtworksPagination({ 
-                    totalPages: 1, currentPage: 1, perPage: 12, totalItems: 0, hasNext: false, hasPrev: false 
-                }); // Reset pagination
-            } finally {
-                setIsLoadingCollectedArtworks(false);
-            }
-        };
-
         fetchCollectedArtworks(collectedArtworksPage);
-    }, [profileUser?.user_id, profileUser?.role, isOwnProfile, collectedArtworksPage, profileLoadError]);
+    }, [profileUser?.user_id, profileUser?.role, isOwnProfile, collectedArtworksPage, profileLoadError, fetchCollectedArtworks]);
 
     // --- Follow/Unfollow Handler ---
     const handleFollowAction = async () => {
+        if (!profileUser?.user_id) return;
+        
         setIsLoadingFollowAction(true);
         
         try {
             if (isFollowing) {
-                // Unfollow
-                await apiService.delete(`/users/${userId}/followers`);
+                // Unfollow - Use the correct "/follow" endpoint instead of "/followers"
+                await apiService.delete(`/users/${profileUser.user_id}/follow`);
                 setIsFollowing(false);
-                setFollowerCount(prev => prev - 1);
-                toast.success(`Unfollowed ${username}`);
+                toast.success(`Unfollowed ${profileUser.username}`);
             } else {
-                // Follow
-                await apiService.post(`/users/${userId}/followers`);
+                // Follow - Use the correct "/follow" endpoint instead of "/followers"
+                await apiService.post(`/users/${profileUser.user_id}/follow`);
                 setIsFollowing(true);
-                setFollowerCount(prev => prev + 1);
-                toast.success(`Following ${username}`);
+                
+                // Update followers count immediately (without waiting for a page refresh)
+                if (profileUser.followers_count !== undefined) {
+                    setProfileUser(prev => ({
+                        ...prev,
+                        followers_count: prev.followers_count + 1
+                    }));
+                }
+                
+                toast.success(`Following ${profileUser.username}`);
+            }
+            
+            // Refresh the collected artworks since follow status affects visibility
+            if (collectedArtworksPage === 1) {
+                fetchCollectedArtworks(1);
+            } else {
+                setCollectedArtworksPage(1);
             }
         } catch (err) {
             console.error("Follow/unfollow error:", err);
             const action = isFollowing ? 'unfollow' : 'follow';
-            toast.error(`Unable to ${action} ${username}. Please try again.`);
+            toast.error(`Unable to ${action} ${profileUser.username}. Please try again.`);
         } finally {
             setIsLoadingFollowAction(false);
         }
