@@ -200,11 +200,9 @@ function AppWrapper() {
   }, []);
 
   return (
-    <AuthProvider>
-      <ThemeProvider>
-        <App />
-      </ThemeProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <App />
+    </ThemeProvider>
   );
 }
 

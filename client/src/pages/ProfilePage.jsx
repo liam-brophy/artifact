@@ -28,6 +28,8 @@ import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
 import Avatar from '@mui/material/Avatar';
 import ListItemAvatar from '@mui/material/ListItemAvatar';
+import Chip from '@mui/material/Chip'; // Import Chip
+import { styled } from '@mui/material/styles';
 
 // Icons
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -41,6 +43,57 @@ import TradeOfferDialog from '../components/TradeOfferDialog';
 
 // Import the CSS file
 import './ProfilePage.css'; // Ensure you have this file
+
+// Create custom styled buttons with exact colors
+const PendingButton = styled(Button)(({ theme, isActive }) => ({
+  marginRight: '8px',
+  color: isActive ? 'white' : '#6B7280',
+  backgroundColor: isActive ? '#6B7280' : 'transparent',
+  borderColor: '#6B7280',
+  mixBlendMode: 'normal', // Override global mix-blend-mode
+  '&:hover': {
+    backgroundColor: isActive ? '#4B5563' : 'rgba(107, 114, 128, 0.04)',
+  },
+}));
+
+const AcceptedButton = styled(Button)(({ theme, isActive }) => ({
+  marginRight: '8px',
+  color: isActive ? 'white' : '#10B981', // Teal
+  backgroundColor: isActive ? '#10B981' : 'transparent',
+  borderColor: '#10B981',
+  mixBlendMode: 'normal', // Override global mix-blend-mode
+  '&:hover': {
+    backgroundColor: isActive ? '#059669' : 'rgba(16, 185, 129, 0.04)',
+  },
+}));
+
+const RejectedButton = styled(Button)(({ theme, isActive }) => ({
+  color: isActive ? 'white' : '#EF4444', // Red
+  backgroundColor: isActive ? '#EF4444' : 'transparent',
+  borderColor: '#EF4444',
+  mixBlendMode: 'normal', // Override global mix-blend-mode
+  '&:hover': {
+    backgroundColor: isActive ? '#DC2626' : 'rgba(239, 68, 68, 0.04)',
+  },
+}));
+
+// Helper function to safely format date strings with logging
+const formatDate = (dateString) => {
+    // Check if the input is a non-empty string
+    if (typeof dateString === 'string' && dateString.length > 0) {
+        const date = new Date(dateString);
+        // Check if the resulting Date object is valid
+        if (!isNaN(date.getTime())) {
+            return date.toLocaleString();
+        } else {
+            console.warn('formatDate: Failed to parse date string:', dateString);
+            return 'Invalid date format'; // More specific fallback
+        }
+    } else {
+        console.warn('formatDate: Received invalid input (not a non-empty string):', dateString);
+        return 'Date unavailable'; // Fallback for non-string or empty string
+    }
+};
 
 function ProfilePage() {
     const { username } = useParams();
@@ -504,9 +557,24 @@ function ProfilePage() {
         ...(shouldShowCollectedArtworks ? [{ label: isOwnProfile ? 'My Collected Artworks' : `${profileUser.username}'s Collection` }] : [])
     ];
 
-    return (
-        <div className="profile-page-container"> {/* Main container */}
+    // Helper function to get chip color based on status
+    const getStatusChipColor = (status) => {
+        const lowerStatus = status?.toLowerCase();
+        if (lowerStatus === 'accepted') {
+            // Override for Accepted - Force Teal Green
+            return { color: 'success', style: { backgroundColor: '#10B981', color: '#FFFFFF' } };
+        }
+        if (lowerStatus === 'rejected') {
+            // Override for Rejected - Force Red
+            return { color: 'error', style: { backgroundColor: '#EF4444', color: '#FFFFFF' } };
+        }
+        if (lowerStatus === 'canceled') return { color: 'default', style: {} };
+        if (lowerStatus === 'pending') return { color: 'primary', style: {} };
+        return { color: 'default', style: {} };
+    };
 
+    return (
+        <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
             {/* Profile Header Section */}
             <section className="profile-header">
                 <div className="profile-info">
@@ -818,148 +886,144 @@ function ProfilePage() {
 
                             {!isLoadingReceivedTrades && receivedTrades.length > 0 && (
                                 <>
-                                    <Typography variant="h6" sx={{ mb: 2 }}>Trade Offers Received</Typography>
                                     <Box sx={{ mb: 2 }}>
-                                        <strong>Filter:</strong> 
-                                        <Button 
-                                            variant={!receivedTrades.filter || receivedTrades.filter === 'all' ? "contained" : "outlined"}
-                                            size="small"
-                                            onClick={() => setReceivedTradesFilter('all')}
-                                            sx={{ ml: 1, mr: 1 }}
-                                        >
-                                            All
-                                        </Button>
-                                        <Button 
-                                            variant={receivedTradesFilter === 'pending' ? "contained" : "outlined"}
+                                        {/* Use the pre-defined styled components with capitalized labels */}
+                                        <PendingButton 
                                             size="small"
                                             onClick={() => setReceivedTradesFilter('pending')}
-                                            sx={{ mr: 1 }}
-                                            color="primary"
+                                            isActive={receivedTradesFilter === 'pending'}
                                         >
-                                            Pending
-                                        </Button>
-                                        {/* Replace Completed with Accepted */}
-                                        <Button 
-                                            variant={receivedTradesFilter === 'accepted' ? "contained" : "outlined"} // Check for 'accepted'
+                                            PENDING
+                                        </PendingButton>
+                                        <AcceptedButton 
                                             size="small"
-                                            onClick={() => setReceivedTradesFilter('accepted')} // Set state to 'accepted'
-                                            sx={{ mr: 1 }}
-                                            color="success"
+                                            onClick={() => setReceivedTradesFilter('accepted')}
+                                            isActive={receivedTradesFilter === 'accepted'}
                                         >
-                                            Accepted 
-                                        </Button>
-                                        <Button 
-                                            variant={receivedTradesFilter === 'rejected' ? "contained" : "outlined"} // Ensure lowercase state check
+                                            ACCEPTED
+                                        </AcceptedButton>
+                                        <RejectedButton 
                                             size="small"
-                                            onClick={() => setReceivedTradesFilter('rejected')} // Ensure lowercase onClick
-                                            color="error"
+                                            onClick={() => setReceivedTradesFilter('rejected')}
+                                            isActive={receivedTradesFilter === 'rejected'}
                                         >
-                                            Rejected
-                                        </Button>
+                                            REJECTED
+                                        </RejectedButton>
                                     </Box>
-
-                                    {/* Apply filter before mapping - Case-insensitive comparison */}
+                                    
+                                    {/* Apply glass effect to the container of each TradeCard */}
                                     {receivedTrades
-                                        .filter(trade => 
-                                            receivedTradesFilter === 'all' || 
+                                        .filter(trade =>
+                                            receivedTradesFilter === 'all' ||
                                             (trade.status && trade.status.toLowerCase() === receivedTradesFilter)
                                         )
                                         .map((trade) => {
-                                            // Add this console log to inspect the trade object
-                                            // console.log('Rendering received trade:', trade); 
+                                            // Log the raw created_at value
+                                            console.log('Incoming Trade created_at:', trade.created_at);
+                                            
                                             return (
-                                                <Box 
-                                                    key={trade.trade_id} 
-                                                    sx={{ 
-                                                        mb: 3, 
-                                                        p: 2, 
+                                                <Box
+                                                    key={trade.trade_id}
+                                                    sx={{
+                                                        mb: 3,
+                                                        p: 2,
                                                         border: '1px solid',
-                                                        borderColor: 
-                                                            trade.status === 'accepted' ? 'success.main' : 
-                                                            trade.status === 'rejected' ? 'error.main' : 
-                                                            trade.status === 'canceled' ? 'text.disabled' : 
-                                                            'grey.300',
-                                                        borderRadius: 1,
-                                                        backgroundColor: 'background.paper',
-                                                        boxShadow: 1
+                                                        borderColor:
+                                                            trade.status?.toLowerCase() === 'accepted' ? 'success.main' : // Use success
+                                                            trade.status?.toLowerCase() === 'rejected' ? 'error.main' :   // Use error
+                                                            trade.status?.toLowerCase() === 'canceled' ? 'text.disabled' :
+                                                            trade.status?.toLowerCase() === 'pending' ? 'primary.main' : // Use primary
+                                                            'rgba(255, 255, 255, 0.2)', // Lighter border for glass
+                                                        borderRadius: 2, // Slightly more rounded
+                                                        backgroundColor: 'rgba(255, 255, 255, 0.05)', // Transparent background
+                                                        backdropFilter: 'blur(8px)', // Glass effect
+                                                        boxShadow: '0 4px 12px rgba(0,0,0,0.3)', // Adjusted shadow
                                                     }}
                                                 >
                                                     <Grid container spacing={2}>
                                                         {/* Trade information */}
                                                         <Grid item xs={12}>
-                                                            <Typography variant="subtitle1" fontWeight="bold">
-                                                                Trade from: {trade.initiator_username}
-                                                                {trade.status !== 'pending' && (
-                                                                    <span className={`trade-status ${trade.status}`}>
-                                                                        ({trade.status})
-                                                                    </span>
-                                                                )}
+                                                            <Typography variant="subtitle1" fontWeight="bold" sx={{ color: 'text.primary', mb: 0.5 }}> {/* Add margin bottom */}
+                                                                {/* Display username directly */}
+                                                                {trade.initiator?.username || 'Unknown User'} 
                                                             </Typography>
-                                                            <Typography variant="body2" color="text.secondary">
-                                                                {new Date(trade.created_at).toLocaleString()}
+                                                            {/* Status Chip below username */}
+                                                            {trade.status && (
+                                                                <Chip
+                                                                    label={trade.status}
+                                                                    color={getStatusChipColor(trade.status).color} // Use updated function
+                                                                    size="small"
+                                                                    sx={{ mb: 1, ...getStatusChipColor(trade.status).style }} // Add margin bottom
+                                                                />
+                                                            )}
+                                                            {/* Date - Use helper function */}
+                                                            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
+                                                                {formatDate(trade.created_at)}
                                                             </Typography>
+                                                            
+                                                            {/* Trade actions - Position directly below the date */}
+                                                            {trade.status?.toLowerCase() === 'pending' && (
+                                                                <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 1 }}>
+                                                                    <Stack direction="row" spacing={1}>
+                                                                        <Tooltip title="Accept Trade">
+                                                                            <IconButton
+                                                                                color="success"
+                                                                                onClick={() => handleAcceptTrade(trade.trade_id)}
+                                                                                size="small"
+                                                                                aria-label="Accept Trade"
+                                                                            >
+                                                                                <CheckCircleOutlineIcon />
+                                                                            </IconButton>
+                                                                        </Tooltip>
+                                                                        <Tooltip title="Reject Trade">
+                                                                            <IconButton
+                                                                                color="error"
+                                                                                onClick={() => handleRejectTrade(trade.trade_id)}
+                                                                                size="small"
+                                                                                aria-label="Reject Trade"
+                                                                            >
+                                                                                <CancelIcon />
+                                                                            </IconButton>
+                                                                        </Tooltip>
+                                                                    </Stack>
+                                                                </Box>
+                                                            )}
+                                                            
                                                             {trade.message && (
-                                                                <Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic', p: 1, backgroundColor: 'grey.100', borderRadius: 1 }}>
+                                                                <Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic', p: 1, backgroundColor: 'rgba(0, 0, 0, 0.2)', borderRadius: 1, color: 'text.primary' }}>
                                                                     "{trade.message}"
                                                                 </Typography>
                                                             )}
                                                         </Grid>
 
-                                                        {/* Artworks involved */}
+                                                        {/* Artworks involved - Use theme text colors */}
                                                         <Grid item xs={12} container spacing={2}>
-                                                            {/* Their offer */}
-                                                            <Grid item xs={12} sm={6}>
-                                                                <Typography variant="subtitle2">They offer:</Typography>
+                                                            {/* Their offer - Move label below card, make caps */}
+                                                            <Grid item xs={12} sm={6} sx={{ textAlign: 'center' }}> {/* Remove position: relative */}
                                                                 {trade.offered_artwork ? (
                                                                     <ArtworkCard 
                                                                         artwork={trade.offered_artwork} 
-                                                                        isBlurred={false} // Don't blur in trade view
-                                                                        // Add any other relevant props if needed
+                                                                        isBlurred={false} 
                                                                     />
                                                                 ) : (
-                                                                    <Typography>Artwork details unavailable</Typography>
+                                                                    <Typography sx={{ color: 'text.primary', height: '450px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Artwork details unavailable</Typography> // Placeholder with height
                                                                 )}
+                                                                <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic', display: 'block', mt: 0.5, textTransform: 'uppercase' }}>They offer</Typography> {/* Label below, italicized, CAPS */}
                                                             </Grid>
-                                                            {/* Your artwork */}
-                                                            <Grid item xs={12} sm={6}>
-                                                                <Typography variant="subtitle2">They want:</Typography>
+                                                            {/* Your artwork - Move label below card, make caps */}
+                                                            <Grid item xs={12} sm={6} sx={{ textAlign: 'center' }}> {/* Center align content */}
                                                                 {trade.requested_artwork ? (
                                                                     <ArtworkCard 
                                                                         artwork={trade.requested_artwork} 
-                                                                        isBlurred={false} // Don't blur in trade view
-                                                                        // Add any other relevant props if needed
+                                                                        isBlurred={false} 
                                                                     />
                                                                 ) : (
-                                                                    <Typography>Artwork details unavailable</Typography>
+                                                                    <Typography sx={{ color: 'text.primary', height: '450px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Artwork details unavailable</Typography> // Placeholder with height
                                                                 )}
+                                                                <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic', display: 'block', mt: 0.5, textTransform: 'uppercase' }}>They want</Typography> {/* Label below, italicized, CAPS */}
                                                             </Grid>
                                                         </Grid>
-
-                                                        {/* Trade actions - Check against uppercase PENDING */}
-                                                        {trade.status === 'PENDING' && (
-                                                            <Grid item xs={12} container spacing={1} justifyContent="center">
-                                                                <Grid item>
-                                                                    <Button 
-                                                                        variant="contained" 
-                                                                        color="success" 
-                                                                        startIcon={<CheckCircleOutlineIcon />}
-                                                                        onClick={() => handleAcceptTrade(trade.trade_id)}
-                                                                    >
-                                                                        Accept Trade
-                                                                    </Button>
-                                                                </Grid>
-                                                                <Grid item>
-                                                                    <Button 
-                                                                        variant="outlined" 
-                                                                        color="error" 
-                                                                        startIcon={<CancelIcon />}
-                                                                        onClick={() => handleRejectTrade(trade.trade_id)}
-                                                                    >
-                                                                        Reject
-                                                                    </Button>
-                                                                </Grid>
-                                                            </Grid>
-                                                        )}
+                                                        
                                                     </Grid>
                                                 </Box>
                                             );
@@ -984,137 +1048,143 @@ function ProfilePage() {
 
                             {!isLoadingSentTrades && sentTrades.length > 0 && (
                                 <>
-                                    <Typography variant="h6" sx={{ mb: 2 }}>Trade Offers Sent</Typography>
                                     <Box sx={{ mb: 2 }}>
-                                        <strong>Filter:</strong> 
-                                        <Button 
-                                            variant={!sentTrades.filter || sentTrades.filter === 'all' ? "contained" : "outlined"}
-                                            size="small"
-                                            onClick={() => setSentTradesFilter('all')}
-                                            sx={{ ml: 1, mr: 1 }}
-                                        >
-                                            All
-                                        </Button>
-                                        <Button 
-                                            variant={sentTradesFilter === 'pending' ? "contained" : "outlined"}
+                                        {/* Use the pre-defined styled components with capitalized labels */}
+                                        <PendingButton 
                                             size="small"
                                             onClick={() => setSentTradesFilter('pending')}
-                                            sx={{ mr: 1 }}
-                                            color="primary"
+                                            isActive={sentTradesFilter === 'pending'}
                                         >
-                                            Pending
-                                        </Button>
-                                        {/* Replace Completed with Accepted */}
-                                        <Button 
-                                            variant={sentTradesFilter === 'accepted' ? "contained" : "outlined"} // Check for 'accepted'
+                                            PENDING
+                                        </PendingButton>
+                                        <AcceptedButton 
                                             size="small"
-                                            onClick={() => setSentTradesFilter('accepted')} // Set state to 'accepted'
-                                            sx={{ mr: 1 }}
-                                            color="success"
+                                            onClick={() => setSentTradesFilter('accepted')}
+                                            isActive={sentTradesFilter === 'accepted'}
                                         >
-                                            Accepted
-                                        </Button>
-                                        <Button 
-                                            variant={sentTradesFilter === 'rejected' ? "contained" : "outlined"} // Ensure lowercase state check
+                                            ACCEPTED
+                                        </AcceptedButton>
+                                        <RejectedButton 
                                             size="small"
-                                            onClick={() => setSentTradesFilter('rejected')} // Ensure lowercase onClick
-                                            color="error"
+                                            onClick={() => setSentTradesFilter('rejected')}
+                                            isActive={sentTradesFilter === 'rejected'}
                                         >
-                                            Rejected
-                                        </Button>
+                                            REJECTED
+                                        </RejectedButton>
                                     </Box>
-
-                                    {sentTrades.map((trade) => (
-                                        <Box 
-                                            key={trade.trade_id} 
-                                            sx={{ 
-                                                mb: 3, 
-                                                p: 2, 
-                                                border: '1px solid',
-                                                borderColor: 
-                                                    trade.status === 'accepted' ? 'success.main' : 
-                                                    trade.status === 'rejected' ? 'error.main' : 
-                                                    trade.status === 'canceled' ? 'text.disabled' : 
-                                                    'grey.300',
-                                                borderRadius: 1,
-                                                backgroundColor: 'background.paper',
-                                                boxShadow: 1
-                                            }}
-                                        >
-                                            <Grid container spacing={2}>
-                                                {/* Trade information */}
-                                                <Grid item xs={12}>
-                                                    <Typography variant="subtitle1" fontWeight="bold">
-                                                        Trade to: {trade.recipient_username}
-                                                        {trade.status !== 'pending' && (
-                                                            <span className={`trade-status ${trade.status}`}>
-                                                                ({trade.status})
-                                                            </span>
-                                                        )}
-                                                    </Typography>
-                                                    <Typography variant="body2" color="text.secondary">
-                                                        {new Date(trade.created_at).toLocaleString()}
-                                                    </Typography>
-                                                    {trade.message && (
-                                                        <Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic', p: 1, backgroundColor: 'grey.100', borderRadius: 1 }}>
-                                                            "{trade.message}"
+                                    
+                                    {/* Apply glass effect to the container of each sent trade */}
+                                    {sentTrades
+                                        .filter(trade => 
+                                            sentTradesFilter === 'all' || 
+                                            (trade.status && trade.status.toLowerCase() === sentTradesFilter)
+                                        )
+                                        .map((trade) => {
+                                            // Log the raw created_at value
+                                            console.log('Outgoing Trade created_at:', trade.created_at);
+                                            
+                                            return (
+                                            <Box 
+                                                key={trade.trade_id} 
+                                                sx={{ 
+                                                    mb: 3, 
+                                                    p: 2, 
+                                                    border: '1px solid', 
+                                                    borderColor: 
+                                                        trade.status?.toLowerCase() === 'accepted' ? 'success.main' : // Use success
+                                                        trade.status?.toLowerCase() === 'rejected' ? 'error.main' :   // Use error
+                                                        trade.status?.toLowerCase() === 'canceled' ? 'text.disabled' :
+                                                        trade.status?.toLowerCase() === 'pending' ? 'primary.main' : // Use primary
+                                                        'rgba(255, 255, 255, 0.2)', // Lighter border for glass
+                                                    borderRadius: 2, // Slightly more rounded
+                                                    backgroundColor: 'rgba(255, 255, 255, 0.05)', // Transparent background
+                                                    backdropFilter: 'blur(8px)', // Glass effect
+                                                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)', // Adjusted shadow
+                                                }}
+                                            >
+                                                <Grid container spacing={2}>
+                                                    {/* Trade information - Access nested username */}
+                                                    <Grid item xs={12}>
+                                                        <Typography variant="subtitle1" fontWeight="bold" sx={{ color: 'text.primary', mb: 0.5 }}> {/* Add margin bottom */}
+                                                            {/* Display username directly */}
+                                                            {trade.recipient?.username || 'Unknown User'} 
                                                         </Typography>
-                                                    )}
-                                                </Grid>
-
-                                                {/* Artworks involved */}
-                                                <Grid item xs={12} container spacing={2}>
-                                                    {/* Your offer */}
-                                                    <Grid item xs={12} sm={6}>
-                                                        <Typography variant="subtitle2">You offer:</Typography>
-                                                        {trade.offered_artwork ? (
-                                                            <ArtworkCard 
-                                                                artwork={trade.offered_artwork} 
-                                                                isBlurred={false} 
+                                                        {/* Status Chip below username */}
+                                                        {trade.status && (
+                                                            <Chip
+                                                                label={trade.status}
+                                                                color={getStatusChipColor(trade.status).color} // Use updated function
+                                                                size="small"
+                                                                sx={{ mb: 1, ...getStatusChipColor(trade.status).style }} // Add margin bottom
                                                             />
-                                                        ) : (
-                                                            <Typography>Artwork details unavailable</Typography>
+                                                        )}
+                                                        {/* Date - Use helper function */}
+                                                        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
+                                                            {formatDate(trade.created_at)}
+                                                        </Typography>
+                                                        
+                                                        {/* Trade action - Position directly below the date */}
+                                                        {trade.status?.toLowerCase() === 'pending' && (
+                                                            <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 1 }}>
+                                                                <Tooltip title="Cancel Trade">
+                                                                    <IconButton
+                                                                        color="error"
+                                                                        onClick={() => handleCancelTrade(trade.trade_id)}
+                                                                        size="small"
+                                                                        aria-label="Cancel Trade"
+                                                                    >
+                                                                        <CancelIcon />
+                                                                    </IconButton>
+                                                                </Tooltip>
+                                                            </Box>
+                                                        )}
+                                                        
+                                                        {trade.message && (
+                                                            <Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic', p: 1, backgroundColor: 'rgba(0, 0, 0, 0.2)', borderRadius: 1, color: 'text.primary' }}>
+                                                                "{trade.message}"
+                                                            </Typography>
                                                         )}
                                                     </Grid>
-                                                    {/* Their artwork */}
-                                                    <Grid item xs={12} sm={6}>
-                                                        <Typography variant="subtitle2">You want:</Typography>
-                                                        {trade.requested_artwork ? (
-                                                            <ArtworkCard 
-                                                                artwork={trade.requested_artwork} 
-                                                                isBlurred={false} 
-                                                            />
-                                                        ) : (
-                                                            <Typography>Artwork details unavailable</Typography>
-                                                        )}
-                                                    </Grid>
-                                                </Grid>
 
-                                                {/* Trade actions - Check against uppercase PENDING */}
-                                                {trade.status === 'PENDING' && (
-                                                    <Grid item xs={12} container spacing={1} justifyContent="center">
-                                                        <Grid item>
-                                                            <Button 
-                                                                variant="outlined" 
-                                                                color="warning" 
-                                                                startIcon={<CancelIcon />}
-                                                                onClick={() => handleCancelTrade(trade.trade_id)}
-                                                            >
-                                                                Cancel Trade
-                                                            </Button>
+                                                    {/* Artworks involved - Use theme text colors */}
+                                                    <Grid item xs={12} container spacing={2}>
+                                                        {/* Your offer - Move label below card, make caps */}
+                                                        <Grid item xs={12} sm={6} sx={{ textAlign: 'center' }}> {/* Remove position: relative */}
+                                                            {trade.offered_artwork ? (
+                                                                <ArtworkCard 
+                                                                    artwork={trade.offered_artwork} 
+                                                                    isBlurred={false} 
+                                                                />
+                                                            ) : (
+                                                                <Typography sx={{ color: 'text.primary', height: '450px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Artwork details unavailable</Typography> // Placeholder with height
+                                                            )}
+                                                            <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic', display: 'block', mt: 0.5, textTransform: 'uppercase' }}>You offer</Typography> {/* Label below, italicized, CAPS */}
                                                         </Grid>
+                                                        {/* Their artwork - Move label below card, make caps */}
+                                                        <Grid item xs={12} sm={6} sx={{ textAlign: 'center' }}> {/* Center align content */}
+                                                            {trade.requested_artwork ? (
+                                                                <ArtworkCard 
+                                                                    artwork={trade.requested_artwork} 
+                                                                    isBlurred={false} 
+                                                                />
+                                                            ) : (
+                                                                <Typography sx={{ color: 'text.primary', height: '450px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Artwork details unavailable</Typography> // Placeholder with height
+                                                            )}
+                                                            <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic', display: 'block', mt: 0.5, textTransform: 'uppercase' }}>You want</Typography> {/* Label below, italicized, CAPS */}
+                                                        </Grid>
+                                                        
                                                     </Grid>
-                                                )}
-                                            </Grid>
-                                        </Box>
-                                    ))}
+                                                </Grid>
+                                            </Box>
+                                            );
+                                        })}
                                 </>
                             )}
                         </div>
                     )}
                 </div>
             )}
-            
+
             {/* Patron's private message */}
             {isPatron && !isOwnProfile && (
                 <section className="profile-artworks-private">
@@ -1122,7 +1192,6 @@ function ProfilePage() {
                 </section>
             )}
 
-            {/* Trade Offer Dialog */}
             <TradeOfferDialog
                 open={tradeDialogOpen}
                 onClose={() => setTradeDialogOpen(false)}
@@ -1175,8 +1244,7 @@ function ProfilePage() {
                      <Button onClick={closeFollowModal}>Close</Button>
                  </DialogActions>
              </Dialog>
-
-        </div> // End profile-page-container
+        </Container>
     );
 }
 

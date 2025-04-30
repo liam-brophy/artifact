@@ -11,9 +11,9 @@ function UserPacks() {
   const [isOpening, setIsOpening] = useState(false); // Tracks if a pack open request is in progress
   const [nextPackInfo, setNextPackInfo] = useState(null); // Tracks next daily pack availability
   const [packTypeBeingOpened, setPackTypeBeingOpened] = useState(null); // Track which pack type is being opened
-  const [isClaimingPack, setIsClaimingPack] = useState(false); // Tracks if a claim daily pack request is in progress
-  const [showDailyPackTimer, setShowDailyPackTimer] = useState(false); // Controls visibility of daily pack timer
   const [timeRemaining, setTimeRemaining] = useState(null); // Tracks countdown for next daily pack
+  const [dailyPackAvailable, setDailyPackAvailable] = useState(false); // Track if a daily pack is in the user's inventory
+  const [showTimer, setShowTimer] = useState(false); // Control timer visibility based on logic
   
   // New state variables for animation
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
@@ -31,6 +31,10 @@ function UserPacks() {
       try {
         const response = await apiService.get('/user-packs');
         if (response.data && Array.isArray(response.data)) {
+           // Check if any fetched pack is a daily pack
+           const hasDaily = response.data.some(pack => pack.name?.toLowerCase().includes('daily'));
+           setDailyPackAvailable(hasDaily);
+           // Update the main packs state
            setPacks(response.data);
         } else {
            console.error("Unexpected response format:", response.data);
@@ -51,11 +55,6 @@ function UserPacks() {
       try {
         const response = await apiService.get('/user-packs/next-availability');
         setNextPackInfo(response.data);
-        
-        // Only show the timer if user has claimed a pack before (has next_available_at)
-        if (response.data && response.data.next_available_at) {
-          setShowDailyPackTimer(true);
-        }
       } catch (err) {
         console.error("Error fetching next pack info:", err);
         // Don't set main error - this is secondary information
@@ -66,11 +65,20 @@ function UserPacks() {
     fetchNextPackInfo();
   }, []);
   
+  // Determine if the timer should be shown
+  useEffect(() => {
+    const shouldShow = nextPackInfo?.next_available_at && 
+                       new Date(nextPackInfo.next_available_at) > new Date() && 
+                       !dailyPackAvailable; // Only show timer if no daily pack is currently held
+    setShowTimer(shouldShow);
+  }, [nextPackInfo, dailyPackAvailable]);
+
   // useEffect for the real-time timer countdown
   useEffect(() => {
-    // Only set up the timer if we're showing the daily pack timer and have next pack time
-    if (showDailyPackTimer && nextPackInfo?.next_available_at) {
-      const timer = setInterval(() => {
+    let timer;
+    if (showTimer && nextPackInfo?.next_available_at) {
+      timer = setInterval(() => { // Assign to timer variable
+        // console.log("Timer tick"); // Debug log
         const nextTime = new Date(nextPackInfo.next_available_at);
         const now = new Date();
         const diffMs = nextTime - now;
@@ -78,12 +86,24 @@ function UserPacks() {
         if (diffMs <= 0) {
           // Time is up, clear interval and refresh pack info
           clearInterval(timer);
-          apiService.get('/user-packs/next-availability')
+          setShowTimer(false); // Hide timer
+          // Fetch both packs and availability, as a pack might now be available
+          // Fetch packs first to update dailyPackAvailable state
+          apiService.get('/user-packs')
+            .then(packResponse => {
+              if (packResponse.data && Array.isArray(packResponse.data)) {
+                const hasDaily = packResponse.data.some(pack => pack.name?.toLowerCase().includes('daily'));
+                setDailyPackAvailable(hasDaily);
+                setPacks(packResponse.data);
+              }
+              // Then fetch next availability
+              return apiService.get('/user-packs/next-availability');
+            })
             .then(response => {
               setNextPackInfo(response.data);
             })
             .catch(err => {
-              console.error("Error refreshing next pack info:", err);
+              console.error("Error refreshing pack info after timer:", err);
             });
         } else {
           // Update remaining time
@@ -95,9 +115,14 @@ function UserPacks() {
         }
       }, 1000);
       
-      return () => clearInterval(timer);
-    }
-  }, [showDailyPackTimer, nextPackInfo]);
+      // Cleanup function
+      return () => {
+        if (timer) {
+          clearInterval(timer);
+        }
+      };
+    } 
+  }, [showTimer, nextPackInfo]); // Dependencies
 
   // Reset animation states when opening a new pack
   useEffect(() => {
@@ -213,20 +238,20 @@ function UserPacks() {
       });
 
       // Update the packs list in the state to remove the opened pack
-      setPacks(prevPacks => prevPacks.filter(pack => pack.user_pack_id !== packId));
+      const remainingPacks = packs.filter(pack => pack.user_pack_id !== packId);
+      setPacks(remainingPacks);
       
-      // If we opened a daily pack, refresh the next pack availability info
-      if (packName.toLowerCase().includes('daily')) {
-        try {
-          const nextPackResponse = await apiService.get('/user-packs/next-availability');
-          setNextPackInfo(nextPackResponse.data);
-          
-          // Make sure the timer is showing
-          setShowDailyPackTimer(true);
-        } catch (err) {
+      // Check if the opened pack was the last daily pack
+      const stillHasDaily = remainingPacks.some(pack => pack.name?.toLowerCase().includes('daily'));
+      setDailyPackAvailable(stillHasDaily);
+
+      // Always refresh next pack availability info after opening any pack
+      try {
+        const nextPackResponse = await apiService.get('/user-packs/next-availability');
+        setNextPackInfo(nextPackResponse.data);
+      } catch (err) {
           console.error("Error refreshing next pack info:", err);
         }
-      }
 
     } catch (err) {
       // Handle errors from the API call
@@ -238,39 +263,6 @@ function UserPacks() {
     } finally {
       setIsOpening(false);
       setPackTypeBeingOpened(null);
-    }
-  };
-
-  // Handle claiming a daily pack
-  const handleClaimDailyPack = async () => {
-    setIsClaimingPack(true);
-    setError(null);
-    
-    try {
-      const response = await apiService.post('/user-packs/claim-daily');
-      // console.log("Daily pack claimed:", response.data);
-      
-      // If successful, add the new pack to the packs list
-      if (response.data.user_pack_id) {
-        // Fetch the pack details to get the name and description
-        const packsResponse = await apiService.get('/user-packs');
-        if (packsResponse.data && Array.isArray(packsResponse.data)) {
-          setPacks(packsResponse.data);
-        }
-        
-        // Also refresh next pack availability info
-        const nextPackResponse = await apiService.get('/user-packs/next-availability');
-        setNextPackInfo(nextPackResponse.data);
-        
-        // Show the daily pack timer after claiming a pack
-        setShowDailyPackTimer(true);
-      }
-    } catch (err) {
-      console.error("Error claiming daily pack:", err);
-      const message = err.response?.data?.error || err.message || "Failed to claim daily pack.";
-      setError(message);
-    } finally {
-      setIsClaimingPack(false);
     }
   };
 
@@ -422,16 +414,16 @@ function UserPacks() {
       )}
 
       {/* Daily Pack Availability Information */}
-      {showDailyPackTimer && nextPackInfo && (
+      {nextPackInfo && ( // Show this section if we have any nextPackInfo
         <div className="daily-pack-info">
           <h3>Daily Pack</h3>
-          {nextPackInfo.has_unopened_daily_packs ? (
+          {dailyPackAvailable ? ( // Check if a daily pack is actually in the inventory
             <p>You have an unopened daily pack! Open it below.</p>
-          ) : nextPackInfo.next_available_at ? (
+          ) : showTimer ? ( // Only show timer if conditions are met (future date, no current pack)
             <p>Next daily pack: <span className="countdown">{formatCountdown()}</span></p>
-          ) : (
-            <p>Your first daily pack will arrive tomorrow!</p>
-          )}
+          ) : !nextPackInfo.next_available_at && !dailyPackAvailable ? ( // Handle case where next_available_at is null AND no pack exists (e.g., first login before first grant)
+            <p>Your first daily pack should arrive soon!</p> // Adjusted message
+          ) : null /* Optionally add a message if pack is available now but not yet fetched, though fetchPacks should handle this */}
         </div>
       )}
 
@@ -525,36 +517,13 @@ function UserPacks() {
       {!isLoading && packs.length === 0 && !error && !openedPackResult && (
         <div className="empty-state">
           <p>You have no unopened packs.</p>
-          
-          {/* Add a button to claim daily pack if available */}
-          {nextPackInfo && nextPackInfo.can_claim_daily_pack && (
-            <button 
-              className="claim-daily-pack-btn"
-              onClick={handleClaimDailyPack}
-              disabled={isClaimingPack}
-            >
-              {isClaimingPack ? 'Claiming...' : 'Claim Daily Pack'}
-            </button>
-          )}
+          {/* Removed claim button - daily packs should appear automatically */}
         </div>
       )}
 
       {/* Pack list - Now with stacked packs */}
       {!isLoading && groupedPacks.length > 0 && (
         <div>
-          {/* Daily pack claim button for users with other packs */}
-          {nextPackInfo && nextPackInfo.can_claim_daily_pack && (
-            <div className="daily-pack-claim-container">
-              <button 
-                className="claim-daily-pack-btn"
-                onClick={handleClaimDailyPack}
-                disabled={isClaimingPack}
-              >
-                {isClaimingPack ? 'Claiming...' : 'Claim Daily Pack'}
-              </button>
-            </div>
-          )}
-          
           <ul className="packs-list">
             {groupedPacks.map((packGroup) => (
               <li key={packGroup.name} className="pack-list-item">

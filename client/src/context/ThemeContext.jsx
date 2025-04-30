@@ -19,6 +19,7 @@ const getMuiTheme = (mode, userAccentColor) => {
   // Use the user's color if available, otherwise use defaults
   const accentColor = userAccentColor || (mode === 'light' ? DEFAULT_LIGHT_ACCENT : DEFAULT_DARK_ACCENT);
   
+  // IMPORTANT: For trade status colors, Accepted must be teal green (#10B981) and Rejected must be red (#EF4444)
   return createTheme({
     palette: {
       mode,
@@ -26,11 +27,17 @@ const getMuiTheme = (mode, userAccentColor) => {
         ? {
             // Light mode colors - white with user's accent or default red
             primary: {
-              main: accentColor,
+              main: '#6B7280', // Blue-gray for pending status
             },
             secondary: {
               main: accentColor,
               light: accentColor,
+            },
+            success: {
+              main: '#10B981', // Teal green for accepted status
+            },
+            error: {
+              main: '#EF4444', // Vibrant red for rejected status
             },
             background: {
               default: '#FFFFFF', // White background
@@ -44,11 +51,17 @@ const getMuiTheme = (mode, userAccentColor) => {
         : {
             // Dark mode colors - black with user's accent or default teal
             primary: {
-              main: accentColor,
+              main: '#6B7280', // Blue-gray for pending status
             },
             secondary: {
               main: accentColor,
               light: accentColor,
+            },
+            success: {
+              main: '#10B981', // Teal green for accepted status
+            },
+            error: {
+              main: '#EF4444', // Vibrant red for rejected status
             },
             background: {
               default: '#000000', // Black background
@@ -74,11 +87,88 @@ const getMuiTheme = (mode, userAccentColor) => {
       },
       MuiButton: {
         styleOverrides: {
+          // Add overrides for all button variants
+          root: {
+            textTransform: 'none', // Remove uppercase transformation
+          },
           containedPrimary: {
             color: '#FFFFFF',
+            backgroundColor: '#6B7280', // Blue-gray for Pending
+            '&:hover': {
+              backgroundColor: '#4B5563', // Darker blue-gray on hover
+            },
+          },
+          // Fixed: Applied teal to success and red to error
+          containedSuccess: {
+            color: '#FFFFFF',
+            backgroundColor: '#10B981', // Teal for Accepted
+            '&:hover': {
+              backgroundColor: '#059669', // Darker teal on hover
+            },
+          },
+          containedError: {
+            color: '#FFFFFF',
+            backgroundColor: '#EF4444', // Red for Rejected
+            '&:hover': {
+              backgroundColor: '#DC2626', // Darker red on hover
+            },
+          },
+          outlinedPrimary: {
+            color: '#6B7280', // Blue-gray for Pending
+            borderColor: '#6B7280',
+            '&:hover': {
+              borderColor: '#4B5563', // Darker blue-gray on hover
+              backgroundColor: 'rgba(107, 114, 128, 0.04)',
+            },
+          },
+          // Fixed: Applied teal to success and red to error
+          outlinedSuccess: {
+            color: '#10B981', // Teal for Accepted
+            borderColor: '#10B981',
+            '&:hover': {
+              borderColor: '#059669', // Darker teal on hover
+              backgroundColor: 'rgba(16, 185, 129, 0.04)',
+            },
+          },
+          outlinedError: {
+            color: '#EF4444', // Red for Rejected
+            borderColor: '#EF4444',
+            '&:hover': {
+              borderColor: '#DC2626', // Darker red on hover
+              backgroundColor: 'rgba(239, 68, 68, 0.04)',
+            },
           },
         },
       },
+      // Override Chip styling to ensure consistent colors
+      MuiChip: {
+        styleOverrides: {
+          colorSuccess: {
+            backgroundColor: '#10B981', // Ensure Accepted chips use teal
+            color: '#FFFFFF',
+          },
+          colorError: {
+            backgroundColor: '#EF4444', // Ensure Rejected chips use red
+            color: '#FFFFFF',
+          },
+          colorPrimary: {
+            backgroundColor: '#6B7280', // Ensure Pending chips use blue-gray
+            color: '#FFFFFF',
+          },
+          outlinedSuccess: {
+            color: '#10B981',
+            borderColor: '#10B981',
+          },
+          outlinedError: {
+            color: '#EF4444',
+            borderColor: '#EF4444',
+          },
+          outlinedPrimary: {
+            color: '#6B7280',
+            borderColor: '#6B7280',
+          }
+        }
+      }
     },
   });
 };

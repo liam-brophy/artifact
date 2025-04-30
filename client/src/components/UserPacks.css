@@ -19,24 +19,33 @@
 
 /* Daily Pack Info Styling */
 .daily-pack-info {
-  background: rgba(255, 255, 255, 0.8); /* Semi-transparent white */
-  backdrop-filter: blur(10px); /* Blur effect for glass-like appearance */
-  border: 1px solid rgba(255, 255, 255, 0.3); /* Subtle border */
-  border-radius: 8px;
+  background-color: var(--background-light);
   padding: 15px;
-  margin-bottom: 30px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  margin-bottom: 20px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  text-align: center;
 }
 
 .daily-pack-info h3 {
   margin-top: 0;
-  color: #2c5282;
-  font-family: var(--header-font);
+  margin-bottom: 10px;
+  color: var(--primary-color);
+}
+
+.daily-pack-info p {
+  margin: 0;
+  color: var(--text-secondary);
 }
 
 .countdown {
   font-weight: bold;
-  color: #4a5568;
+  color: var(--accent-color);
+  background-color: var(--background-very-light);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 5px;
+  font-family: 'Courier New', Courier, monospace; /* Monospaced for consistent width */
 }
 
 /* Pack List Styling - Updated to match ArtworkCard */
