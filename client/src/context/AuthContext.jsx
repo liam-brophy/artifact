@@ -126,13 +126,16 @@ export const AuthProvider = ({ children }) => {
     // Explicitly fetch auth status to ensure cookies are properly recognized
     try {
       console.log("AuthContext - Refreshing auth data after login");
+      // Await the fetch operation to ensure it completes before login function returns
       await fetchUserDataAndCollection(false);
       console.log("AuthContext - Auth refresh completed after login");
+      return true; // Indicate successful completion
     } catch (err) {
       console.error("AuthContext - Error refreshing auth after login:", err);
+      // Still return true since we've already set authenticated state
+      return true;
     }
-    // No navigation here since the LoginPage component handles it
-  }, [fetchUserDataAndCollection]); // Depend on the fetch function
+  }, [fetchUserDataAndCollection]); // Depend on the stable useCallback function
 
   // --- Update User Data ---
   const updateUser = useCallback((newUserData) => {
