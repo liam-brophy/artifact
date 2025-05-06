@@ -128,6 +128,7 @@ export const AuthProvider = ({ children }) => {
   // This function is called from the LoginPage component AFTER
   // a successful /api/auth/login API call. Pass the user data from the login response.
   const login = useCallback(async (userDataFromLoginResponse) => {
+    console.log("login function called with data:", userDataFromLoginResponse);
     setUser(userDataFromLoginResponse);
     setIsAuthenticated(true);
     
@@ -136,10 +137,13 @@ export const AuthProvider = ({ children }) => {
     
     // Explicitly fetch auth status to ensure cookies are properly recognized
     try {
+      console.log("Fetching user data after login...");
       // Await the fetch operation to ensure it completes before login function returns
       await fetchUserDataAndCollection(false);
+      console.log("Authentication state after login:", { user, isAuthenticated });
       return true; // Indicate successful completion
     } catch (err) {
+      console.error("Error fetching user data after login:", err);
       // Still return true since we've already set authenticated state
       return true;
     }

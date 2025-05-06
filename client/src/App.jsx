@@ -27,43 +27,26 @@ import ArtStudio from './components/ArtStudio';
 import SearchPage from './pages/SearchPage';
 import LavaLampBackground from './components/LavaLampBackground';
 
-// --- Homepage with Authentication Check ---
-// This component will render the HomePage in the correct layout based on authentication state
-function HomePageWrapper() {
-    const { isAuthenticated, isLoading, user } = useAuth();
-    
-    if (isLoading) {
-        return <LoadingScreen message="Loading..." />;
-    }
-    
-    // If the user is authenticated, they should see the HomePage in the AuthenticatedLayout
-    if (isAuthenticated && user) {
-        return (
-            <AuthenticatedLayout>
-                <HomePage />
-            </AuthenticatedLayout>
-        );
-    }
-    
-    // Otherwise render the HomePage in the PublicLayout
-    return (
-        <PublicLayout>
-            <HomePage />
-        </PublicLayout>
-    );
-}
-
 // --- Layout Component for Authenticated Users ---
-// This component renders the NavBar and the nested route content
-function AuthenticatedLayout({ children }) {
+function AuthenticatedLayout() {
+    const { isAuthenticated, isLoading, user } = useAuth();
     const { isDarkMode } = useTheme();
+
+    if (isLoading) {
+        return <LoadingScreen message="Loading Authentication..." />;
+    }
+
+    // If not authenticated after loading, redirect to login
+    if (!isAuthenticated) {
+        return <Navigate to="/login" replace />;
+    }
 
     // Render the layout for authenticated users
     return (
         <div className={`app-container ${isDarkMode ? 'dark-theme' : 'light-theme'}`}>
             <NavBar /> {/* NavBar is part of the authenticated experience */}
             <main>
-                {children || <Outlet />} {/* Renders either the direct children or the nested route */}
+                <Outlet /> {/* Renders the nested protected route component */}
             </main>
         </div>
     );
@@ -82,23 +65,17 @@ function AuthLayout() {
 }
 
 // --- Layout Component for Public Routes ---
-// This component includes the NavBar which will adapt to logged-out state
-function PublicLayout({ children }) {
+function PublicLayout() {
     const { isDarkMode } = useTheme();
     return (
         <div className={`app-container ${isDarkMode ? 'dark-theme' : 'light-theme'}`}>
             <NavBar />
             <main>
-                {children || <Outlet />} {/* Renders either the direct children or the nested route */}
+                <Outlet /> {/* Renders the nested public route component */}
             </main>
         </div>
     );
 }
-
-
-// --- Protected Route Logic Component (Optional - can be handled by AuthenticatedLayout) ---
-// If needed for finer control, but AuthenticatedLayout already does this.
-// function ProtectedRoute({ children }) { ... } // Keep if needed elsewhere
 
 // --- Artist Only Route Logic Component ---
 function ArtistOnlyRoute({ children }) {
@@ -120,7 +97,6 @@ function ArtistOnlyRoute({ children }) {
 
      return children;
 }
-
 
 // --- Main App Structure ---
 function App() {
@@ -155,14 +131,11 @@ function App() {
                     <Route path="/register" element={<RegisterPage />} />
                 </Route>
 
-                {/* Home Route - Direct, no layout wrapper needed */}
-                <Route path="/" element={<HomePageWrapper />} />
-
-                {/* Routes using the Public Layout (includes adaptable NavBar) */}
+                {/* Public routes (including homepage) */}
                 <Route element={<PublicLayout />}>
-                    <Route path="/search" element={<SearchPage />} /> {/* Search can be public */}
-                    <Route path="/artworks/:artworkId" element={<ArtworkDetailsPage />} /> {/* Artwork details can be public */}
-                    {/* Add other public routes here */}
+                    <Route path="/" element={<HomePage />} />
+                    <Route path="/search" element={<SearchPage />} />
+                    <Route path="/artworks/:artworkId" element={<ArtworkDetailsPage />} />
                 </Route>
                 
                 {/* Routes using the Authenticated Layout (NavBar + Auth Check) */}
@@ -187,14 +160,12 @@ function App() {
                             </ArtistOnlyRoute>
                         }
                     />
-                    {/* Add any other strictly authenticated routes here */}
                 </Route>
 
-                {/* Catch-all Not Found - Render outside specific layouts */}
-                {/* Consider if NotFoundPage should have a layout */}
+                {/* Catch-all Not Found */}
                 <Route path="*" element={<NotFoundPage />} />
             </Routes>
-            <Toaster position="top-center" /* ... options ... */ />
+            <Toaster position="top-center" />
         </>
     );
 }

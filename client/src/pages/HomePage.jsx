@@ -24,8 +24,17 @@ import UserPacks from '../components/UserPacks';
 import './HomePage.css';
 
 function HomePage() {
-  const { user } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const sliderRef = useRef(null);
+
+  // Debug logging - this will help see what auth state the component receives
+  useEffect(() => {
+    console.log("HomePage rendered with auth state:", { 
+      isAuthenticated, 
+      user: user ? `User: ${user.username || user.email}` : "No user", 
+      isLoading 
+    });
+  }, [isAuthenticated, user, isLoading]);
 
   // State for fetching artworks
   const [artworks, setArtworks] = useState([]);

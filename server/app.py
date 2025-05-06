@@ -45,8 +45,8 @@ def create_app(config_object=None):
         JWT_TOKEN_LOCATION=["headers", "cookies"], # Keep cookies if you need refresh tokens etc. via cookie
         JWT_ACCESS_TOKEN_EXPIRES=timedelta(hours=1),
         JWT_REFRESH_TOKEN_EXPIRES=timedelta(days=30),
-        JWT_COOKIE_SAMESITE="Lax", # Changed from "None" to "Lax" for development
-        JWT_COOKIE_SECURE=False, # Explicitly set to False for development
+        JWT_COOKIE_SAMESITE="None", # Changed to "None" to allow cross-origin requests
+        JWT_COOKIE_SECURE=is_production, # Use secure cookies in production
         JWT_ACCESS_COOKIE_NAME="access_token_cookie",
         JWT_REFRESH_COOKIE_NAME="refresh_token_cookie",
         JWT_ACCESS_COOKIE_PATH="/",
