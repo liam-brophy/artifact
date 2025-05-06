@@ -27,6 +27,24 @@ import ArtStudio from './components/ArtStudio';
 import SearchPage from './pages/SearchPage';
 import LavaLampBackground from './components/LavaLampBackground';
 
+// --- Homepage with Authentication Check ---
+// This component will redirect authenticated users to the authenticated version of HomePage
+function HomePageWrapper() {
+    const { isAuthenticated, isLoading } = useAuth();
+    
+    if (isLoading) {
+        return <LoadingScreen message="Loading..." />;
+    }
+    
+    // If authenticated, render HomePage in the authenticated layout
+    if (isAuthenticated) {
+        return <Navigate to="/dashboard" replace />;
+    }
+    
+    // Otherwise render the public HomePage
+    return <HomePage />;
+}
+
 // --- Layout Component for Authenticated Users ---
 // This component renders the NavBar and the nested route content (Outlet)
 // It ensures the user is authenticated before rendering its children.
@@ -144,7 +162,7 @@ function App() {
 
                 {/* Routes using the Public Layout (includes adaptable NavBar) */}
                 <Route element={<PublicLayout />}>
-                    <Route path="/" element={<HomePage />} /> {/* HomePage is now public */}
+                    <Route path="/" element={<HomePageWrapper />} /> {/* Use our wrapper to handle conditional rendering */}
                     <Route path="/search" element={<SearchPage />} /> {/* Search can be public */}
                     <Route path="/artworks/:artworkId" element={<ArtworkDetailsPage />} /> {/* Artwork details can be public */}
                     {/* Add other public routes here */}
@@ -152,6 +170,8 @@ function App() {
                 
                 {/* Routes using the Authenticated Layout (NavBar + Auth Check) */}
                 <Route element={<AuthenticatedLayout />}>
+                    {/* Dashboard is the authenticated version of the homepage */}
+                    <Route path="/dashboard" element={<HomePage isAuthenticated={true} />} />
                     {/* Profile, Settings, etc. require login */}
                     <Route path="/users/:username" element={<ProfilePage />} />
                     <Route path="/settings" element={<SettingsPage />} />
