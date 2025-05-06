@@ -97,7 +97,7 @@ function RegisterPage() {
       if (response?.data?.user) {
         const userData = response.data.user;
         await login(userData); // Update auth context
-        // Navigate to homepage
+        // Navigate to dashboard instead of homepage
         navigate('/', { replace: true });
         toast.success(`Successfully signed in as ${userData.username || userData.email}!`);
       } else {

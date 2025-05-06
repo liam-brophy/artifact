@@ -36,13 +36,9 @@ function HomePageWrapper() {
         return <LoadingScreen message="Loading..." />;
     }
     
-    // If authenticated, render HomePage in the authenticated layout
-    if (isAuthenticated) {
-        return <Navigate to="/dashboard" replace />;
-    }
-    
-    // Otherwise render the public HomePage
-    return <HomePage />;
+    // If authenticated, render HomePage with isAuthenticated flag
+    // No redirection needed - we'll render the HomePage with the right props
+    return <HomePage isAuthenticated={isAuthenticated} />;
 }
 
 // --- Layout Component for Authenticated Users ---
@@ -170,8 +166,6 @@ function App() {
                 
                 {/* Routes using the Authenticated Layout (NavBar + Auth Check) */}
                 <Route element={<AuthenticatedLayout />}>
-                    {/* Dashboard is the authenticated version of the homepage */}
-                    <Route path="/dashboard" element={<HomePage isAuthenticated={true} />} />
                     {/* Profile, Settings, etc. require login */}
                     <Route path="/users/:username" element={<ProfilePage />} />
                     <Route path="/settings" element={<SettingsPage />} />
