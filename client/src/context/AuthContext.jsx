@@ -8,12 +8,24 @@ import React, {
 } from 'react';
 import { Navigate } from 'react-router-dom';
 import apiService from '../services/apiService'; // Adjust path as needed
+import LoadingScreen from '../components/LoadingScreen'; // Import our new loading component
 
 const AuthContext = createContext(null);
 
 // --- Constants ---
 const AUTH_STATUS_ENDPOINT = '/auth/status'; 
 const LOGOUT_ENDPOINT = '/auth/logout';      
+
+// Define logout implementation at the module level to avoid potential circular dependencies
+const logoutImpl = async (skipApiCall = false, apiServiceInstance) => {
+  if (!skipApiCall) {
+    try {
+      await apiServiceInstance.post(LOGOUT_ENDPOINT);
+    } catch (error) {
+      // Silent failure is okay here - we're logging out anyway
+    }
+  }
+};
 
 export const AuthProvider = ({ children }) => {
   // --- State Initialization ---
@@ -71,12 +83,34 @@ export const AuthProvider = ({ children }) => {
     }
   }, []); // useCallback with empty dependency array makes this function stable
 
+  // Make logout function ahead of the event listener registration to avoid
+  // potential race conditions with the event listener
+  const logout = useCallback(async (skipApiCall = false) => {
+    setUser(null);
+    setIsAuthenticated(false);
+    setOwnedArtworkIds(new Set());
+    
+    await logoutImpl(skipApiCall, apiService);
+  }, []);
+
   // --- Effect to Check Authentication Status on Load ---
   useEffect(() => {
-    fetchUserDataAndCollection(true).catch(() => {
-      // Make sure loading is set to false even if there's an error
-      setIsLoading(false);
-    });
+    let isMounted = true;
+    
+    // Define a function to securely fetch auth data
+    const securelyFetchAuthData = async () => {
+      try {
+        await fetchUserDataAndCollection(true);
+      } catch (error) {
+        if (isMounted) {
+          setIsLoading(false);
+          setUser(null);
+          setIsAuthenticated(false);
+        }
+      }
+    };
+
+    securelyFetchAuthData();
 
     const handleTokenRefreshFailure = () => {
       logout(true);
@@ -85,9 +119,10 @@ export const AuthProvider = ({ children }) => {
     window.addEventListener('auth:tokenRefreshFailed', handleTokenRefreshFailure);
 
     return () => {
+      isMounted = false;
       window.removeEventListener('auth:tokenRefreshFailed', handleTokenRefreshFailure);
     };
-  }, [fetchUserDataAndCollection]); // Depend on the stable useCallback function
+  }, [fetchUserDataAndCollection, logout]); // Added logout to dependency array
 
   // --- Login Function ---
   // This function is called from the LoginPage component AFTER
@@ -119,23 +154,6 @@ export const AuthProvider = ({ children }) => {
     });
   }, []);
 
-  // --- Logout Function ---
-  const logout = useCallback(async (skipApiCall = false) => {
-    setUser(null);
-    setIsAuthenticated(false);
-    setOwnedArtworkIds(new Set());
-    // No need to remove token from localStorage since we're using HTTP-only cookies
-
-    if (!skipApiCall) {
-      try {
-        await apiService.post(LOGOUT_ENDPOINT);
-        // The server should handle clearing the cookies in the response
-      } catch (error) {
-        // Silent failure is okay here - we're logging out anyway
-      }
-    }
-  }, []);
-
   // --- Memoized Context Value ---
   const value = useMemo(() => ({
     user,
@@ -150,7 +168,7 @@ export const AuthProvider = ({ children }) => {
 
   // --- Render with loading state ---
   if (isLoading) {
-    return <div>Loading...</div>;
+    return <LoadingScreen message="Initializing Artifact..." />;
   }
 
   // --- Render the context provider ---

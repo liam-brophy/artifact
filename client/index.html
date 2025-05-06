@@ -7,9 +7,104 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <meta name="google-signin-client_id" content="271688447629-3bk4ls3aui1dl50gafak6gfb6i3j4ljp.apps.googleusercontent.com">
     <title>Artifact</title>
+    <style>
+      /* Initial loading styles that appear before any JS loads */
+      #app-shell {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        opacity: 1;
+        transition: opacity 0.5s ease-out;
+      }
+      
+      #app-shell.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      
+      .app-shell-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      .app-shell-logo {
+        width: 180px;
+        height: auto;
+        margin-bottom: 20px;
+      }
+      
+      .app-shell-spinner {
+        width: 48px;
+        height: 48px;
+        border: 5px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: #fff;
+        margin: 20px 0;
+        animation: app-shell-spin 1s infinite linear;
+      }
+      
+      .app-shell-message {
+        color: white;
+        font-size: 18px;
+        font-weight: 300;
+        letter-spacing: 1px;
+        margin-top: 10px;
+      }
+      
+      @keyframes app-shell-spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
   </head>
   <body>
+    <!-- App shell that appears immediately on page load -->
+    <div id="app-shell">
+      <div class="app-shell-container">
+        <img src="/assets/Artifact_Logo_White.png" alt="Artifact Logo" class="app-shell-logo">
+        <div class="app-shell-spinner"></div>
+        <p class="app-shell-message">Starting Artifact...</p>
+      </div>
+    </div>
+    
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    
+    <!-- Script to hide app shell when React app is ready -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // Wait until React app signals it's ready
+        window.addEventListener('react-app-ready', function() {
+          const appShell = document.getElementById('app-shell');
+          if (appShell) {
+            appShell.classList.add('hidden');
+            // Remove from DOM after transition completes
+            setTimeout(() => {
+              appShell.remove();
+            }, 500);
+          }
+        });
+        
+        // Fallback timeout in case event never fires
+        setTimeout(() => {
+          const appShell = document.getElementById('app-shell');
+          if (appShell) {
+            appShell.classList.add('hidden');
+            setTimeout(() => {
+              appShell.remove();
+            }, 500);
+          }
+        }, 5000); // 5 seconds max before hiding app shell
+      });
+    </script>
   </body>
 </html>

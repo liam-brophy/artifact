@@ -1,10 +1,10 @@
 import axios from 'axios';
-import toast from 'react-hot-toast'; // <-- Import toast
-import Cookies from 'js-cookie'; // Make sure you have run: npm install js-cookie
-import API_BASE_URL from '../config'; // Adjust the import path as necessary
+import toast from 'react-hot-toast';
+import Cookies from 'js-cookie';
+import API_BASE_URL from '../config';
 
 const apiService = axios.create({
-    baseURL: API_BASE_URL, // Use the dynamically set base URL
+    baseURL: API_BASE_URL,
     withCredentials: true,
     headers: {
         'Content-Type': 'application/json',
@@ -15,6 +15,8 @@ const apiService = axios.create({
 let isRefreshing = false;
 // Store for requests that should be retried after token refresh
 let refreshSubscribers = [];
+// Store the CSRF token
+let csrf_token = null;
 
 // Function to process queued requests after token refresh
 const processQueue = (error, token = null) => {
@@ -39,11 +41,25 @@ const refreshAuthToken = async () => {
     } catch (error) {
       return Promise.reject(error);
     }
-  };
+};
+
+// CSRF token initialization
+const initializeCsrfToken = async () => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/auth/csrf-token`, {
+      withCredentials: true
+    });
+    csrf_token = response.data.csrf_token;
+    return csrf_token;
+  } catch (error) {
+    // Don't throw - let the application continue
+    return null;
+  }
+};
 
 // 2. Request Interceptor (for CSRF)
 apiService.interceptors.request.use(
-    (config) => {
+    async (config) => {
         const methodsRequiringCsrf = ['post', 'put', 'delete', 'patch'];
         
         // Special handling for multipart/form-data (file uploads)
@@ -54,11 +70,24 @@ apiService.interceptors.request.use(
         }
         
         if (methodsRequiringCsrf.includes(config.method.toLowerCase())) {
-            // Ensure cookie/header names match your Flask-JWT-Extended config
-            const csrfToken = Cookies.get('csrf_token'); // Use Flask-WTF's cookie name
-
+            // Try to get CSRF token from cookie first
+            const csrfToken = Cookies.get('csrf_token'); 
+            
+            // If no token in cookie, use the one we stored in memory
             if (csrfToken) {
-                config.headers['X-CSRF-Token'] = csrfToken; // Ensure header name matches backend
+                config.headers['X-CSRF-Token'] = csrfToken;
+            } else if (csrf_token) {
+                config.headers['X-CSRF-Token'] = csrf_token;
+            } else {
+                // If we don't have any token, try to get one before proceeding
+                try {
+                    const newToken = await initializeCsrfToken();
+                    if (newToken) {
+                        config.headers['X-CSRF-Token'] = newToken;
+                    }
+                } catch (error) {
+                    // Silent fail
+                }
             }
         }
         return config;
@@ -88,7 +117,7 @@ apiService.interceptors.response.use(
         // Prevent infinite loops: don't retry refresh or logout endpoints
         const isAuthEndpoint = originalRequest.url?.includes('/auth/refresh') || 
                                originalRequest.url?.includes('/auth/logout');
-        
+
         // Handle token refresh when we get a 401 Unauthorized error
         // and it's not a login/refresh/logout request itself
         if (error.response?.status === 401 && 
@@ -107,10 +136,12 @@ apiService.interceptors.response.use(
                     // On successful token refresh, retry all queued requests
                     processQueue(null, refreshResponse);
                     
+                    // Get a fresh CSRF token for the retry
+                    await initializeCsrfToken();
+                    
                     // Retry the original request with new csrf token
-                    const csrfToken = Cookies.get('csrf_token');
-                    if (csrfToken) {
-                        originalRequest.headers['X-CSRF-Token'] = csrfToken;
+                    if (csrf_token) {
+                        originalRequest.headers['X-CSRF-Token'] = csrf_token;
                     }
                     
                     return apiService(originalRequest);
@@ -137,9 +168,8 @@ apiService.interceptors.response.use(
                         }
                         
                         // Update csrf token in the request
-                        const csrfToken = Cookies.get('csrf_token');
-                        if (csrfToken) {
-                            originalRequest.headers['X-CSRF-Token'] = csrfToken;
+                        if (csrf_token) {
+                            originalRequest.headers['X-CSRF-Token'] = csrf_token;
                         }
                         
                         resolve(apiService(originalRequest));
@@ -153,7 +183,7 @@ apiService.interceptors.response.use(
         if (isAuthEndpoint && error.response?.status === 401) {
             return Promise.reject(error);
         }
-        
+
         // Handle other errors (outside 2xx range)
         let errorMessage = 'An error occurred.'; // Default message
 
@@ -174,6 +204,9 @@ apiService.interceptors.response.use(
                 errorMessage = 'Resource not found.';
             } else if (status === 422 && data?.msg?.toLowerCase().includes('csrf')) {
                 errorMessage = 'Security token expired or missing. Please refresh and try again.';
+                
+                // Try to get a new CSRF token
+                initializeCsrfToken();
             }
             // Add more specific status code messages if desired
 
@@ -202,10 +235,8 @@ apiService.interceptors.response.use(
 export const initializeCsrf = async () => {
     try {
         // Make a GET request to the endpoint that sets the CSRF cookie
-        // Ensure this endpoint exists on your backend and is configured to set the cookie
-        await apiService.get('/auth/csrf-token');
+        await initializeCsrfToken();
     } catch (error) {
-        // Handle error fetching initial token (e.g., network issue)
         // This might prevent subsequent state-changing requests from working
         // Silent fail - no need to alarm users with console errors
         toast.error('Could not initialize security token. Some actions may fail.');

@@ -12,6 +12,7 @@ import { Toaster } from 'react-hot-toast';
 import { initializeCsrf } from './services/apiService';
 
 import NavBar from './components/Navbar'; // Correct casing
+import LoadingScreen from './components/LoadingScreen'; // Import our new loading component
 
 // Import Page Components
 import LoginPage from './pages/LoginPage';
@@ -34,7 +35,7 @@ function AuthenticatedLayout() {
     const { isDarkMode } = useTheme();
 
     if (isLoading) {
-        return <div className="full-page-loader">Loading Authentication...</div>;
+        return <LoadingScreen message="Loading Authentication..." />;
     }
 
     // If not authenticated after loading, redirect to login
@@ -91,7 +92,7 @@ function ArtistOnlyRoute({ children }) {
      const { isAuthenticated, isLoading, user } = useAuth();
 
      if (isLoading) {
-         return <div className="full-page-loader\">Loading User Data...</div>;
+         return <LoadingScreen message="Loading Artist Profile..." />;
      }
 
      // Artist routes are implicitly authenticated, but double-check
