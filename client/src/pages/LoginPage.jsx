@@ -154,30 +154,24 @@ function LoginPage() {
     // --- OTHER LOGIC / HANDLERS ---
     const handleFormikSubmit = async (values, { setSubmitting }) => {
         try {
-            console.log("LoginPage - Submitting login form");
             const response = await apiService.post('/auth/login', {
                 identifier: values.identifier,
                 password: values.password
             });
 
-            console.log("LoginPage - Login API response:", response.data);
-
             if (response?.data?.user) {
                 const userData = response.data.user;
-                console.log("LoginPage - Calling login function with user data");
                 await login(userData);
                 toast.success(`Welcome back, ${userData.username || userData.email}!`);
                 
                 // Make timeout more generous to ensure authentication state is fully updated
                 setTimeout(() => {
-                    console.log("LoginPage - Navigating to home page");
                     navigate('/', { replace: true });
-                }, 1000); // Increased from 500ms to 1000ms for more reliability
+                }, 1000);
             } else {
                 toast.error('Login failed: Unexpected response from server.');
             }
         } catch (err) {
-            console.error("Login Submit Error:", err);
             toast.error(err.response?.data?.message || 'Login failed. Please check your credentials.');
         } finally {
             setSubmitting(false);

@@ -31,7 +31,8 @@ const processQueue = (error, token = null) => {
 // Function to refresh the auth token
 const refreshAuthToken = async () => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, {
+      // Use GET instead of POST to avoid preflight OPTIONS request issues
+      const response = await axios.get(`${API_BASE_URL}/auth/refresh`, {
         withCredentials: true,
       });
       return response;
@@ -43,10 +44,6 @@ const refreshAuthToken = async () => {
 // 2. Request Interceptor (for CSRF)
 apiService.interceptors.request.use(
     (config) => {
-        // Debug cookies being sent with requests
-        console.log("API Request to:", config.url);
-        console.log("Cookies being sent:", document.cookie);
-        
         const methodsRequiringCsrf = ['post', 'put', 'delete', 'patch'];
         
         // Special handling for multipart/form-data (file uploads)
@@ -62,11 +59,7 @@ apiService.interceptors.request.use(
 
             if (csrfToken) {
                 config.headers['X-CSRF-Token'] = csrfToken; // Ensure header name matches backend
-            } else {
-                // Optionally handle the case where the token is missing, 
-                // though the backend should ultimately reject if required.
             }
-
         }
         return config;
     },
@@ -214,8 +207,7 @@ export const initializeCsrf = async () => {
     } catch (error) {
         // Handle error fetching initial token (e.g., network issue)
         // This might prevent subsequent state-changing requests from working
-        console.error('Failed to fetch initial CSRF token:', error); // Kept console.error
-        // Consider a more user-friendly error message or retry logic
+        // Silent fail - no need to alarm users with console errors
         toast.error('Could not initialize security token. Some actions may fail.');
     }
 };

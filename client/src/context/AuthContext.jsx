@@ -12,8 +12,8 @@ import apiService from '../services/apiService'; // Adjust path as needed
 const AuthContext = createContext(null);
 
 // --- Constants ---
-const AUTH_STATUS_ENDPOINT = '/auth/status'; // Now points to http://localhost:5000/api/auth/status
-const LOGOUT_ENDPOINT = '/auth/logout';      // Now points to http://localhost:5000/api/auth/logout
+const AUTH_STATUS_ENDPOINT = '/auth/status'; 
+const LOGOUT_ENDPOINT = '/auth/logout';      
 
 export const AuthProvider = ({ children }) => {
   // --- State Initialization ---
@@ -31,19 +31,13 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      // Debug the auth status API call
-      console.log("AuthContext - Making auth status API call to:", AUTH_STATUS_ENDPOINT);
-      
       // We're using HTTP-only cookies, so we don't need to manually retrieve or send the token
       // Just make the request and the browser will automatically include the cookies
       const response = await apiService.get(AUTH_STATUS_ENDPOINT);
       
-      console.log("AuthContext - Auth status API response:", response.data);
-      
       const fetchedUser = response?.data?.user;
 
       if (fetchedUser) {
-        console.log("AuthContext - User found in response, setting authenticated state");
         setUser(fetchedUser);
         setIsAuthenticated(true);
 
@@ -56,7 +50,6 @@ export const AuthProvider = ({ children }) => {
               .filter(Boolean) || [];
             setOwnedArtworkIds(new Set(ids));
           } catch (err) {
-            console.error("Failed to fetch collection:", err);
             // Don't stop the authentication flow due to collection fetch failure
             setOwnedArtworkIds(new Set());
           }
@@ -68,14 +61,6 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       // Don't treat 401 as an error - it's expected when not logged in
-      if (error.response && error.response.status === 401) {
-        // console.log("User not authenticated - normal state before login");
-      } else if (error.response && error.response.status === 422) {
-        console.error("Unprocessable entity: Check the request payload or headers");
-      } else {
-        console.error("Auth status check failed:", error);
-      }
-      
       setUser(null);
       setIsAuthenticated(false);
       setOwnedArtworkIds(new Set());
@@ -88,19 +73,12 @@ export const AuthProvider = ({ children }) => {
 
   // --- Effect to Check Authentication Status on Load ---
   useEffect(() => {
-    // Debug logging for auth check
-    console.log("AuthContext - Starting initial auth check");
-    
-    fetchUserDataAndCollection(true).then(result => {
-      console.log("AuthContext - Auth check completed successfully", result);
-    }).catch((error) => {
-      console.error("AuthContext - Error during initial auth check:", error);
+    fetchUserDataAndCollection(true).catch(() => {
       // Make sure loading is set to false even if there's an error
       setIsLoading(false);
     });
 
     const handleTokenRefreshFailure = () => {
-      console.log("AuthContext - Token refresh failed, logging out user");
       logout(true);
     };
 
@@ -115,8 +93,6 @@ export const AuthProvider = ({ children }) => {
   // This function is called from the LoginPage component AFTER
   // a successful /api/auth/login API call. Pass the user data from the login response.
   const login = useCallback(async (userDataFromLoginResponse) => {
-    console.log("AuthContext - Login function called with user data:", userDataFromLoginResponse);
-    
     setUser(userDataFromLoginResponse);
     setIsAuthenticated(true);
     
@@ -125,13 +101,10 @@ export const AuthProvider = ({ children }) => {
     
     // Explicitly fetch auth status to ensure cookies are properly recognized
     try {
-      console.log("AuthContext - Refreshing auth data after login");
       // Await the fetch operation to ensure it completes before login function returns
       await fetchUserDataAndCollection(false);
-      console.log("AuthContext - Auth refresh completed after login");
       return true; // Indicate successful completion
     } catch (err) {
-      console.error("AuthContext - Error refreshing auth after login:", err);
       // Still return true since we've already set authenticated state
       return true;
     }
@@ -158,7 +131,6 @@ export const AuthProvider = ({ children }) => {
         await apiService.post(LOGOUT_ENDPOINT);
         // The server should handle clearing the cookies in the response
       } catch (error) {
-        // console.log("Logout API call failed, but continuing with client-side logout");
         // Silent failure is okay here - we're logging out anyway
       }
     }

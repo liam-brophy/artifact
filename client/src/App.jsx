@@ -113,16 +113,6 @@ function App() {
     const auth = useAuth();
     const { isAuthenticated, fetchUserDataAndCollection, user } = auth;
     
-    // Debug logging to check auth state at App level
-    useEffect(() => {
-        console.log("App - Auth state:", { 
-            isAuthenticated, 
-            hasUser: !!user, 
-            user: user ? { ...user } : null,
-            fullAuthState: { ...auth }
-        });
-    }, [isAuthenticated, user, auth]);
-
     // Single-run effect to check auth status
     useEffect(() => {
         // We'll use localStorage to track if we've already attempted to refresh the auth

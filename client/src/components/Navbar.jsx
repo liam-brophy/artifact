@@ -37,11 +37,6 @@ function Navbar() {
   const [userResults, setUserResults] = useState([]);
   const [isFetching, setIsFetching] = useState(false);
 
-  // Debug log when user or auth state changes
-  useEffect(() => {
-    console.log("Navbar - Auth state updated:", { isAuthenticated, user });
-  }, [user, isAuthenticated]);
-
   // Use the imported logos
   const logoSrc = isDarkMode ? logoWhite : logoBlack;
 

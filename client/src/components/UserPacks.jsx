@@ -37,14 +37,15 @@ function UserPacks() {
            // Update the main packs state
            setPacks(response.data);
         } else {
-           console.error("Unexpected response format:", response.data);
            setPacks([]);
            setError("Received unexpected data format for packs.");
         }
       } catch (err) {
-        console.error("Error fetching unopened packs:", err);
-        const message = err.response?.data?.error || err.message || "Failed to fetch packs.";
-        setError(message);
+        // Silent fail if it's a 401 error (unauthorized) - user is likely not logged in
+        if (err.response?.status !== 401) {
+          const message = err.response?.data?.error || err.message || "Failed to fetch packs.";
+          setError(message);
+        }
         setPacks([]);
       } finally {
         setIsLoading(false);
@@ -56,8 +57,7 @@ function UserPacks() {
         const response = await apiService.get('/user-packs/next-availability');
         setNextPackInfo(response.data);
       } catch (err) {
-        console.error("Error fetching next pack info:", err);
-        // Don't set main error - this is secondary information
+        // Silent fail - don't log errors or set error state for this secondary info
       }
     };
 
@@ -77,8 +77,7 @@ function UserPacks() {
   useEffect(() => {
     let timer;
     if (showTimer && nextPackInfo?.next_available_at) {
-      timer = setInterval(() => { // Assign to timer variable
-        // console.log("Timer tick"); // Debug log
+      timer = setInterval(() => {
         const nextTime = new Date(nextPackInfo.next_available_at);
         const now = new Date();
         const diffMs = nextTime - now;
@@ -103,7 +102,7 @@ function UserPacks() {
               setNextPackInfo(response.data);
             })
             .catch(err => {
-              console.error("Error refreshing pack info after timer:", err);
+              // Silent fail for API errors after timer
             });
         } else {
           // Update remaining time
@@ -220,7 +219,6 @@ function UserPacks() {
   };
 
   const handleOpenPack = async (packId, packName) => {
-    // console.log(`Attempting to open pack with ID: ${packId}`);
     setIsOpening(true);
     setError(null);
     setOpenedPackResult(null);
@@ -230,8 +228,6 @@ function UserPacks() {
       // Make the POST request to the backend endpoint
       const response = await apiService.post(`/user-packs/${packId}/open`);
 
-      // Handle successful response (200 OK)
-      // console.log("Pack opened successfully:", response.data);
       setOpenedPackResult({
         ...response.data,
         packType: packName // Add the pack type to the result
@@ -250,12 +246,11 @@ function UserPacks() {
         const nextPackResponse = await apiService.get('/user-packs/next-availability');
         setNextPackInfo(nextPackResponse.data);
       } catch (err) {
-          console.error("Error refreshing next pack info:", err);
-        }
+        // Silent fail - no need to log errors for refreshing pack info
+      }
 
     } catch (err) {
       // Handle errors from the API call
-      console.error(`Error opening pack ${packId}:`, err);
       const message = err.response?.data?.error || err.message || "Failed to open pack.";
       setError(message);
       setOpenedPackResult(null);
@@ -314,7 +309,7 @@ function UserPacks() {
           setPacks(response.data);
         }
       } catch (err) {
-        console.error("Error refreshing packs:", err);
+        // Silent fail - no need to log error when refreshing packs
       }
     };
     
